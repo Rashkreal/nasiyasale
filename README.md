@@ -64,7 +64,7 @@ Realtime	Firebase Realtime Database
 Vault Features
 ERC-20 token locking with configurable unlock time
 Uniswap V4 LP NFT locking
-NFT rebalancing (new NFT must be worth 95%+ of old)
+NFT rebalancing (new NFT must be from the exact allowed pool and have at least 2x liquidity)
 Emergency withdrawal (unlock time + 48 hours)
 Real-time price oracle (BLT/USDC, DUR/USDC)
 Community
