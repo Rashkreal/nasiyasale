@@ -9,7 +9,7 @@ Website: nasiyasale.vercel.app
 Contracts
 Contract	Address	Network
 NasiyaSale (CreditSaleV4)	`0x7569bfE19a083172b4a02E2accc8a35Cf1f703EA`	Optimism Mainnet
-Vault (PrivateTimeLockVault)	`0x686A5AF9669b9eE62630Df985faD3Ee5fB7b464e`	Optimism Mainnet
+Vault (PrivateTimeLockVault)	`0x1B1F96f30B8F6265a299000Ab23862c35a41B4a9`	Optimism Mainnet
 Both contracts are verified on Optimism Etherscan.
 Tokens
 Token	Address	Decimals	Role
