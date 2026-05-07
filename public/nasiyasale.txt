@@ -1,0 +1,556 @@
+════════════════════════════════════════════════════════════════════
+                         NasiyaSale
+          Loyiha hujjati — Smart Kontrakt va UI
+     Versiya: 3.0 | Sana: 2026-04-07 | Tarmoq: Optimism Mainnet
+════════════════════════════════════════════════════════════════════
+
+
+1. UMUMIY MALUMOT (UZBEK LOTIN)
+══════════════════════════════════════════════════════════════════
+
+NasiyaSale — bu DUR tokenini nasiya asosida sotish va sotib olish
+uchun ishlab chiqilgan markazlashmagan platforma. Barcha savdolar
+smart kontrakt orqali amalga oshiriladi va hech qanday vositachi
+yoki boshqaruvchi talab etilmaydi.
+
+1.1. Asosiy manzillar
+─────────────────────
+NasiyaSale Kontrakt : 0x7569bfE19a083172b4a02E2accc8a35Cf1f703EA
+Vault Kontrakt      : 0x686A5AF9669b9eE62630Df985faD3Ee5fB7b464e
+Owner               : 0x0e86d8afaa0B77D732d89BD5ceC3dC9003b321dA
+Withdrawal          : 0xc87B4d564775A748595240f66d47C3a88a43baA4
+Sayt                : https://nasiyasale.vercel.app
+Tarmoq              : Optimism Mainnet (Chain ID: 10)
+
+1.2. Tokenlar
+─────────────
+Token | Manzil                                     | Dec | Vazifa
+------|--------------------------------------------|----|------------------
+DUR   | 0xf2f471dd1fBD278e54a81af7D5a22E3a38eA43Ff | 18 | Savdo
+USDC  | 0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85 |  6 | Tolov/Garov
+USDT  | 0x94b008aA00579c1307B0EF2c499aD98a8ce58e58 |  6 | Garov
+BLT   | 0xEac1b253E553E28c48535ed738dAB70204B5D28B | 18 | Garov
+WBTC  | 0x68f180fcCe6836688e9084f035309E29Bf0A2095 |  8 | Garov
+WETH  | 0x4200000000000000000000000000000000000006 | 18 | Garov
+
+
+2. TOKENOMICS
+═════════════════════════════════════════════════════════════════
+
+2.1. DUR (Durvodik)
+────────────────────
+Manzil        : 0xf2f471dd1fBD278e54a81af7D5a22E3a38eA43Ff
+Jami taklif   : 100,000,000 DUR
+Narx          : ~$0.01 USDC
+Bozor qiymati : ~$1,000,000 (jami) | ~$100,000 (muomaladagi)
+
+Taqsimot:
+  Lock qilingan (90%) : 90,000,000 DUR — Vault kontraktda qulflangan
+  Erkin muomala (10%) : 10,000,000 DUR — Likvidlik va savdo uchun
+
+2.2. BLT (Business Level Token)
+────────────────────────────────
+Manzil        : 0xEac1b253E553E28c48535ed738dAB70204B5D28B
+Jami taklif   : 100,000,000 BLT
+Narx          : ~$1.00 USDC
+Bozor qiymati : ~$100,000,000 (jami) | ~$10,000,000 (muomaladagi)
+
+Taqsimot:
+  Lock qilingan (90%) : 90,000,000 BLT — Vault kontraktda qulflangan
+  Erkin muomala (10%) : 10,000,000 BLT — Likvidlik va savdo uchun
+
+2.3. Tokenomics xulosasi
+─────────────────────────
+  * Jami bozor qiymati (DUR+BLT)    : ~$101,000,000
+  * Muomaladagi bozor qiymati        : ~$10,100,000
+  * Lock qilingan ulush              : 90% (onchain tekshirilishi mumkin)
+  * Tekinga tarqatish (airdrop)      : Yoq
+  * Narx organik osishi              : Faqat savdo orqali
+
+
+3. VAULT — TOKEN LOCK TIZIMI
+═════════════════════════════════════════════════════════════════
+
+3.1. Vault kontrakt
+────────────────────
+Manzil     : 0x686A5AF9669b9eE62630Df985faD3Ee5fB7b464e
+Owner      : 0x0e86d8afaa0B77D732d89BD5ceC3dC9003b321dA
+Withdrawal : 0xc87B4d564775A748595240f66d47C3a88a43baA4
+Tarmoq     : Optimism Mainnet
+
+3.2. Lock jadvali
+──────────────────
+Token | Miqdor         | Muddat    | Vazifa
+------|----------------|-----------|----------------------------
+DUR   | 80,000,000     | 10+ yil   | Uzoq muddatli lock
+DUR   | 10,000,000     | 3 yil     | Orta muddatli lock
+BLT   | 80,000,000     | 10+ yil   | Uzoq muddatli lock
+BLT   | 10,000,000     | 3 yil     | Orta muddatli lock
+
+Jami lock qilingan:
+  DUR : 90,000,000 (90%)
+  BLT : 90,000,000 (90%)
+
+3.3. Vault xususiyatlari
+─────────────────────────
+  * Yechilgan tokenlar Withdrawal manziliga boradi
+  * Emergency withdraw : unlock + 48 soatdan keyin
+  * NFT lock           : Uniswap V4 LP pozitsiyalari ham lock qilinadi
+  * Rebalance          : Yangi NFT bilan almashtirilishi mumkin (95% kerak)
+  * Narx oracle        : Uniswap V4 StateView orqali real-time
+  * Onchain tekshirish : nasiyasale.vercel.app/vault
+
+
+4. NASIYASALE SMART KONTRAKT (CreditSaleV4)
+═════════════════════════════════════════════════════════════════
+
+Manzil  : 0x7569bfE19a083172b4a02E2accc8a35Cf1f703EA
+Solidity: ^0.8.34
+Tarmoq  : Optimism Mainnet
+
+4.1. Elon turlari
+──────────────────
+Tur                    | Kim joylaydi          | Garov           | Funksiya
+-----------------------|-----------------------|-----------------|---------------------------
+Sotuvchi - Garovli     | Sotuvchi (DUR beradi) | Xaridor qoyadi  | postListingCollateralSell
+Xaridor - Garovli      | Xaridor (garov beradi)| Elon paytida    | postListingCollateralBuy
+Sotuvchi - Garovsiz    | Sotuvchi (DUR beradi) | Yoq (BL kerak)  | postListingNoCollateralSell
+Xaridor - Garovsiz     | Xaridor               | Yoq (BL kerak)  | postListingNoCollateralBuy
+
+4.2. Listing holatlari
+───────────────────────
+ID | Holat                     | Maonisi
+---|---------------------------|-----------------------------------------
+0  | PendingSellerCollateral   | Sotuvchi joylagan, xaridor kutilmoqda
+1  | PendingBuyerCollateral    | Xaridor joylagan, sotuvchi kutilmoqda
+2  | PendingSellerNoCollateral | Sotuvchi joylagan (garovsiz)
+3  | PendingBuyerNoCollateral  | Xaridor joylagan (garovsiz)
+4  | Approved                  | Tasdiqlangan — tolov kutilmoqda
+5  | Removed                   | Bekor qilingan
+6  | Paid                      | Tolangan
+7  | ClaimCollateral           | Garov sotuvchiga otgan
+8  | ClaimBL                   | BL nolga tushgan
+
+4.3. BL (Business Level) tizimi
+────────────────────────────────
+  * Garovli savdo tolansa       : BL += DUR miqdori / 10
+  * Garovsiz savdo tolansa      : BL += DUR miqdori
+  * Tolov qilinmasa             : BL = 0
+  * Garovsiz elon uchun         : BL >= DUR * 10 kerak
+
+4.4. Garov tizimi
+──────────────────
+  * Garov tokenlar : USDC, USDT, BLT, WBTC, WETH
+  * collateralMask : USDC=1, USDT=2, BLT=4, WBTC=8, WETH=16
+  * Snapshot narx  : Flash loan hujumlaridan himoya
+  * Tolov USDC     : Togridan-togri sotuvchiga (kontrakt emas)
+
+
+5. UI (FRONTEND)
+═════════════════════════════════════════════════════════════════
+
+Stack   : React 18 + ethers.js v6 + react-router-dom v6
+Hosting : Vercel (https://nasiyasale.vercel.app)
+Dizayn  : Dark/Light tema, mobil responsive
+
+5.1. Sahifalar
+───────────────
+Sahifa       | Manzil       | Vazifasi
+-------------|--------------|------------------------------------------
+Bosh sahifa  | /            | Statistika, onlayn foydalanuvchilar
+Elon         | /create      | Elon joylash (4 tur)
+Elonlar      | /listings    | Barcha elonlar, filtr, tasdiqlash
+Tasdiqlangan | /approved    | Tolov, garov olish, muddat
+BL Darajasi  | /bl          | Ishonch darajasini tekshirish
+Tarix        | /history     | Tranzaksiya tarixi
+Haqida       | /about       | Platforma haqida
+Vault        | /vault       | Token lock holati (ommaviy)
+Tokenomics   | /tokenomics  | DUR va BLT tokenomics
+
+5.2. Wallet ulanish
+────────────────────
+  1. MetaMask    — brauzer kengaytmasi
+  2. WalletConnect v2 — QR kod (300+ hamyon)
+  3. Read-only   — manzil bilan korish
+
+5.3. Onlayn foydalanuvchilar (Firebase)
+────────────────────────────────────────
+Firebase Realtime Database orqali real-time:
+  * Hamma   : nechta odam hozir saytda
+  * Owner   : qurilma, OS, brauzer, joylashuv, IP, provayder
+
+
+6. MUHIM ESLATMALAR
+═════════════════════════════════════════════════════════════════
+
+  * Kontrakt avtonomdir — admin yoki owner funksiyasi yoq
+  * Tolov USDC bilan — togri-togri sotuvchiga (kontrakt emas)
+  * Lock malumotlari onchain — nasiyasale.vercel.app/vault
+  * Tekinga tarqatish yoq — faqat savdo orqali
+  * Uniswap V4 oracle — real-time narx hisoblash
+
+
+════════════════════════════════════════════════════════════════════
+               UZBEK KIRIL / UZBEKCHA KIRILL
+════════════════════════════════════════════════════════════════════
+
+
+1. УМУМИЙ МАЪЛУМОТ
+══════════════════════════════════════════════════════════════════
+
+НасияСале — бу ДУР токенини насия асосида сотиш ва сотиб олиш
+учун ишлаб чиқилган марказлашмаган платформа. Барча савдолар
+смарт контракт орқали амалга оширилади ва ҳеч қандай воситачи
+ёки бошқарувчи талаб этилмайди.
+
+1.1. Асосий манзиллар
+──────────────────────
+НасияСале Контракт : 0x7569bfE19a083172b4a02E2accc8a35Cf1f703EA
+Vault Контракт     : 0x686A5AF9669b9eE62630Df985faD3Ee5fB7b464e
+Эгаси (Owner)      : 0x0e86d8afaa0B77D732d89BD5ceC3dC9003b321dA
+Withdrawal         : 0xc87B4d564775A748595240f66d47C3a88a43baA4
+Сайт               : https://nasiyasale.vercel.app
+Тармоқ             : Optimism Mainnet (Chain ID: 10)
+
+1.2. Токенлар
+──────────────
+Токен | Манзил                                     | Dec | Вазифа
+------|--------------------------------------------|----|------------------
+DUR   | 0xf2f471dd1fBD278e54a81af7D5a22E3a38eA43Ff | 18 | Савдо
+USDC  | 0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85 |  6 | Тулов/Гаров
+USDT  | 0x94b008aA00579c1307B0EF2c499aD98a8ce58e58 |  6 | Гаров
+BLT   | 0xEac1b253E553E28c48535ed738dAB70204B5D28B | 18 | Гаров
+WBTC  | 0x68f180fcCe6836688e9084f035309E29Bf0A2095 |  8 | Гаров
+WETH  | 0x4200000000000000000000000000000000000006 | 18 | Гаров
+
+
+2. ТОКЕНОМИКА
+══════════════════════════════════════════════════════════════════
+
+2.1. DUR (Durvodik)
+────────────────────
+Жами таклиф   : 100,000,000 DUR
+Нарх          : ~$0.01 USDC
+Бозор қиймати : ~$1,000,000 (жами) | ~$100,000 (муомаладаги)
+
+Тақсимот:
+  Lock қилинган (90%) : 90,000,000 DUR — Vault контрактда қулфланган
+  Эркин муомала (10%) : 10,000,000 DUR — Ликвидлик ва савдо учун
+
+2.2. BLT (Business Level Token)
+────────────────────────────────
+Жами таклиф   : 100,000,000 BLT
+Нарх          : ~$1.00 USDC
+Бозор қиймати : ~$100,000,000 (жами) | ~$10,000,000 (муомаладаги)
+
+Тақсимот:
+  Lock қилинган (90%) : 90,000,000 BLT — Vault контрактда қулфланган
+  Эркин муомала (10%) : 10,000,000 BLT — Ликвидлик ва савдо учун
+
+2.3. Токеномика хулосаси
+─────────────────────────
+  * Жами бозор қиймати (DUR+BLT)   : ~$101,000,000
+  * Муомаладаги бозор қиймати       : ~$10,100,000
+  * Lock қилинган улуш              : 90% (onchain текширилиши мумкин)
+  * Тегинга тарқатиш (airdrop)     : Йўқ
+  * Нарх органик ўсиши             : Фақат савдо орқали
+
+
+3. VAULT — ТОКЕН LOCK ТИЗИМИ
+══════════════════════════════════════════════════════════════════
+
+3.1. Lock жадвали
+──────────────────
+Токен | Миқдор         | Муддат    | Вазифа
+------|----------------|-----------|----------------------------
+DUR   | 80,000,000     | 10+ йил   | Узоқ муддатли lock
+DUR   | 10,000,000     | 3 йил     | Ўрта муддатли lock
+BLT   | 80,000,000     | 10+ йил   | Узоқ муддатли lock
+BLT   | 10,000,000     | 3 йил     | Ўрта муддатли lock
+
+Жами lock қилинган:
+  DUR : 90,000,000 (90%)
+  BLT : 90,000,000 (90%)
+
+3.2. Vault хусусиятлари
+────────────────────────
+  * Ечилган токенлар Withdrawal манзилига боради
+  * Emergency withdraw : unlock + 48 соатдан кейин
+  * Онchain текшириш  : nasiyasale.vercel.app/vault
+
+
+4. НАСИЯСАЛЕ СМАРТ КОНТРАКТ
+══════════════════════════════════════════════════════════════════
+
+4.1. BL (Business Level) тизими
+────────────────────────────────
+  * Гаровли савдо тўланса       : BL += DUR миқдори / 10
+  * Гаровсиз савдо тўланса      : BL += DUR миқдори
+  * Тўлов қилинмаса             : BL = 0
+  * Гаровсиз эълон учун         : BL >= DUR * 10 керак
+
+4.2. Гаров тизими
+──────────────────
+  * Гаров токенлар : USDC, USDT, BLT, WBTC, WETH
+  * Snapshot нарх  : Flash loan ҳужумларидан ҳимоя
+  * Тўлов USDC     : Тўғридан-тўғри сотувчига (контракт эмас)
+
+
+5. МУҲИМ ЭСЛАТМАЛАР
+══════════════════════════════════════════════════════════════════
+
+  * Контракт автономдир — admin ёки owner функцияси йўқ
+  * Lock маълумотлари онchain — nasiyasale.vercel.app/vault
+  * Тегинга тарқатиш йўқ — фақат савдо орқали
+
+
+════════════════════════════════════════════════════════════════════
+                        RUSSIAN / РУССКИЙ
+════════════════════════════════════════════════════════════════════
+
+
+1. ОБЩАЯ ИНФОРМАЦИЯ
+══════════════════════════════════════════════════════════════════
+
+NasiyaSale — это децентрализованная платформа для продажи и
+покупки токена DUR в рассрочку. Все сделки выполняются через
+смарт-контракт без посредников и администраторов.
+
+1.1. Основные адреса
+─────────────────────
+Контракт NasiyaSale : 0x7569bfE19a083172b4a02E2accc8a35Cf1f703EA
+Vault контракт      : 0x686A5AF9669b9eE62630Df985faD3Ee5fB7b464e
+Владелец (Owner)    : 0x0e86d8afaa0B77D732d89BD5ceC3dC9003b321dA
+Withdrawal          : 0xc87B4d564775A748595240f66d47C3a88a43baA4
+Сайт                : https://nasiyasale.vercel.app
+Сеть                : Optimism Mainnet (Chain ID: 10)
+
+1.2. Токены
+────────────
+Токен | Адрес                                      | Dec | Роль
+------|--------------------------------------------|----|------------------
+DUR   | 0xf2f471dd1fBD278e54a81af7D5a22E3a38eA43Ff | 18 | Торговля
+USDC  | 0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85 |  6 | Оплата/Залог
+USDT  | 0x94b008aA00579c1307B0EF2c499aD98a8ce58e58 |  6 | Залог
+BLT   | 0xEac1b253E553E28c48535ed738dAB70204B5D28B | 18 | Залог
+WBTC  | 0x68f180fcCe6836688e9084f035309E29Bf0A2095 |  8 | Залог
+WETH  | 0x4200000000000000000000000000000000000006 | 18 | Залог
+
+
+2. ТОКЕНОМИКА
+══════════════════════════════════════════════════════════════════
+
+2.1. DUR (Durvodik)
+────────────────────
+Всего:           100,000,000 DUR
+Цена:            ~$0.01 USDC
+Капитализация:   ~$1,000,000 (общая) | ~$100,000 (в обращении)
+
+Распределение:
+  Заблокировано (90%) : 90,000,000 DUR — в Vault контракте
+  В обращении (10%)   : 10,000,000 DUR — ликвидность и торговля
+
+2.2. BLT (Business Level Token)
+────────────────────────────────
+Всего:           100,000,000 BLT
+Цена:            ~$1.00 USDC
+Капитализация:   ~$100,000,000 (общая) | ~$10,000,000 (в обращении)
+
+Распределение:
+  Заблокировано (90%) : 90,000,000 BLT — в Vault контракте
+  В обращении (10%)   : 10,000,000 BLT — ликвидность и торговля
+
+2.3. Итого
+───────────
+  * Общая капитализация (DUR+BLT)   : ~$101,000,000
+  * В обращении                      : ~$10,100,000
+  * Заблокировано                    : 90% (проверяется онchain)
+  * Нет раздачи токенов (airdrop)
+  * Цена растёт только через торговлю
+
+
+3. VAULT — БЛОКИРОВКА ТОКЕНОВ
+══════════════════════════════════════════════════════════════════
+
+3.1. График блокировки
+───────────────────────
+Токен | Количество     | Срок      | Назначение
+------|----------------|-----------|----------------------------
+DUR   | 80,000,000     | 10+ лет   | Долгосрочная блокировка
+DUR   | 10,000,000     | 3 года    | Среднесрочная блокировка
+BLT   | 80,000,000     | 10+ лет   | Долгосрочная блокировка
+BLT   | 10,000,000     | 3 года    | Среднесрочная блокировка
+
+Итого заблокировано:
+  DUR : 90,000,000 (90%)
+  BLT : 90,000,000 (90%)
+
+3.2. Особенности Vault
+───────────────────────
+  * Разблокированные токены — на адрес Withdrawal
+  * Emergency withdraw : через 48 часов после разблокировки
+  * Проверка онchain   : nasiyasale.vercel.app/vault
+
+
+4. СМАРТ-КОНТРАКТ NASIYASALE
+══════════════════════════════════════════════════════════════════
+
+4.1. Система BL (Business Level)
+──────────────────────────────────
+  * Залоговая сделка оплачена    : BL += сумма DUR / 10
+  * Беззалоговая оплачена        : BL += сумма DUR
+  * Не оплачена                  : BL = 0
+  * Беззалоговое объявление req  : BL >= DUR * 10
+
+4.2. Залоговая система
+───────────────────────
+  * Залоговые токены : USDC, USDT, BLT, WBTC, WETH
+  * Зафиксированная цена (snapshot) — защита от flash loan атак
+  * Оплата USDC — напрямую продавцу (не через контракт)
+
+
+5. ВАЖНЫЕ ЗАМЕЧАНИЯ
+══════════════════════════════════════════════════════════════════
+
+  * Контракт автономен — нет admin или owner функций
+  * 90% токенов заблокировано — проверяется онchain
+  * Нет раздачи токенов (airdrop) — только через торговлю
+  * Цена растёт органически через объём торгов
+
+
+════════════════════════════════════════════════════════════════════
+                        ENGLISH
+════════════════════════════════════════════════════════════════════
+
+
+1. GENERAL INFORMATION
+══════════════════════════════════════════════════════════════════
+
+NasiyaSale is a decentralized platform for buying and selling DUR
+tokens on credit (installment basis). All transactions are executed
+through smart contracts with no intermediaries or administrators.
+
+1.1. Main Addresses
+────────────────────
+NasiyaSale Contract : 0x7569bfE19a083172b4a02E2accc8a35Cf1f703EA
+Vault Contract      : 0x686A5AF9669b9eE62630Df985faD3Ee5fB7b464e
+Owner               : 0x0e86d8afaa0B77D732d89BD5ceC3dC9003b321dA
+Withdrawal          : 0xc87B4d564775A748595240f66d47C3a88a43baA4
+Website             : https://nasiyasale.vercel.app
+Network             : Optimism Mainnet (Chain ID: 10)
+
+1.2. Tokens
+────────────
+Token | Address                                    | Dec | Role
+------|--------------------------------------------|----|------------------
+DUR   | 0xf2f471dd1fBD278e54a81af7D5a22E3a38eA43Ff | 18 | Trading
+USDC  | 0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85 |  6 | Payment/Collateral
+USDT  | 0x94b008aA00579c1307B0EF2c499aD98a8ce58e58 |  6 | Collateral
+BLT   | 0xEac1b253E553E28c48535ed738dAB70204B5D28B | 18 | Collateral
+WBTC  | 0x68f180fcCe6836688e9084f035309E29Bf0A2095 |  8 | Collateral
+WETH  | 0x4200000000000000000000000000000000000006 | 18 | Collateral
+
+
+2. TOKENOMICS
+══════════════════════════════════════════════════════════════════
+
+2.1. DUR (Durvodik)
+────────────────────
+Address      : 0xf2f471dd1fBD278e54a81af7D5a22E3a38eA43Ff
+Total Supply : 100,000,000 DUR
+Price        : ~$0.01 USDC
+Market Cap   : ~$1,000,000 (total) | ~$100,000 (circulating)
+
+Distribution:
+  Locked (90%)       : 90,000,000 DUR — locked in Vault contract
+  Circulating (10%)  : 10,000,000 DUR — liquidity and trading
+
+2.2. BLT (Business Level Token)
+────────────────────────────────
+Address      : 0xEac1b253E553E28c48535ed738dAB70204B5D28B
+Total Supply : 100,000,000 BLT
+Price        : ~$1.00 USDC
+Market Cap   : ~$100,000,000 (total) | ~$10,000,000 (circulating)
+
+Distribution:
+  Locked (90%)       : 90,000,000 BLT — locked in Vault contract
+  Circulating (10%)  : 10,000,000 BLT — liquidity and trading
+
+2.3. Summary
+─────────────
+  * Combined Market Cap (DUR+BLT)    : ~$101,000,000
+  * Combined Circulating Market Cap  : ~$10,100,000
+  * Locked percentage                : 90% (verifiable onchain)
+  * No airdrop or free distribution
+  * Price grows organically through trading volume only
+
+
+3. VAULT — TOKEN LOCK SYSTEM
+══════════════════════════════════════════════════════════════════
+
+3.1. Lock Schedule
+───────────────────
+Token | Amount         | Duration  | Purpose
+------|----------------|-----------|----------------------------
+DUR   | 80,000,000     | 10+ years | Long-term lock
+DUR   | 10,000,000     | 3 years   | Medium-term lock
+BLT   | 80,000,000     | 10+ years | Long-term lock
+BLT   | 10,000,000     | 3 years   | Medium-term lock
+
+Total locked:
+  DUR : 90,000,000 (90%)
+  BLT : 90,000,000 (90%)
+
+3.2. Vault Features
+────────────────────
+  * Unlocked tokens go to the Withdrawal address
+  * Emergency withdraw : 48 hours after unlock time
+  * NFT lock           : Uniswap V4 LP positions supported
+  * Rebalance          : NFT replacement allowed (95%+ value required)
+  * Price oracle       : Uniswap V4 StateView real-time
+  * Onchain verify     : nasiyasale.vercel.app/vault
+
+
+4. NASIYASALE SMART CONTRACT (CreditSaleV4)
+══════════════════════════════════════════════════════════════════
+
+Address  : 0x7569bfE19a083172b4a02E2accc8a35Cf1f703EA
+Solidity : ^0.8.34
+Network  : Optimism Mainnet
+
+4.1. Listing Types
+───────────────────
+Type                   | Creator               | Collateral      | Function
+-----------------------|-----------------------|-----------------|---------------------------
+Seller - Collateral    | Seller (sends DUR)    | Buyer provides  | postListingCollateralSell
+Buyer - Collateral     | Buyer (sends collat.) | At listing time | postListingCollateralBuy
+Seller - No Collateral | Seller (sends DUR)    | None (BL req.)  | postListingNoCollateralSell
+Buyer - No Collateral  | Buyer                 | None (BL req.)  | postListingNoCollateralBuy
+
+4.2. Business Level (BL) System
+────────────────────────────────
+  * Collateral deal paid      : BL += DUR amount / 10
+  * No-collateral deal paid   : BL += DUR amount
+  * Deal not paid             : BL = 0
+  * No-collateral listing req : BL >= DUR * 10
+
+4.3. Collateral System
+───────────────────────
+  * Collateral tokens : USDC, USDT, BLT, WBTC, WETH
+  * Price snapshot    : Protection from flash loan attacks
+  * Payment in USDC   : Directly to seller (not through contract)
+
+
+5. IMPORTANT NOTES
+══════════════════════════════════════════════════════════════════
+
+  * Contract is fully autonomous — no admin or owner functions
+  * 90% of tokens are locked — verifiable onchain
+  * No airdrop or free token distribution
+  * Price grows organically through trading volume only
+  * Lock data publicly visible: nasiyasale.vercel.app/vault
+
+
+════════════════════════════════════════════════════════════════════
+     Versiya: 3.0 | 2026-04-07 | nasiyasale.vercel.app
+════════════════════════════════════════════════════════════════════
