@@ -32,14 +32,10 @@ const OP_CHAIN_PARAMS = {
     symbol: 'ETH',
     decimals: 18,
   },
-  rpcUrls: [
-    'https://optimism.publicnode.com',
-    'https://mainnet.optimism.io',
-  ],
+  rpcUrls: ['https://optimism.publicnode.com', 'https://mainnet.optimism.io'],
   blockExplorerUrls: ['https://optimistic.etherscan.io'],
 };
 
-// Mobil qurilma ekanligini aniqlash
 const isMobile = () => {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
     navigator.userAgent
@@ -60,6 +56,10 @@ export function Web3Provider({ children }) {
 
   const wcProviderRef = useRef(null);
   const disconnectingRef = useRef(false);
+
+  // Approval/request osilib qolsa boshqarish uchun
+  const actionAbortRef = useRef(false);
+  const activeToastRef = useRef(null);
 
   const isCorrectNetwork = chainId === OP_MAINNET.chainId;
 
@@ -98,7 +98,6 @@ export function Web3Provider({ children }) {
       }
       sessionKeys.forEach((key) => sessionStorage.removeItem(key));
 
-      // WalletConnect v2 ba'zan sessiyani IndexedDB ichida ham saqlaydi
       if (window.indexedDB && indexedDB.databases) {
         try {
           const dbs = await indexedDB.databases();
@@ -130,7 +129,6 @@ export function Web3Provider({ children }) {
     }
   }, []);
 
-  // Boshlangich read-only contract — wallet ulanmagan holda ham ishlaydi
   useEffect(() => {
     try {
       const roProvider = new ethers.JsonRpcProvider(READ_ONLY_RPC);
@@ -173,7 +171,6 @@ export function Web3Provider({ children }) {
     }
   }, []);
 
-  // Har qanday EIP-1193 provider uchun OP Mainnetga o'tish
   const requestSwitchToOptimism = useCallback(async (walletProvider) => {
     if (!walletProvider?.request) {
       toast.error('Wallet provider topilmadi');
@@ -191,7 +188,6 @@ export function Web3Provider({ children }) {
       const code = err?.code;
       const msg = String(err?.message || '').toLowerCase();
 
-      // 4902: walletda Optimism network qo'shilmagan
       if (
         code === 4902 ||
         msg.includes('unrecognized chain') ||
@@ -237,10 +233,6 @@ export function Web3Provider({ children }) {
     return requestSwitchToOptimism(window.ethereum);
   }, [requestSwitchToOptimism]);
 
-  // ══════════════════════════════════════════════════════════════
-  // Disconnect — WalletConnect cache/session tozalash bilan
-  // ══════════════════════════════════════════════════════════════
-
   const disconnect = useCallback(
     async (options = {}) => {
       const { reload = false, silent = false } = options;
@@ -249,7 +241,15 @@ export function Web3Provider({ children }) {
       disconnectingRef.current = true;
 
       try {
-        // MetaMask permission revoke
+        actionAbortRef.current = true;
+
+        if (activeToastRef.current) {
+          toast.dismiss(activeToastRef.current);
+          activeToastRef.current = null;
+        }
+
+        toast.dismiss();
+
         if (window.ethereum && walletType === 'metamask') {
           try {
             await window.ethereum.request({
@@ -261,25 +261,18 @@ export function Web3Provider({ children }) {
           }
         }
 
-        // WalletConnect sessiyasini haqiqiy yopish
         if (wcProviderRef.current) {
           try {
             wcProviderRef.current.removeAllListeners?.();
-          } catch (e) {
-            // ignore
-          }
+          } catch (e) {}
 
           try {
             await wcProviderRef.current.disconnect?.();
-          } catch (e) {
-            // ignore
-          }
+          } catch (e) {}
 
           try {
             await wcProviderRef.current.close?.();
-          } catch (e) {
-            // ignore
-          }
+          } catch (e) {}
 
           wcProviderRef.current = null;
         }
@@ -311,10 +304,6 @@ export function Web3Provider({ children }) {
     [walletType, clearWalletSessionStorage]
   );
 
-  // ══════════════════════════════════════════════════════════════
-  // MetaMask ulanish
-  // ══════════════════════════════════════════════════════════════
-
   const connectMetaMask = useCallback(async () => {
     if (!window.ethereum) {
       toast.error('MetaMask topilmadi!');
@@ -324,6 +313,8 @@ export function Web3Provider({ children }) {
     setConnecting(true);
 
     try {
+      actionAbortRef.current = false;
+
       const p = new ethers.BrowserProvider(window.ethereum);
 
       await p.send('eth_requestAccounts', []);
@@ -376,37 +367,26 @@ export function Web3Provider({ children }) {
     }
   }, [initContracts, fetchBalances, requestSwitchToOptimism]);
 
-  // ══════════════════════════════════════════════════════════════
-  // WalletConnect ulanish — cache/session + OP Mainnet auto request
-  // ══════════════════════════════════════════════════════════════
-
   const connectWalletConnect = useCallback(async () => {
     setConnecting(true);
 
     try {
-      // Har yangi WalletConnect urinishida eski session/cache tozalanadi.
-      // Bu telefonda boshqa account tanlash imkonini beradi.
+      actionAbortRef.current = false;
+
       await clearWalletSessionStorage();
 
-      // Agar eski provider ref qolgan bo'lsa, yopamiz
       if (wcProviderRef.current) {
         try {
           wcProviderRef.current.removeAllListeners?.();
-        } catch (e) {
-          // ignore
-        }
+        } catch (e) {}
 
         try {
           await wcProviderRef.current.disconnect?.();
-        } catch (e) {
-          // ignore stale session errors
-        }
+        } catch (e) {}
 
         try {
           await wcProviderRef.current.close?.();
-        } catch (e) {
-          // ignore
-        }
+        } catch (e) {}
 
         wcProviderRef.current = null;
       }
@@ -415,11 +395,8 @@ export function Web3Provider({ children }) {
 
       const wcProvider = await EthereumProvider.init({
         projectId: WC_PROJECT_ID,
-
-        // Optimism asosiy chain
         chains: [10],
         optionalChains: [1, 10],
-
         showQrModal: true,
 
         methods: [
@@ -468,7 +445,6 @@ export function Web3Provider({ children }) {
         },
       });
 
-      // Enable'dan oldin listenerlar
       wcProvider.on('display_uri', (uri) => {
         console.log('WC URI generated:', uri ? 'yes' : 'no');
 
@@ -519,7 +495,6 @@ export function Web3Provider({ children }) {
         const switched = await requestSwitchToOptimism(wcProvider);
 
         if (switched) {
-          // Switchdan keyin provider/signer/networkni qayta o'qiymiz
           p = new ethers.BrowserProvider(wcProvider);
           s = await p.getSigner();
           addr = await s.getAddress();
@@ -623,21 +598,15 @@ export function Web3Provider({ children }) {
       if (wcProviderRef.current) {
         try {
           wcProviderRef.current.removeAllListeners?.();
-        } catch (_) {
-          // ignore
-        }
+        } catch (_) {}
 
         try {
           await wcProviderRef.current.disconnect?.();
-        } catch (_) {
-          // ignore
-        }
+        } catch (_) {}
 
         try {
           await wcProviderRef.current.close?.();
-        } catch (_) {
-          // ignore
-        }
+        } catch (_) {}
 
         wcProviderRef.current = null;
       }
@@ -670,10 +639,6 @@ export function Web3Provider({ children }) {
     clearWalletSessionStorage,
     requestSwitchToOptimism,
   ]);
-
-  // ══════════════════════════════════════════════════════════════
-  // Manzil bilan ko'rish — read-only
-  // ══════════════════════════════════════════════════════════════
 
   const connectByAddress = useCallback(
     async (address) => {
@@ -712,7 +677,6 @@ export function Web3Provider({ children }) {
     fetchBalances(account, tokens);
   }, [account, tokens, fetchBalances]);
 
-  // MetaMask event listener
   useEffect(() => {
     if (!window.ethereum || walletType !== 'metamask') return undefined;
 
@@ -783,18 +747,24 @@ export function Web3Provider({ children }) {
     };
   }, [walletType, disconnect, initContracts, fetchBalances, requestSwitchToOptimism]);
 
-  // Sahifa yopilganda listenerlarni olib tashlash
   useEffect(() => {
     return () => {
       if (wcProviderRef.current) {
         try {
           wcProviderRef.current.removeAllListeners?.();
-        } catch (e) {
-          // ignore
-        }
+        } catch (e) {}
       }
     };
   }, []);
+
+  const withTimeout = (promise, ms, message) => {
+    return Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error(message || 'Request timeout')), ms);
+      }),
+    ]);
+  };
 
   const ensureApproval = async (tokenKey, amountRaw) => {
     const token = tokens[tokenKey];
@@ -803,21 +773,89 @@ export function Web3Provider({ children }) {
       throw new Error('Token topilmadi');
     }
 
+    if (!signer) {
+      throw new Error('Wallet signer topilmadi. Qayta ulang.');
+    }
+
     if (walletType === 'readonly') {
       throw new Error("Faqat ko'rish rejimi");
     }
 
+    if (disconnectingRef.current) {
+      throw new Error('Wallet uzilmoqda');
+    }
+
+    actionAbortRef.current = false;
+
     const allowance = await token.allowance(account, CONTRACT_ADDRESS);
 
-    if (allowance < amountRaw) {
-      const tid = toast.loading(`${tokenKey} uchun ruxsat so'ralmoqda...`);
+    if (allowance >= amountRaw) {
+      return true;
+    }
 
-      try {
-        const tx = await token.connect(signer).approve(CONTRACT_ADDRESS, amountRaw);
-        await tx.wait();
-      } finally {
-        toast.dismiss(tid);
+    const tid = toast.loading(
+      `${tokenKey} uchun ruxsat so'ralmoqda... MetaMask/Wallet ilovasini tekshiring.`
+    );
+    activeToastRef.current = tid;
+
+    try {
+      const approvePromise = token.connect(signer).approve(CONTRACT_ADDRESS, amountRaw);
+
+      const tx = await withTimeout(
+        approvePromise,
+        60000,
+        `${tokenKey} approval oynasi chiqmadi yoki wallet javob bermadi`
+      );
+
+      if (actionAbortRef.current || disconnectingRef.current) {
+        throw new Error('Approval bekor qilindi');
       }
+
+      toast.loading(`${tokenKey} approval tasdiqlandi, blockchain kutilyapti...`, {
+        id: tid,
+      });
+
+      await withTimeout(
+        tx.wait(),
+        120000,
+        `${tokenKey} approval transaction juda uzoq kutilyapti`
+      );
+
+      if (actionAbortRef.current || disconnectingRef.current) {
+        throw new Error('Approval bekor qilindi');
+      }
+
+      toast.success(`${tokenKey} ruxsat berildi`, { id: tid });
+      activeToastRef.current = null;
+      return true;
+    } catch (e) {
+      const msg = String(e?.reason || e?.message || e || '').toLowerCase();
+
+      if (
+        msg.includes('user rejected') ||
+        msg.includes('rejected') ||
+        msg.includes('denied')
+      ) {
+        toast.error(`${tokenKey} approval rad etildi`, { id: tid });
+      } else if (
+        msg.includes('approval bekor qilindi') ||
+        msg.includes('wallet uzilmoqda')
+      ) {
+        toast.dismiss(tid);
+      } else if (
+        msg.includes('approval oynasi chiqmadi') ||
+        msg.includes('wallet javob bermadi') ||
+        msg.includes('timeout')
+      ) {
+        toast.error(`${tokenKey} approval oynasi chiqmadi. WalletConnect/MetaMaskni qayta ulang.`, {
+          id: tid,
+        });
+      } else {
+        toast.error(`${tokenKey} approval xato bo‘ldi`, { id: tid });
+      }
+
+      activeToastRef.current = null;
+      throw e;
     }
   };
 
