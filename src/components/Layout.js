@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import toast from 'react-hot-toast';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useWeb3 } from '../hooks/useWeb3';
@@ -29,7 +29,7 @@ export default function Layout({ children }) {
   const [showModal, setShowModal] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const handleDisconnect = () => { disconnect(); toast(t('walletDisconnected'), { icon: '👋' }); };
+  const handleDisconnect = () => { disconnect(); toast(t('walletDisconnected'), { icon: 'рџ‘‹' }); };
 
   const navItems = [
     { to: '/', icon: LayoutDashboard, label: t('navDashboard') },
@@ -62,7 +62,7 @@ export default function Layout({ children }) {
     <div className="app-layout">
       {showModal && <WalletModal onClose={() => setShowModal(false)} />}
 
-      {/* ═══ MOBILE SLIDE MENU ═══ */}
+      {/* в•ђв•ђв•ђ MOBILE SLIDE MENU в•ђв•ђв•ђ */}
       {mobileMenuOpen && (
         <div className="mobile-overlay" onClick={() => setMobileMenuOpen(false)}>
           <div className="mobile-drawer" onClick={e => e.stopPropagation()} style={{ overflowY: 'auto' }}>
@@ -90,7 +90,7 @@ export default function Layout({ children }) {
               ))}
             </nav>
 
-            {/* Vault mini-tabs — mobil drawer da, faqat /vault va owner uchun */}
+            {/* Vault mini-tabs вЂ” mobil drawer da, faqat /vault va owner uchun */}
             {isVaultPage && isOwner && (
               <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', padding: '4px 16px 8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -149,7 +149,7 @@ export default function Layout({ children }) {
         </div>
       )}
 
-      {/* ═══ HEADER ═══ */}
+      {/* в•ђв•ђв•ђ HEADER в•ђв•ђв•ђ */}
       <header className="app-header">
         {/* Mobile: hamburger */}
         <button className="mobile-only hamburger-btn" onClick={() => setMobileMenuOpen(true)}>
@@ -182,7 +182,7 @@ export default function Layout({ children }) {
               )}
               <div className="addr-chip">
                 <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                  {walletType === 'metamask' ? '🦊' : walletType === 'walletconnect' ? '🔗' : '👁'}
+                  {walletType === 'metamask' ? 'рџ¦Љ' : walletType === 'walletconnect' ? 'рџ”—' : 'рџ‘Ѓ'}
                 </span>
                 <span className="mono" style={{ fontSize: '12px' }}>{shortAddr(account)}</span>
                 <button onClick={copyAddress} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '1px', display: 'flex' }}>
@@ -200,7 +200,7 @@ export default function Layout({ children }) {
         </div>
       </header>
 
-      {/* ═══ BODY ═══ */}
+      {/* в•ђв•ђв•ђ BODY в•ђв•ђв•ђ */}
       <div className="app-body">
         {/* Desktop sidebar */}
         <aside className="app-sidebar desktop-only">
@@ -221,7 +221,7 @@ export default function Layout({ children }) {
             ))}
           </nav>
 
-          {/* Vault mini-tabs — sidebar pastida, faqat /vault va owner uchun */}
+          {/* Vault mini-tabs вЂ” sidebar pastida, faqat /vault va owner uchun */}
           {isVaultPage && isOwner && (
             <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
               <div style={{
@@ -271,7 +271,7 @@ export default function Layout({ children }) {
         </main>
       </div>
 
-      {/* ═══ MOBILE BOTTOM NAV ═══ */}
+      {/* в•ђв•ђв•ђ MOBILE BOTTOM NAV в•ђв•ђв•ђ */}
       <nav className="bottom-nav mobile-only">
         {bottomNavItems.map(({ to, icon: Icon, label }) => (
           <NavLink key={to} to={to} end={to === '/'} className="bottom-nav-item">
@@ -291,9 +291,10 @@ export default function Layout({ children }) {
         {/* More menu */}
         <button className="bottom-nav-item" onClick={() => setMobileMenuOpen(true)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
           <Menu size={20} color="var(--text-muted)" />
-          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>···</span>
+          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>В·В·В·</span>
         </button>
       </nav>
     </div>
   );
 }
+

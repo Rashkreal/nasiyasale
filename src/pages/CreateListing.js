@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useWeb3 } from '../hooks/useWeb3';
 import { useLang } from '../hooks/useLang';
 import { maskFromTokens, COLLATERAL_TOKENS, TOKEN_COLORS, TOKEN_IDS, TOKEN_DECIMALS } from '../abi/contract';
 import { ethers } from 'ethers';
 import toast from 'react-hot-toast';
+import { saveLocalTxHistory } from '../utils/localTxHistory';
 import { PlusSquare, ShieldCheck, ShieldOff, Tag, ShoppingCart, Info, AlertCircle } from 'lucide-react';
 
 export default function CreateListing() {
@@ -52,7 +53,7 @@ export default function CreateListing() {
       info: [
         { label: t('infoYouPut'), value: t('clInfoDURFromWallet') },
         { label: t('infoBuyerPut'), value: t('clInfoOnlyBLNeeded') },
-        { label: t('infoRequiredBL'), value: 'DUR × 10' },
+        { label: t('infoRequiredBL'), value: 'DUR Г— 10' },
         { label: t('infoBuyerPaid'), value: t('clInfoBuyerPaidNoColl') },
         { label: t('infoBuyerNotPaid'), value: t('clInfoBuyerNotPaidNoColl') },
         { label: t('infoRisk'), value: t('clInfoRiskHigh') },
@@ -63,7 +64,7 @@ export default function CreateListing() {
       title: t('lt4Title'), desc: t('lt4Desc'), fn: 'postListingNoCollateralBuy',
       info: [
         { label: t('infoYouPut'), value: t('clInfoOnlyBLNeeded') },
-        { label: t('infoRequiredBL'), value: 'DUR × 10' },
+        { label: t('infoRequiredBL'), value: 'DUR Г— 10' },
         { label: t('infoWhereBL'), value: t('clInfoBLFromPrevious') },
         { label: t('infoIfPaid'), value: t('clInfoYouPaidNoColl') },
         { label: t('infoIfNotPaid'), value: t('clInfoYouNotPaidNoColl') },
@@ -183,7 +184,17 @@ export default function CreateListing() {
         tx = await c.postListingNoCollateralBuy(durRaw, usdcRaw, period);
       }
 
-      await tx.wait();
+      const receipt = await tx.wait();
+
+      saveLocalTxHistory({
+        type: 'CreateListing',
+        label: 'CreateListing transaction',
+        listingId: typeof listing !== 'undefined' ? (listing.id ?? listing.listingId ?? null) : null,
+        txHash: receipt?.hash || tx?.hash,
+        status: 'success',
+        account: typeof account !== 'undefined' ? account : '',
+        extra: '',
+      });
       toast.success(t('createSuccess'), { id: tid });
       setForm({ durAmount: '', priceUSDC: '', paymentPeriod: '' });
       setCollateralPreview(null);
@@ -283,7 +294,7 @@ export default function CreateListing() {
                       color: isActive ? color : 'var(--text-muted)',
                       fontWeight: isActive ? 700 : 500, fontSize: '13px', transition: 'all 0.15s',
                     }}>
-                      {isActive ? '✓ ' : ''}{token}
+                      {isActive ? 'вњ“ ' : ''}{token}
                     </button>
                   );
                 })}
@@ -305,7 +316,7 @@ export default function CreateListing() {
                         }}>
                           <span style={{ fontWeight: 700, color, fontSize: '13px' }}>{tk}</span>
                           <span style={{ fontFamily: 'Space Mono, monospace', fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)' }}>
-                            {sellPreviewLoading ? '...' : amt ? amt : '—'}
+                            {sellPreviewLoading ? '...' : amt ? amt : 'вЂ”'}
                           </span>
                         </div>
                       );
@@ -338,7 +349,7 @@ export default function CreateListing() {
                       color: isActive ? color : 'var(--text-muted)',
                       fontWeight: isActive ? 700 : 500, fontSize: '13px', transition: 'all 0.15s',
                     }}>
-                      {isActive ? '✓ ' : ''}{token}
+                      {isActive ? 'вњ“ ' : ''}{token}
                       <span style={{ fontSize: '10px', marginLeft: '4px', opacity: 0.7 }}>({bal.toFixed(2)})</span>
                     </button>
                   );
@@ -353,7 +364,7 @@ export default function CreateListing() {
                 }}>
                   <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{t('clRequiredCollateral')}</span>
                   <span style={{ fontSize: '14px', fontWeight: 700, color: TOKEN_COLORS[buyChosenToken], fontFamily: 'Space Mono, monospace' }}>
-                    {previewLoading ? '...' : collateralPreview ? `${collateralPreview} ${buyChosenToken}` : '—'}
+                    {previewLoading ? '...' : collateralPreview ? `${collateralPreview} ${buyChosenToken}` : 'вЂ”'}
                   </span>
                 </div>
               )}
@@ -368,7 +379,7 @@ export default function CreateListing() {
                       color: ok ? 'var(--success)' : 'var(--danger)',
                       display: 'flex', alignItems: 'center', gap: '6px',
                     }}>
-                      {ok ? '✓' : '✗'} {t('clWalletBalance')} {bal.toFixed(4)} {buyChosenToken}
+                      {ok ? 'вњ“' : 'вњ—'} {t('clWalletBalance')} {bal.toFixed(4)} {buyChosenToken}
                       {!ok && <span> {t('clInsufficientToken')}</span>}
                     </div>
                   );
@@ -412,3 +423,5 @@ export default function CreateListing() {
     </div>
   );
 }
+
+

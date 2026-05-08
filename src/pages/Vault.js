@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+﻿import { useState, useEffect, useCallback, useRef } from "react";
 import { ethers } from "ethers";
 import toast from "react-hot-toast";
 import { useWeb3 } from "../hooks/useWeb3";
@@ -6,7 +6,7 @@ import { useLang } from "../hooks/useLang";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Lock, Unlock, AlertTriangle, RefreshCw, Search, Zap, Shield, ArrowDownToLine } from "lucide-react";
 
-// ─── Konstantalar ─────────────────────────────────────────────────────────────
+// в”Ђв”Ђв”Ђ Konstantalar в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 const VAULT_ADDRESS = "0x1B1F96f30B8F6265a299000Ab23862c35a41B4a9";
 const OWNER_ADDRESS = "0x0e86d8afaa0B77D732d89BD5ceC3dC9003b321dA";
 const RPC           = "https://optimism.drpc.org";
@@ -45,7 +45,7 @@ const VAULT_ABI = [
   "function updateDURPrice()",
   "function syncBalance(address token)",
   "function getNFTValueUSDC(uint256 tokenId) view returns (uint256)",
-  // Custom errors — revert sabablarini aniqlash uchun
+  // Custom errors вЂ” revert sabablarini aniqlash uchun
   "error NotOwner()",
   "error TokenNotAllowed()",
   "error ZeroAmount()",
@@ -69,7 +69,7 @@ const ERC20_ABI = [
   "function balanceOf(address account) view returns (uint256)",
 ];
 
-// ─── Yordamchilar ─────────────────────────────────────────────────────────────
+// в”Ђв”Ђв”Ђ Yordamchilar в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 const formatAmt = (val, dec) => {
   try {
     const n = Number(ethers.formatUnits(val, dec));
@@ -83,7 +83,7 @@ const formatAmt = (val, dec) => {
 };
 
 const formatDate = (ts) => {
-  if (!ts) return "—";
+  if (!ts) return "вЂ”";
   return new Date(Number(ts) * 1000).toLocaleDateString("uz", {
     year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
   });
@@ -92,9 +92,9 @@ const formatDate = (ts) => {
 const fmtPrice = (val) => {
   try {
     const n = Number(ethers.formatUnits(val, 6));
-    if (n === 0) return "—";
+    if (n === 0) return "вЂ”";
     return "$" + n.toFixed(6);
-  } catch { return "—"; }
+  } catch { return "вЂ”"; }
 };
 
 // +60 sekund zaxira
@@ -103,7 +103,7 @@ const daysToUnlockTs = (days) =>
 
 const POOL = { 0: "BLT/USDC", 1: "DUR/USDC" };
 
-// ─── Vault Styles ─────────────────────────────────────────────────────────────
+// в”Ђв”Ђв”Ђ Vault Styles в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 const vaultStyles = `
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
@@ -399,7 +399,7 @@ const vaultStyles = `
 
 
 
-// ─── DepositForm ──────────────────────────────────────────────────────────────
+// в”Ђв”Ђв”Ђ DepositForm в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 function DepositForm({ signer, provider, account, onSuccess }) {
   const { t } = useLang();
   const [selectedToken, setSelectedToken] = useState(TOKEN_LIST[0]);
@@ -508,7 +508,7 @@ function DepositForm({ signer, provider, account, onSuccess }) {
             if (tk) setSelectedToken(tk);
           }}>
           {TOKEN_LIST.map(tk => (
-            <option key={tk.symbol} value={tk.symbol}>{tk.symbol} — {tk.name}</option>
+            <option key={tk.symbol} value={tk.symbol}>{tk.symbol} вЂ” {tk.name}</option>
           ))}
         </select>
       </div>
@@ -566,7 +566,7 @@ function DepositForm({ signer, provider, account, onSuccess }) {
   );
 }
 
-// ─── Asosiy komponent ─────────────────────────────────────────────────────────
+// в”Ђв”Ђв”Ђ Asosiy komponent в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 export default function Vault() {
   const { account, signer, provider } = useWeb3();
   const { t } = useLang();
@@ -600,7 +600,7 @@ export default function Vault() {
     return () => clearInterval(timerRef.current);
   }, []);
 
-  // ── Ma'lumot yuklash ──────────────────────────────────────────────────────
+  // в”Ђв”Ђ Ma'lumot yuklash в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -685,7 +685,7 @@ export default function Vault() {
 
   useEffect(() => { load(); }, [load]);
 
-  // ── Write vault ───────────────────────────────────────────────────────────
+  // в”Ђв”Ђ Write vault в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
   const getWriteVault = () => {
     if (!signer) { toast.error(t("vaultWalletNotConnected")); return null; }
     return new ethers.Contract(VAULT_ADDRESS, VAULT_ABI, signer);
@@ -800,7 +800,7 @@ export default function Vault() {
     toast.success(t("vaultSyncSuccess"), { id: "sync" });
   });
 
-  // ── Countdown ─────────────────────────────────────────────────────────────
+  // в”Ђв”Ђ Countdown в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 const emergencyCountdown = (secs) => {
   const s = Number(secs);
   if (s <= 0) return t("vaultReady");
@@ -812,9 +812,9 @@ const emergencyCountdown = (secs) => {
 };
 
 const countdown = (unlockTs, status) => {
-    if (Number(status) !== 0) return "—";
+    if (Number(status) !== 0) return "вЂ”";
     const diff = Number(unlockTs) - now;
-    if (diff <= 0) return "✓ Ochilgan";
+    if (diff <= 0) return "вњ“ Ochilgan";
     const d = Math.floor(diff / 86400);
     const h = Math.floor((diff % 86400) / 3600);
     const m = Math.floor((diff % 3600) / 60);
@@ -829,7 +829,7 @@ const countdown = (unlockTs, status) => {
   const activeNFTLocks = nftLocks.filter(n => Number(n.status) === 0);
   const historyNFTLocks = nftLocks.filter(n => Number(n.status) !== 0);
 
-  // ── Filter ────────────────────────────────────────────────────────────────
+  // в”Ђв”Ђ Filter в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
   const filteredLocks = activeLocks.filter(l => {
     if (search) {
       const token = TOKEN_BY_ADDR[l.token?.toLowerCase()];
@@ -840,7 +840,7 @@ const countdown = (unlockTs, status) => {
     return true;
   });
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // в”Ђв”Ђ Render в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
   if (loading) {
     return <><style>{vaultStyles}</style><div className="loading-center"><div className="spinner" style={{width:28,height:28}} /></div></>;
   }
@@ -1263,7 +1263,7 @@ const countdown = (unlockTs, status) => {
     );
   };
 
-  // ── Boshqalar uchun oddiy view ─────────────────────────────────────────────
+  // в”Ђв”Ђ Boshqalar uchun oddiy view в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
   if (!isOwner) {
     const publicLocks = locks.filter(l => {
       const token = TOKEN_BY_ADDR[l.token?.toLowerCase()];
@@ -1382,7 +1382,7 @@ const countdown = (unlockTs, status) => {
             </div>
           )}
 
-          {/* NFT Locklar — oddiy foydalanuvchi uchun */}
+          {/* NFT Locklar вЂ” oddiy foydalanuvchi uchun */}
           <h2 style={{fontSize:16,fontWeight:700,marginBottom:16,marginTop:32}}>
             NFT (LP) locklar
             <span style={{marginLeft:8,fontSize:12,color:"var(--text-muted)",fontFamily:"var(--font-mono)",fontWeight:400}}>
@@ -1414,7 +1414,7 @@ const countdown = (unlockTs, status) => {
                       <div style={{fontFamily:"var(--font-mono)",fontSize:12,color:"var(--success)"}}>
                         {nft.usdcValue != null
                           ? "$" + (Number(nft.usdcValue) / 1e6).toFixed(2)
-                          : "—"}
+                          : "вЂ”"}
                       </div>
                     </div>
                     <div className="lock-time">
@@ -1439,7 +1439,7 @@ const countdown = (unlockTs, status) => {
     );
   }
 
-  // ── Owner view ─────────────────────────────────────────────────────────────
+  // в”Ђв”Ђ Owner view в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
   const TABS = [
     { id: "statistika", label: t("vaultTabStatistika"), icon: <Shield size={15} /> },
     { id: "locklar",    label: t("vaultTabLocklar"),    icon: <Lock size={15} /> },
@@ -1490,3 +1490,4 @@ const countdown = (unlockTs, status) => {
     </>
   );
 }
+

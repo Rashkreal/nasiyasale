@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useWeb3 } from '../hooks/useWeb3';
 import { useLang } from '../hooks/useLang';
 import { tokensFromMask, TOKEN_IDS, TOKEN_COLORS, TOKEN_DECIMALS, COLLATERAL_TOKENS } from '../abi/contract';
 import { ethers } from 'ethers';
 import toast from 'react-hot-toast';
+import { saveLocalTxHistory } from '../utils/localTxHistory';
 import { List, RefreshCw, CheckCircle, Copy, Check, XCircle, Lock, AlertCircle, Search } from 'lucide-react';
 
 function shortAddr(a) {
-  return !a || a === ethers.ZeroAddress ? '—' : a.slice(0, 6) + '...' + a.slice(-4);
+  return !a || a === ethers.ZeroAddress ? 'вЂ”' : a.slice(0, 6) + '...' + a.slice(-4);
 }
 
 function durFmt(r) {
@@ -30,7 +31,7 @@ function AddrCell({ addr }) {
   const [copied, setCopied] = useState(false);
 
   if (!addr || addr === ethers.ZeroAddress) {
-    return <span style={{ color: 'var(--text-muted)' }}>—</span>;
+    return <span style={{ color: 'var(--text-muted)' }}>вЂ”</span>;
   }
 
   const copy = () => {
@@ -73,7 +74,7 @@ function getStatusLabel(status, t) {
     4: t('statusApproved'),
     5: t('statusRemoved'),
     6: t('statusPaid'),
-    7: t('statusDefaulted') || 'Default / to‘lanmagan'
+    7: t('statusDefaulted') || 'Default / toвЂlanmagan'
   };
 
   return statusLabels[s] || `Status ${s}`;
@@ -319,7 +320,17 @@ export default function Listings() {
 
     try {
       const tx = await contract.connect(signer).approveListing(listingId, chosenTokenId);
-      await tx.wait();
+      const receipt = await tx.wait();
+
+      saveLocalTxHistory({
+        type: 'Listings',
+        label: 'Listings transaction',
+        listingId: typeof listing !== 'undefined' ? (listing.id ?? listing.listingId ?? null) : null,
+        txHash: receipt?.hash || tx?.hash,
+        status: 'success',
+        account: typeof account !== 'undefined' ? account : '',
+        extra: '',
+      });
 
       toast.success(t('listingsApproved'), { id: toastId });
 
@@ -360,7 +371,17 @@ export default function Listings() {
 
     try {
       const tx = await contract.connect(signer).cancelListing(listingId);
-      await tx.wait();
+      const receipt = await tx.wait();
+
+      saveLocalTxHistory({
+        type: 'Listings',
+        label: 'Listings transaction',
+        listingId: typeof listing !== 'undefined' ? (listing.id ?? listing.listingId ?? null) : null,
+        txHash: receipt?.hash || tx?.hash,
+        status: 'success',
+        account: typeof account !== 'undefined' ? account : '',
+        extra: '',
+      });
 
       const status = Number(listing.status);
 
@@ -515,8 +536,8 @@ export default function Listings() {
         >
           {[
             { key: 'all', label: t('filterAll') || 'Barchasi' },
-            { key: 'collateral', label: '🔒' },
-            { key: 'nocollateral', label: '🤝' }
+            { key: 'collateral', label: 'рџ”’' },
+            { key: 'nocollateral', label: 'рџ¤ќ' }
           ].map(f => (
             <button
               key={f.key}
@@ -673,8 +694,8 @@ export default function Listings() {
                         }}
                       >
                         {listing.isCollateral
-                          ? `🔒 ${t('listingsCollateral')}`
-                          : `🤝 ${t('listingsNoCollateral')}`}
+                          ? `рџ”’ ${t('listingsCollateral')}`
+                          : `рџ¤ќ ${t('listingsNoCollateral')}`}
                       </span>
 
                       <span className="badge badge-warning">
@@ -834,7 +855,7 @@ export default function Listings() {
                                     fontWeight: 600
                                   }}
                                 >
-                                  {isLoading ? '...' : amt ? amt : '—'}
+                                  {isLoading ? '...' : amt ? amt : 'вЂ”'}
                                 </span>
 
                                 <PriceDiffBadge
@@ -858,7 +879,7 @@ export default function Listings() {
                           }}
                         >
                           <AlertCircle size={10} />
-                          Narxlar e'lon berilgan vaqtda lock qilingan — hozirgi bozor narxidan farq qilishi mumkin
+                          Narxlar e'lon berilgan vaqtda lock qilingan вЂ” hozirgi bozor narxidan farq qilishi mumkin
                         </div>
                       </div>
                     )}
@@ -982,7 +1003,7 @@ export default function Listings() {
                                       opacity: 0.8
                                     }}
                                   >
-                                    {enough ? '✓ ' : notEnough ? '✗ ' : ''}
+                                    {enough ? 'вњ“ ' : notEnough ? 'вњ— ' : ''}
                                     {amt}
                                   </span>
                                 )}
@@ -1035,7 +1056,7 @@ export default function Listings() {
                           maxWidth: '150px'
                         }}
                       >
-                        ✓ Garov contractda saqlangan. Faqat DUR approve kerak.
+                        вњ“ Garov contractda saqlangan. Faqat DUR approve kerak.
                       </div>
                     )}
 
@@ -1096,3 +1117,4 @@ export default function Listings() {
     </div>
   );
 }
+
