@@ -21,6 +21,24 @@ const WC_PROJECT_ID = '931c40a15bee2387d84ff99b93520df7';
 // Read-only provider — wallet ulanmagan holda ham ishlaydi
 const READ_ONLY_RPC = 'https://optimism.publicnode.com';
 
+// Optimism Mainnet params
+const OP_CHAIN_HEX = '0xA';
+
+const OP_CHAIN_PARAMS = {
+  chainId: OP_CHAIN_HEX,
+  chainName: 'Optimism',
+  nativeCurrency: {
+    name: 'Ether',
+    symbol: 'ETH',
+    decimals: 18,
+  },
+  rpcUrls: [
+    'https://optimism.publicnode.com',
+    'https://mainnet.optimism.io',
+  ],
+  blockExplorerUrls: ['https://optimistic.etherscan.io'],
+};
+
 // Mobil qurilma ekanligini aniqlash
 const isMobile = () => {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
@@ -45,7 +63,7 @@ export function Web3Provider({ children }) {
 
   const isCorrectNetwork = chainId === OP_MAINNET.chainId;
 
-  const clearWalletSessionStorage = useCallback(() => {
+  const clearWalletSessionStorage = useCallback(async () => {
     try {
       const shouldRemove = (key) => {
         const k = String(key || '').toLowerCase();
@@ -60,7 +78,9 @@ export function Web3Provider({ children }) {
           k.includes('recentwallet') ||
           k.includes('connectedwallet') ||
           k.includes('wcm') ||
-          k.includes('walletlink')
+          k.includes('walletlink') ||
+          k.includes('@walletconnect') ||
+          k.includes('wc_')
         );
       };
 
@@ -77,6 +97,29 @@ export function Web3Provider({ children }) {
         if (shouldRemove(key)) sessionKeys.push(key);
       }
       sessionKeys.forEach((key) => sessionStorage.removeItem(key));
+
+      // WalletConnect v2 ba'zan sessiyani IndexedDB ichida ham saqlaydi
+      if (window.indexedDB && indexedDB.databases) {
+        try {
+          const dbs = await indexedDB.databases();
+
+          await Promise.all(
+            dbs
+              .filter((db) => shouldRemove(db.name))
+              .map(
+                (db) =>
+                  new Promise((resolve) => {
+                    const req = indexedDB.deleteDatabase(db.name);
+                    req.onsuccess = () => resolve(true);
+                    req.onerror = () => resolve(false);
+                    req.onblocked = () => resolve(false);
+                  })
+              )
+          );
+        } catch (e) {
+          console.warn('IndexedDB cleanup failed:', e);
+        }
+      }
 
       console.log('Wallet session storage cleared:', {
         local: localKeys,
@@ -130,35 +173,69 @@ export function Web3Provider({ children }) {
     }
   }, []);
 
-  const switchToOptimism = useCallback(async () => {
-    if (!window.ethereum) return;
+  // Har qanday EIP-1193 provider uchun OP Mainnetga o'tish
+  const requestSwitchToOptimism = useCallback(async (walletProvider) => {
+    if (!walletProvider?.request) {
+      toast.error('Wallet provider topilmadi');
+      return false;
+    }
 
     try {
-      await window.ethereum.request({
+      await walletProvider.request({
         method: 'wallet_switchEthereumChain',
-        params: [{ chainId: '0xA' }],
+        params: [{ chainId: OP_CHAIN_HEX }],
       });
+
+      return true;
     } catch (err) {
-      if (err.code === 4902) {
-        await window.ethereum.request({
-          method: 'wallet_addEthereumChain',
-          params: [
-            {
-              chainId: '0xA',
-              chainName: 'Optimism',
-              nativeCurrency: {
-                name: 'ETH',
-                symbol: 'ETH',
-                decimals: 18,
-              },
-              rpcUrls: ['https://mainnet.optimism.io'],
-              blockExplorerUrls: ['https://optimistic.etherscan.io'],
-            },
-          ],
-        });
+      const code = err?.code;
+      const msg = String(err?.message || '').toLowerCase();
+
+      // 4902: walletda Optimism network qo'shilmagan
+      if (
+        code === 4902 ||
+        msg.includes('unrecognized chain') ||
+        msg.includes('not added') ||
+        msg.includes('unknown chain')
+      ) {
+        try {
+          await walletProvider.request({
+            method: 'wallet_addEthereumChain',
+            params: [OP_CHAIN_PARAMS],
+          });
+
+          await walletProvider.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: OP_CHAIN_HEX }],
+          });
+
+          return true;
+        } catch (addErr) {
+          console.error('add/switch Optimism error:', addErr);
+          toast.error('Optimism Mainnet qo‘shish yoki ulash rad etildi');
+          return false;
+        }
       }
+
+      if (code === 4001 || msg.includes('rejected') || msg.includes('denied')) {
+        toast.error('Optimism Mainnetga o‘tish rad etildi');
+        return false;
+      }
+
+      console.error('switch Optimism error:', err);
+      toast.error('Optimism Mainnetga avtomatik o‘tib bo‘lmadi');
+      return false;
     }
   }, []);
+
+  const switchToOptimism = useCallback(async () => {
+    if (!window.ethereum) {
+      toast.error('MetaMask topilmadi');
+      return false;
+    }
+
+    return requestSwitchToOptimism(window.ethereum);
+  }, [requestSwitchToOptimism]);
 
   // ══════════════════════════════════════════════════════════════
   // Disconnect — WalletConnect cache/session tozalash bilan
@@ -207,7 +284,7 @@ export function Web3Provider({ children }) {
           wcProviderRef.current = null;
         }
 
-        clearWalletSessionStorage();
+        await clearWalletSessionStorage();
 
         setProvider(null);
         setSigner(null);
@@ -265,8 +342,21 @@ export function Web3Provider({ children }) {
       const { tokenContracts } = initContracts(s);
 
       if (cid !== OP_MAINNET.chainId) {
-        toast.error("Optimism tarmog'iga o'ting!");
-        await switchToOptimism();
+        const switched = await requestSwitchToOptimism(window.ethereum);
+
+        if (switched) {
+          const newNet = await p.getNetwork();
+          const newCid = Number(newNet.chainId);
+
+          setChainId(newCid);
+
+          if (newCid === OP_MAINNET.chainId) {
+            await fetchBalances(addr, tokenContracts);
+            toast.success('Optimism Mainnetga ulandi');
+          } else {
+            toast.error('Optimism Mainnetga o‘ting');
+          }
+        }
       } else {
         await fetchBalances(addr, tokenContracts);
       }
@@ -284,10 +374,10 @@ export function Web3Provider({ children }) {
     } finally {
       setConnecting(false);
     }
-  }, [initContracts, fetchBalances, switchToOptimism]);
+  }, [initContracts, fetchBalances, requestSwitchToOptimism]);
 
   // ══════════════════════════════════════════════════════════════
-  // WalletConnect ulanish — cache/session majburiy tozalash bilan
+  // WalletConnect ulanish — cache/session + OP Mainnet auto request
   // ══════════════════════════════════════════════════════════════
 
   const connectWalletConnect = useCallback(async () => {
@@ -296,7 +386,7 @@ export function Web3Provider({ children }) {
     try {
       // Har yangi WalletConnect urinishida eski session/cache tozalanadi.
       // Bu telefonda boshqa account tanlash imkonini beradi.
-      clearWalletSessionStorage();
+      await clearWalletSessionStorage();
 
       // Agar eski provider ref qolgan bo'lsa, yopamiz
       if (wcProviderRef.current) {
@@ -325,8 +415,11 @@ export function Web3Provider({ children }) {
 
       const wcProvider = await EthereumProvider.init({
         projectId: WC_PROJECT_ID,
+
+        // Optimism asosiy chain
         chains: [10],
         optionalChains: [1, 10],
+
         showQrModal: true,
 
         methods: [
@@ -408,11 +501,11 @@ export function Web3Provider({ children }) {
 
       wcProviderRef.current = wcProvider;
 
-      const p = new ethers.BrowserProvider(wcProvider);
-      const s = await p.getSigner();
-      const addr = await s.getAddress();
-      const net = await p.getNetwork();
-      const cid = Number(net.chainId);
+      let p = new ethers.BrowserProvider(wcProvider);
+      let s = await p.getSigner();
+      let addr = await s.getAddress();
+      let net = await p.getNetwork();
+      let cid = Number(net.chainId);
 
       setProvider(p);
       setSigner(s);
@@ -420,18 +513,35 @@ export function Web3Provider({ children }) {
       setChainId(cid);
       setWalletType('walletconnect');
 
-      const { tokenContracts } = initContracts(s);
+      let { tokenContracts } = initContracts(s);
 
       if (cid !== OP_MAINNET.chainId) {
-        toast.error("Optimism tarmog'iga o'ting!");
+        const switched = await requestSwitchToOptimism(wcProvider);
 
-        try {
-          await wcProvider.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: '0xA' }],
-          });
-        } catch (switchErr) {
-          console.error('WC switch chain error:', switchErr);
+        if (switched) {
+          // Switchdan keyin provider/signer/networkni qayta o'qiymiz
+          p = new ethers.BrowserProvider(wcProvider);
+          s = await p.getSigner();
+          addr = await s.getAddress();
+          net = await p.getNetwork();
+          cid = Number(net.chainId);
+
+          setProvider(p);
+          setSigner(s);
+          setAccount(addr);
+          setChainId(cid);
+
+          const next = initContracts(s);
+          tokenContracts = next.tokenContracts;
+
+          if (cid === OP_MAINNET.chainId) {
+            await fetchBalances(addr, tokenContracts);
+            toast.success('Optimism Mainnetga ulandi');
+          } else {
+            toast.error('Optimism Mainnetga o‘ting');
+          }
+        } else {
+          toast.error('Optimism Mainnetga o‘tmasdan savdo qilib bo‘lmaydi');
         }
       } else {
         await fetchBalances(addr, tokenContracts);
@@ -447,6 +557,42 @@ export function Web3Provider({ children }) {
           const newP = new ethers.BrowserProvider(wcProvider);
           const newS = await newP.getSigner();
           const newAddr = await newS.getAddress();
+          const newNet = await newP.getNetwork();
+          const newCid = Number(newNet.chainId);
+
+          setProvider(newP);
+          setSigner(newS);
+          setAccount(newAddr);
+          setChainId(newCid);
+
+          const { tokenContracts: tc } = initContracts(newS);
+
+          if (newCid !== OP_MAINNET.chainId) {
+            await requestSwitchToOptimism(wcProvider);
+          } else {
+            await fetchBalances(newAddr, tc);
+          }
+        } catch (e) {
+          console.error('WC accountsChanged error:', e);
+          disconnect({ reload: true, silent: true });
+        }
+      });
+
+      wcProvider.on('chainChanged', async (chainIdHex) => {
+        const newCid =
+          typeof chainIdHex === 'string' ? parseInt(chainIdHex, 16) : Number(chainIdHex);
+
+        setChainId(newCid);
+
+        if (newCid !== OP_MAINNET.chainId) {
+          toast.error('Optimism Mainnetga o‘ting');
+          return;
+        }
+
+        try {
+          const newP = new ethers.BrowserProvider(wcProvider);
+          const newS = await newP.getSigner();
+          const newAddr = await newS.getAddress();
 
           setProvider(newP);
           setSigner(newS);
@@ -455,19 +601,7 @@ export function Web3Provider({ children }) {
           const { tokenContracts: tc } = initContracts(newS);
           await fetchBalances(newAddr, tc);
         } catch (e) {
-          console.error('WC accountsChanged error:', e);
-          disconnect({ reload: true, silent: true });
-        }
-      });
-
-      wcProvider.on('chainChanged', (chainIdHex) => {
-        const newCid =
-          typeof chainIdHex === 'string' ? parseInt(chainIdHex, 16) : Number(chainIdHex);
-
-        setChainId(newCid);
-
-        if (newCid !== OP_MAINNET.chainId) {
-          toast.error("Optimism tarmog'iga o'ting!");
+          console.error('WC chainChanged refresh error:', e);
         }
       });
 
@@ -508,7 +642,7 @@ export function Web3Provider({ children }) {
         wcProviderRef.current = null;
       }
 
-      clearWalletSessionStorage();
+      await clearWalletSessionStorage();
 
       const msg = String(e?.message || '');
 
@@ -529,7 +663,13 @@ export function Web3Provider({ children }) {
     } finally {
       setConnecting(false);
     }
-  }, [initContracts, fetchBalances, disconnect, clearWalletSessionStorage]);
+  }, [
+    initContracts,
+    fetchBalances,
+    disconnect,
+    clearWalletSessionStorage,
+    requestSwitchToOptimism,
+  ]);
 
   // ══════════════════════════════════════════════════════════════
   // Manzil bilan ko'rish — read-only
@@ -586,6 +726,42 @@ export function Web3Provider({ children }) {
         const p = new ethers.BrowserProvider(window.ethereum);
         const s = await p.getSigner();
         const addr = await s.getAddress();
+        const net = await p.getNetwork();
+        const cid = Number(net.chainId);
+
+        setProvider(p);
+        setSigner(s);
+        setAccount(addr);
+        setChainId(cid);
+
+        const { tokenContracts } = initContracts(s);
+
+        if (cid !== OP_MAINNET.chainId) {
+          await requestSwitchToOptimism(window.ethereum);
+        } else {
+          await fetchBalances(addr, tokenContracts);
+        }
+      } catch (e) {
+        console.error('accountsChanged error:', e);
+        disconnect({ reload: true, silent: true });
+      }
+    };
+
+    const onChain = async (chainIdHex) => {
+      const cid =
+        typeof chainIdHex === 'string' ? parseInt(chainIdHex, 16) : Number(chainIdHex);
+
+      setChainId(cid);
+
+      if (cid !== OP_MAINNET.chainId) {
+        toast.error('Optimism Mainnetga o‘ting');
+        return;
+      }
+
+      try {
+        const p = new ethers.BrowserProvider(window.ethereum);
+        const s = await p.getSigner();
+        const addr = await s.getAddress();
 
         setProvider(p);
         setSigner(s);
@@ -594,12 +770,9 @@ export function Web3Provider({ children }) {
         const { tokenContracts } = initContracts(s);
         await fetchBalances(addr, tokenContracts);
       } catch (e) {
-        console.error('accountsChanged error:', e);
-        disconnect({ reload: true, silent: true });
+        console.error('chainChanged refresh error:', e);
       }
     };
-
-    const onChain = () => window.location.reload();
 
     window.ethereum.on('accountsChanged', onAccounts);
     window.ethereum.on('chainChanged', onChain);
@@ -608,7 +781,7 @@ export function Web3Provider({ children }) {
       window.ethereum.removeListener('accountsChanged', onAccounts);
       window.ethereum.removeListener('chainChanged', onChain);
     };
-  }, [walletType, disconnect, initContracts, fetchBalances]);
+  }, [walletType, disconnect, initContracts, fetchBalances, requestSwitchToOptimism]);
 
   // Sahifa yopilganda listenerlarni olib tashlash
   useEffect(() => {
