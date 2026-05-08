@@ -156,7 +156,7 @@ export default function Listings() {
   const [currentPrices, setCurrentPrices] = useState({});
 
   const fetchListings = useCallback(async () => {
-    const c = contract || readOnlyContract;
+    const c = readOnlyContract || contract;
     if (!c) return;
 
     setLoading(true);
@@ -182,7 +182,7 @@ export default function Listings() {
   }, [fetchListings]);
 
   const fetchCollateralPreview = useCallback(async (listingId, tokenKey) => {
-    const c = contract || readOnlyContract;
+    const c = readOnlyContract || contract;
     if (!c) return;
 
     setPreviewLoading(prev => ({
@@ -216,7 +216,7 @@ export default function Listings() {
   }, [contract, readOnlyContract]);
 
   useEffect(() => {
-    const c = contract || readOnlyContract;
+    const c = readOnlyContract || contract;
     if (!c) return;
 
     const TOKEN_IDS_LIST = {
@@ -1117,4 +1117,5 @@ export default function Listings() {
     </div>
   );
 }
+
 
