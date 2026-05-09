@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useWeb3 } from '../hooks/useWeb3';
 import { useLang } from '../hooks/useLang';
 import { COLLATERAL_TOKENS, TOKEN_COLORS } from '../abi/contract';
@@ -922,5 +922,6 @@ export default function Approved() {
     </div>
   );
 }
+
 
 

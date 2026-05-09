@@ -1,4 +1,4 @@
-﻿import { saveGlobalTxHistory } from './globalTxHistory';
+import { saveGlobalTxHistory } from './globalTxHistory';
 export const TX_HISTORY_KEY = 'nasiyasale_tx_history_v1';
 export const TX_HISTORY_MAX = 20;
 
@@ -70,7 +70,7 @@ export function saveLocalTxHistory(tx) {
     console.log('[NasiyaSale TxHistory] saved:', item);
 
     saveGlobalTxHistory(item).catch((e) => {
-      console.error('[NasiyaSale GlobalHistory] async save failed:', e);
+      console.warn('[NasiyaSale GlobalHistory] async save skipped:', e?.message || e);
     });
 
     return true;
@@ -101,4 +101,5 @@ export function clearLocalTxHistory() {
     return false;
   }
 }
+
 
