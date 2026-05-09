@@ -61,6 +61,13 @@ export function Web3Provider({ children }) {
   const actionAbortRef = useRef(false);
   const activeToastRef = useRef(null);
 
+  // walletType state'idan tashqari ref ham — callback'larda eng yangi qiymat uchun
+  const walletTypeRef = useRef(null);
+
+  useEffect(() => {
+    walletTypeRef.current = walletType;
+  }, [walletType]);
+
   const isCorrectNetwork = chainId === OP_MAINNET.chainId;
 
   const clearWalletSessionStorage = useCallback(async () => {
@@ -233,6 +240,113 @@ export function Web3Provider({ children }) {
     return requestSwitchToOptimism(window.ethereum);
   }, [requestSwitchToOptimism]);
 
+  // ════════════════════════════════════════════════════════════════════
+  //  ensureCorrectChain — TRANSAKSIYA YUBORISHDAN OLDIN HAR DOIM CHAQIRING
+  //
+  //  Muammo: WalletConnect mobile session'larda MetaMask/Trust ba'zan UI'da
+  //  Optimism'ni ko'rsatadi, lekin ichki provider chainId'si Ethereum
+  //  (1) bo'lib qoladi. React state'dagi `chainId` `chainChanged` event'siz
+  //  yangilanmaydi va biz transaksiyani jo'natganda wallet o'zining hozirgi
+  //  (noto'g'ri) tarmog'ida tasdiq so'raydi.
+  //
+  //  Yechim: har transaksiyadan oldin wallet'dan to'g'ridan-to'g'ri
+  //  `eth_chainId` so'rab, kerak bo'lsa avval switch qilamiz, kutamiz,
+  //  va provider/signer'ni qaytadan yaratamiz.
+  // ════════════════════════════════════════════════════════════════════
+  const ensureCorrectChain = useCallback(async () => {
+    const wt = walletTypeRef.current;
+
+    if (wt === 'readonly' || !wt) {
+      return false;
+    }
+
+    let walletProvider = null;
+
+    if (wt === 'walletconnect' && wcProviderRef.current) {
+      walletProvider = wcProviderRef.current;
+    } else if (wt === 'metamask' && window.ethereum) {
+      walletProvider = window.ethereum;
+    } else {
+      throw new Error('Wallet provider topilmadi. Qayta ulang.');
+    }
+
+    // Wallet'dan to'g'ridan-to'g'ri chainId so'rash (state cache emas)
+    let currentChainId;
+    try {
+      const currentChainHex = await walletProvider.request({ method: 'eth_chainId' });
+      currentChainId =
+        typeof currentChainHex === 'string'
+          ? parseInt(currentChainHex, 16)
+          : Number(currentChainHex);
+    } catch (e) {
+      console.error("eth_chainId so'rab bo'lmadi:", e);
+      throw new Error("Wallet bilan aloqa yo'q. Qayta ulang.");
+    }
+
+    // Allaqachon Optimism'da
+    if (currentChainId === OP_MAINNET.chainId) {
+      if (chainId !== OP_MAINNET.chainId) {
+        setChainId(OP_MAINNET.chainId);
+      }
+      return true;
+    }
+
+    // Boshqa tarmoqda — switch qilish kerak
+    const tid = toast.loading(
+      `Wallet ${currentChainId} tarmog'ida. Optimism'ga o'tkazilmoqda...`
+    );
+
+    const switched = await requestSwitchToOptimism(walletProvider);
+
+    if (!switched) {
+      toast.error("Optimism Mainnet'ga o'ting", { id: tid });
+      throw new Error("Optimism Mainnet'ga o'ting");
+    }
+
+    // Switch'dan keyin wallet'ga vaqt beramiz (ayniqsa mobile'da)
+    await new Promise((r) => setTimeout(r, 800));
+
+    // Yangi chainId'ni tasdiqlash
+    let newChainId;
+    try {
+      const newChainHex = await walletProvider.request({ method: 'eth_chainId' });
+      newChainId =
+        typeof newChainHex === 'string'
+          ? parseInt(newChainHex, 16)
+          : Number(newChainHex);
+    } catch (e) {
+      toast.error("Tarmoqni tekshirib bo'lmadi", { id: tid });
+      throw new Error("Tarmoqni tekshirib bo'lmadi");
+    }
+
+    if (newChainId !== OP_MAINNET.chainId) {
+      toast.error("Wallet hali ham Optimism'da emas. Qo'lda o'ting.", { id: tid });
+      throw new Error("Wallet hali ham Optimism'da emas");
+    }
+
+    // Provider va signer'ni yangi tarmoq uchun qayta yaratamiz
+    try {
+      const newP = new ethers.BrowserProvider(walletProvider);
+      const newS = await newP.getSigner();
+      const newAddr = await newS.getAddress();
+
+      setProvider(newP);
+      setSigner(newS);
+      setAccount(newAddr);
+      setChainId(OP_MAINNET.chainId);
+
+      const { tokenContracts } = initContracts(newS);
+      await fetchBalances(newAddr, tokenContracts);
+    } catch (e) {
+      console.error('Provider qayta yaratishda xato:', e);
+      toast.error("Wallet'ni qayta ulang", { id: tid });
+      throw new Error("Wallet'ni qayta ulang");
+    }
+
+    toast.success("Optimism'ga o'tildi", { id: tid });
+    return true;
+  }, [chainId, requestSwitchToOptimism, initContracts, fetchBalances]);
+
   const disconnect = useCallback(
     async (options = {}) => {
       const { reload = false, silent = false } = options;
@@ -336,13 +450,21 @@ export function Web3Provider({ children }) {
         const switched = await requestSwitchToOptimism(window.ethereum);
 
         if (switched) {
-          const newNet = await p.getNetwork();
+          // Switch'dan keyin wallet'ga vaqt beramiz
+          await new Promise((r) => setTimeout(r, 500));
+
+          const newP = new ethers.BrowserProvider(window.ethereum);
+          const newS = await newP.getSigner();
+          const newNet = await newP.getNetwork();
           const newCid = Number(newNet.chainId);
 
+          setProvider(newP);
+          setSigner(newS);
           setChainId(newCid);
 
           if (newCid === OP_MAINNET.chainId) {
-            await fetchBalances(addr, tokenContracts);
+            const { tokenContracts: tc } = initContracts(newS);
+            await fetchBalances(addr, tc);
             toast.success('Optimism Mainnetga ulandi');
           } else {
             toast.error('Optimism Mainnetga o‘ting');
@@ -393,10 +515,13 @@ export function Web3Provider({ children }) {
 
       const { EthereumProvider } = await import('@walletconnect/ethereum-provider');
 
+      // ⚠️ MUHIM: faqat Optimism (chainId=10) so'raymiz.
+      // Ethereum mainnet'ni optionalChains'dan olib tashladik —
+      // shunda wallet o'zicha Ethereum'ga qaytib qolmaydi.
       const wcProvider = await EthereumProvider.init({
         projectId: WC_PROJECT_ID,
         chains: [10],
-        optionalChains: [1, 10],
+        optionalChains: [10],
         showQrModal: true,
 
         methods: [
@@ -440,7 +565,6 @@ export function Web3Provider({ children }) {
         },
 
         rpcMap: {
-          1: 'https://eth.drpc.org',
           10: 'https://optimism.publicnode.com',
         },
       });
@@ -488,6 +612,7 @@ export function Web3Provider({ children }) {
       setAccount(addr);
       setChainId(cid);
       setWalletType('walletconnect');
+      walletTypeRef.current = 'walletconnect';
 
       let { tokenContracts } = initContracts(s);
 
@@ -495,6 +620,9 @@ export function Web3Provider({ children }) {
         const switched = await requestSwitchToOptimism(wcProvider);
 
         if (switched) {
+          // Switch'dan keyin vaqt beramiz
+          await new Promise((r) => setTimeout(r, 800));
+
           p = new ethers.BrowserProvider(wcProvider);
           s = await p.getSigner();
           addr = await s.getAddress();
@@ -785,9 +913,16 @@ export function Web3Provider({ children }) {
       throw new Error('Wallet uzilmoqda');
     }
 
+    // ⬇️ MUHIM: har approval'dan oldin tarmoqni tekshirish
+    await ensureCorrectChain();
+
     actionAbortRef.current = false;
 
-    const allowance = await token.allowance(account, CONTRACT_ADDRESS);
+    // ensureCorrectChain'dan keyin signer yangilangan bo'lishi mumkin —
+    // shuning uchun token contract'ni qaytadan signer bilan bog'laymiz
+    const tokenWithSigner = tokens[tokenKey];
+
+    const allowance = await tokenWithSigner.allowance(account, CONTRACT_ADDRESS);
 
     if (allowance >= amountRaw) {
       return true;
@@ -799,7 +934,9 @@ export function Web3Provider({ children }) {
     activeToastRef.current = tid;
 
     try {
-      const approvePromise = token.connect(signer).approve(CONTRACT_ADDRESS, amountRaw);
+      const approvePromise = tokenWithSigner
+        .connect(signer)
+        .approve(CONTRACT_ADDRESS, amountRaw);
 
       const tx = await withTimeout(
         approvePromise,
@@ -881,6 +1018,7 @@ export function Web3Provider({ children }) {
 
         refreshBalances,
         ensureApproval,
+        ensureCorrectChain,
         switchToOptimism,
 
         isReadOnly: walletType === 'readonly',
