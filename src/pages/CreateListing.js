@@ -8,7 +8,7 @@ import { saveLocalTxHistory } from '../utils/localTxHistory';
 import { PlusSquare, ShieldCheck, ShieldOff, Tag, ShoppingCart, Info, AlertCircle } from 'lucide-react';
 
 export default function CreateListing() {
-  const { account, contract, signer, walletBalances, ensureApproval, refreshBalances } = useWeb3();
+  const { account, contract, signer, walletBalances, ensureApproval, ensureCorrectChain, refreshBalances } = useWeb3();
   const { t } = useLang();
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState({ durAmount: '', priceUSDC: '', paymentPeriod: '' });
@@ -161,6 +161,7 @@ export default function CreateListing() {
     setLoading(true);
     const tid = toast.loading(t('createPosting'));
     try {
+      await ensureCorrectChain();
       const c = contract.connect(signer);
       let tx;
 

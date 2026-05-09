@@ -268,6 +268,7 @@ export default function Approved() {
     const tid = toast.loading('...');
 
     try {
+      await ensureCorrectChain();
       const tx = await contract.connect(signer).claimDefault(id);
       const receipt = await tx.wait();
 

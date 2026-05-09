@@ -319,6 +319,7 @@ export default function Listings() {
     const toastId = toast.loading(t('listingsApproving'));
 
     try {
+      await ensureCorrectChain();
       const tx = await contract.connect(signer).approveListing(listingId, chosenTokenId);
       const receipt = await tx.wait();
 
@@ -370,6 +371,7 @@ export default function Listings() {
     const toastId = toast.loading('Bekor qilinmoqda...');
 
     try {
+      await ensureCorrectChain();
       const tx = await contract.connect(signer).cancelListing(listingId);
       const receipt = await tx.wait();
 
