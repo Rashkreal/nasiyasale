@@ -142,6 +142,14 @@ function getErrorText(e) {
         return;
       }
 
+      if (v instanceof Error) {
+        parts.push(v.message || String(v));
+        if (v.reason) parts.push(v.reason);
+        if (v.shortMessage) parts.push(v.shortMessage);
+        if (v.code) parts.push(String(v.code));
+        return;
+      }
+
       try {
         parts.push(JSON.stringify(v));
       } catch {
@@ -152,60 +160,99 @@ function getErrorText(e) {
     add(e?.reason);
     add(e?.shortMessage);
     add(e?.message);
+    add(e?.code);
     add(e?.info?.error?.message);
+    add(e?.info?.error?.data?.message);
     add(e?.error?.message);
-    add(e?.data?.message);
     add(e?.error?.data?.message);
-    add(e?.receipt);
+    add(e?.data?.message);
+    add(e?.data);
     add(e);
 
-    return parts.join(' | ');
+    return parts.filter(Boolean).join(' | ');
   } catch {
-    return String(e?.message || e || '');
+    return String(e?.reason || e?.shortMessage || e?.message || e || '');
   }
+}
+
+function extractContractReason(raw) {
+  const text = String(raw || '');
+
+  const patterns = [
+    /CreditSale:\s*([^"'|,\n\r]+)/i,
+    /execution reverted:\s*([^"'|,\n\r]+)/i,
+    /reverted with reason string\s*['"]([^'"]+)['"]/i,
+    /reason="([^"]+)"/i,
+  ];
+
+  for (const p of patterns) {
+    const m = text.match(p);
+    if (m && m[1]) return m[1].trim();
+  }
+
+  return '';
 }
 
 function getFriendlyTxError(e, fallback) {
   const raw = getErrorText(e);
-  const msg = raw.toLowerCase();
+  const rawLower = raw.toLowerCase();
+  const reason = extractContractReason(raw);
+  const r = reason.toLowerCase();
 
   console.error('TX ERROR RAW:', raw);
+  console.error('TX CONTRACT REASON:', reason || '(reason topilmadi)');
 
-  if (
-    msg.includes('total bl limit') ||
-    msg.includes('bl low') ||
-    msg.includes('buyer bl') ||
-    msg.includes('required bl') ||
-    msg.includes('insufficient bl') ||
-    msg.includes('not enough bl') ||
-    msg.includes('no enough bl')
-  ) {
-    return 'Garovsiz e’lonni tasdiqlash uchun BL limitingiz yetarli emas yoki bo‘sh BL limiti talabdan kam.';
+  if (r.includes('total bl limit') || rawLower.includes('total bl limit')) {
+    return 'Contract rad etdi: total BL limit — aktiv garovsiz qarzlar yoki band BL sabab yangi garovsiz e’lon uchun bo‘sh BL limiti yetmayapti.';
+  }
+
+  if (r.includes('bl low') || rawLower.includes('bl low')) {
+    return 'Contract rad etdi: BL low — BL darajangiz bu garovsiz e’lon uchun talab qilingan darajadan past.';
+  }
+
+  if (r.includes('buyer bl') || rawLower.includes('buyer bl')) {
+    return 'Contract rad etdi: buyer BL — xaridorning BL limiti yoki pairwise BL talabi yetarli emas.';
+  }
+
+  if (r.includes('seller bl') || rawLower.includes('seller bl')) {
+    return 'Contract rad etdi: seller BL — sotuvchining BL limiti yoki pairwise BL talabi yetarli emas.';
+  }
+
+  if (r.includes('blacklist') || rawLower.includes('blacklist')) {
+    return 'Contract rad etdi: wallet blacklist/default holatida.';
+  }
+
+  if (r.includes('default') || rawLower.includes('defaulted')) {
+    return 'Contract rad etdi: e’lon yoki foydalanuvchi default holati sabab amal bajarilmadi.';
   }
 
   if (
-    msg.includes('user rejected') ||
-    msg.includes('user denied') ||
-    msg.includes('rejected') ||
-    msg.includes('denied transaction')
+    rawLower.includes('user rejected') ||
+    rawLower.includes('user denied') ||
+    rawLower.includes('rejected') ||
+    rawLower.includes('denied transaction')
   ) {
     return 'Tranzaksiya walletda rad etildi.';
   }
 
   if (
-    msg.includes('insufficient funds') ||
-    msg.includes('insufficient balance') ||
-    msg.includes('exceeds balance')
+    rawLower.includes('insufficient funds') ||
+    rawLower.includes('insufficient balance') ||
+    rawLower.includes('exceeds balance')
   ) {
     return "Hamyonda yetarli token yo‘q.";
   }
 
   if (
-    msg.includes('wrong network') ||
-    msg.includes('unsupported chain') ||
-    (msg.includes('chain') && msg.includes('optimism'))
+    rawLower.includes('wrong network') ||
+    rawLower.includes('unsupported chain') ||
+    (rawLower.includes('chain') && rawLower.includes('optimism'))
   ) {
     return 'Optimism Mainnet tarmog‘iga o‘ting.';
+  }
+
+  if (reason) {
+    return `Contract rad etdi: ${reason}`;
   }
 
   return fallback || 'Xatolik yuz berdi';
@@ -688,6 +735,11 @@ export default function Listings() {
             const isBuyer = listing.buyer?.toLowerCase() === account?.toLowerCase();
             const isOwner = isSeller || isBuyer;
             const canApprove = !isOwner;
+
+            const requiredNoCollateralBL = !listing.isCollateral ? Number(ethers.formatUnits(listing.durAmount || 0n, 18)) * 10 : 0;
+            const listingFreeBL = !listing.isCollateral ? Number(ethers.formatUnits(listing.freeBL || 0n, 18)) : 0;
+            const listingTotalBL = !listing.isCollateral ? Number(ethers.formatUnits(listing.totalBLValue || 0n, 18)) : 0;
+            const listingPendingBL = !listing.isCollateral ? Number(ethers.formatUnits(listing.pendingBLValue || 0n, 18)) : 0;
 
             const isPendingBuyerCollateral = status === 1 && listing.isCollateral;
 
@@ -1192,6 +1244,8 @@ export default function Listings() {
     </div>
   );
 }
+
+
 
 
 
