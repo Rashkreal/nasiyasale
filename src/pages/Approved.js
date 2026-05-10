@@ -21,7 +21,7 @@ function AddrCell({ addr }) {
   const [copied, setCopied] = React.useState(false);
 
   if (!addr || addr === ethers.ZeroAddress) {
-    return <span style={{ color: 'var(--text-muted)' }}>вЂ”</span>;
+    return <span style={{ color: 'var(--text-muted)' }}>—</span>;
   }
 
   const short = addr.slice(0, 6) + '...' + addr.slice(-4);
@@ -89,7 +89,8 @@ export default function Approved() {
     signer,
     ensureApproval,
     refreshBalances,
-    walletBalances
+    walletBalances,
+    ensureCorrectChain
   } = useWeb3();
 
   const { t } = useLang();
@@ -138,7 +139,7 @@ export default function Approved() {
           const sellerIsMe = account && isSameAddress(item.seller, account);
 
           // V5 status 7 = Defaulted
-          // Buyer uchun keyin toвЂlash, seller uchun default tarixini koвЂrish
+          // Buyer uchun keyin to'lash, seller uchun default tarixini ko'rish
           if (status === 7 && !item.isCollateral && (buyerIsMe || sellerIsMe)) {
             arr.push(item);
           }
@@ -273,7 +274,6 @@ export default function Approved() {
       const receipt = await tx.wait();
 
       saveLocalTxHistory({
-        type: 'PayAfterDefault',
         label: 'Paid after default',
         listingId: typeof listing !== 'undefined' ? (listing.id ?? listing.listingId ?? null) : null,
         txHash: receipt?.hash || tx?.hash,
@@ -303,7 +303,7 @@ export default function Approved() {
     }
   };
 
-  // V5: buyer garovsiz default qarzni keyin toвЂlaydi
+    // V5: buyer garovsiz default qarzni keyin to'laydi
   const doPayAfterDefault = async (listing) => {
     if (!account) return toast.error(t('connectPrompt'));
     if (!signer) return toast.error(t('connectPrompt'));
@@ -311,7 +311,7 @@ export default function Approved() {
     const id = Number(listing.id);
 
     if (listing.isCollateral) {
-      return toast.error('Garovli default uchun keyin toвЂlash funksiyasi yoвЂq');
+      return toast.error('Garovli default uchun keyin to‘lash funksiyasi yo‘q');
     }
 
     setActionLoading(`after-${id}`);
@@ -319,15 +319,16 @@ export default function Approved() {
     const tid = toast.loading(t('clPaymentProcessing'));
 
     try {
+      await ensureCorrectChain();
+
       await ensureApproval('USDC', listing.priceUSDC);
 
       const tx = await contract.connect(signer).payAfterDefault(id);
       const receipt = await tx.wait();
 
       saveLocalTxHistory({
-        type: 'PaymentCompleted',
-        label: 'Payment completed',
-        listingId: typeof listing !== 'undefined' ? (listing.id ?? listing.listingId ?? null) : null,
+        label: 'Paid after default',
+        listingId: listing?.id ?? listing?.listingId ?? null,
         txHash: receipt?.hash || tx?.hash,
         status: 'success',
         account: typeof account !== 'undefined' ? account : '',
@@ -335,7 +336,7 @@ export default function Approved() {
       });
 
       toast.success(
-        t('payAfterDefaultSuccess') || 'Default qarz toвЂlandi!',
+        t('payAfterDefaultSuccess') || 'Default qarz to‘landi!',
         { id: tid }
       );
 
@@ -349,14 +350,12 @@ export default function Approved() {
       } else if (msg.includes('insufficient') || msg.includes('exceeds')) {
         toast.error(t('approvedUSDCInsufficient'), { id: tid });
       } else {
-        console.error('payAfterDefault error:', e);
         toast.error(msg || t('errorOccurred'), { id: tid });
       }
     } finally {
       setActionLoading(null);
     }
   };
-
   const renderListingCard = (listing) => {
     const id = Number(listing.id);
     const isBuyer = isSameAddress(listing.buyer, account);
@@ -413,7 +412,7 @@ export default function Approved() {
                   }`
                 }}
               >
-                {listing.isCollateral ? 'рџ”’' : 'рџ¤ќ'}{' '}
+                {listing.isCollateral ? 'Garovli' : 'Garovsiz'}{' '}
                 {listing.isCollateral
                   ? t('listingsCollateral')
                   : t('listingsNoCollateral')}
@@ -572,7 +571,7 @@ export default function Approved() {
                   textAlign: 'right'
                 }}
               >
-                Garovli default: garov sellerga oвЂtadi, buyer blacklistga tushmaydi.
+                ? "Garovli default: garov sellerga o'tadi, buyer blacklistga tushmaydi."
               </div>
             )}
 
@@ -585,7 +584,7 @@ export default function Approved() {
                   textAlign: 'right'
                 }}
               >
-                Garovsiz default: buyer blacklistga tushadi.
+                : "Garovsiz default: buyer blacklistga tushgan."}
               </div>
             )}
           </div>
@@ -641,7 +640,7 @@ export default function Approved() {
                   border: '1px solid var(--danger)'
                 }}
               >
-                <Ban size={12} /> {t('statusDefaulted') || 'Default / toвЂlanmagan'}
+                <Ban size={12} /> {t('statusDefaulted') || 'Default / to‘lanmagan'}
               </span>
 
               <span
@@ -658,7 +657,7 @@ export default function Approved() {
                   }`
                 }}
               >
-                {listing.isCollateral ? 'рџ”’' : 'рџ¤ќ'}{' '}
+                {listing.isCollateral ? 'Garovli' : 'Garovsiz'}{' '}
                 {listing.isCollateral
                   ? t('listingsCollateral')
                   : t('listingsNoCollateral')}
@@ -754,8 +753,8 @@ export default function Approved() {
             >
               <Clock size={12} />
               {listing.isCollateral
-                ? 'Garovli default: garov sellerga oвЂtgan, blacklist yoвЂq.'
-                : 'Garovsiz default: buyer blacklistga tushgan.'}
+                ? "Garovli default: garov sellerga o'tadi, buyer blacklistga tushmaydi."
+                : "Garovsiz default: buyer blacklistga tushgan."}
             </div>
           </div>
 
@@ -778,7 +777,6 @@ export default function Approved() {
                 ) : (
                   <CreditCard size={15} />
                 )}
-                {t('payAfterDefault') || 'Keyin toвЂlash'}
               </button>
             )}
 
@@ -791,7 +789,7 @@ export default function Approved() {
                   textAlign: 'right'
                 }}
               >
-                Garovli default uchun keyin toвЂlash tugmasi yoвЂq. Bu holatda garov sellerga oвЂtgan.
+      return toast.error('Garovli default uchun keyin to‘lash funksiyasi yo‘q');
               </div>
             )}
 
@@ -804,7 +802,7 @@ export default function Approved() {
                   textAlign: 'right'
                 }}
               >
-                Default claim bajarilgan. Listing endi active approved roвЂyxatda emas.
+                Default claim bajarilgan. Listing endi active approved ro'yxatda emas.
               </div>
             )}
           </div>
@@ -890,7 +888,7 @@ export default function Approved() {
 
       <div>
         <h2 style={{ fontSize: '18px', marginBottom: '12px' }}>
-          Garovsiz default shartnomalar
+              Garovsiz default shartnomalar yo'q.
         </h2>
 
         {defaultLoading ? (
@@ -910,7 +908,7 @@ export default function Approved() {
           <div className="card" style={{ textAlign: 'center', padding: '32px' }}>
             <CheckCircle size={32} color="var(--text-muted)" style={{ marginBottom: 12 }} />
             <p style={{ color: 'var(--text-secondary)' }}>
-              Garovsiz default shartnomalar yoвЂq.
+              Garovsiz default shartnomalar yo'q.
             </p>
           </div>
         ) : (
@@ -922,6 +920,10 @@ export default function Approved() {
     </div>
   );
 }
+
+
+
+
 
 
 

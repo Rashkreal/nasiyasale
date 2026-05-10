@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { ethers } from "ethers";
 import toast from "react-hot-toast";
 import { useWeb3 } from "../hooks/useWeb3";
@@ -45,7 +45,7 @@ const VAULT_ABI = [
   "function updateDURPrice()",
   "function syncBalance(address token)",
   "function getNFTValueUSDC(uint256 tokenId) view returns (uint256)",
-  // Custom errors вЂ” revert sabablarini aniqlash uchun
+  // Custom errors — revert sabablarini aniqlash uchun
   "error NotOwner()",
   "error TokenNotAllowed()",
   "error ZeroAmount()",
@@ -73,17 +73,17 @@ const ERC20_ABI = [
 const formatAmt = (val, dec) => {
   try {
     const n = Number(ethers.formatUnits(val, dec));
-    if (n === 0) return "0";
+    if (n === 0) return "—";
     if (n < 0.0001) return "<0.0001";
     if (n < 1) return n.toFixed(4);
     if (n < 1000) return n.toFixed(2);
     if (n < 1000000) return (n / 1000).toFixed(2) + "K";
     return (n / 1000000).toFixed(2) + "M";
-  } catch { return "0"; }
+  } catch { return "—"; }
 };
 
 const formatDate = (ts) => {
-  if (!ts) return "вЂ”";
+  if (!ts) return "—";
   return new Date(Number(ts) * 1000).toLocaleDateString("uz", {
     year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
   });
@@ -92,9 +92,9 @@ const formatDate = (ts) => {
 const fmtPrice = (val) => {
   try {
     const n = Number(ethers.formatUnits(val, 6));
-    if (n === 0) return "вЂ”";
+    if (n === 0) return "—";
     return "$" + n.toFixed(6);
-  } catch { return "вЂ”"; }
+  } catch { return "—"; }
 };
 
 // +60 sekund zaxira
@@ -431,7 +431,7 @@ function DepositForm({ signer, provider, account, onSuccess }) {
     try {
       if (!amount || isNaN(Number(amount))) return 0n;
       return ethers.parseUnits(amount, selectedToken.decimals);
-    } catch { return 0n; }
+  } catch { return "—"; }
   })();
 
   const unlockTs = (() => {
@@ -508,7 +508,7 @@ function DepositForm({ signer, provider, account, onSuccess }) {
             if (tk) setSelectedToken(tk);
           }}>
           {TOKEN_LIST.map(tk => (
-            <option key={tk.symbol} value={tk.symbol}>{tk.symbol} вЂ” {tk.name}</option>
+            <option key={tk.symbol} value={tk.symbol}>{tk.symbol} — {tk.name}</option>
           ))}
         </select>
       </div>
@@ -812,9 +812,9 @@ const emergencyCountdown = (secs) => {
 };
 
 const countdown = (unlockTs, status) => {
-    if (Number(status) !== 0) return "вЂ”";
+    if (Number(status) !== 0) return "—";
     const diff = Number(unlockTs) - now;
-    if (diff <= 0) return "вњ“ Ochilgan";
+    if (diff <= 0) return "✓ Ochilgan";
     const d = Math.floor(diff / 86400);
     const h = Math.floor((diff % 86400) / 3600);
     const m = Math.floor((diff % 3600) / 60);
@@ -1382,7 +1382,7 @@ const countdown = (unlockTs, status) => {
             </div>
           )}
 
-          {/* NFT Locklar вЂ” oddiy foydalanuvchi uchun */}
+          {/* NFT Locklar — oddiy foydalanuvchi uchun */}
           <h2 style={{fontSize:16,fontWeight:700,marginBottom:16,marginTop:32}}>
             NFT (LP) locklar
             <span style={{marginLeft:8,fontSize:12,color:"var(--text-muted)",fontFamily:"var(--font-mono)",fontWeight:400}}>
@@ -1414,7 +1414,7 @@ const countdown = (unlockTs, status) => {
                       <div style={{fontFamily:"var(--font-mono)",fontSize:12,color:"var(--success)"}}>
                         {nft.usdcValue != null
                           ? "$" + (Number(nft.usdcValue) / 1e6).toFixed(2)
-                          : "вЂ”"}
+                          : "—"}
                       </div>
                     </div>
                     <div className="lock-time">

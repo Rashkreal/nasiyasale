@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useWeb3 } from '../hooks/useWeb3';
 import { useLang } from '../hooks/useLang';
 import { tokensFromMask, TOKEN_IDS, TOKEN_COLORS, TOKEN_DECIMALS, COLLATERAL_TOKENS } from '../abi/contract';
@@ -8,7 +8,7 @@ import { saveLocalTxHistory } from '../utils/localTxHistory';
 import { List, RefreshCw, CheckCircle, Copy, Check, XCircle, Lock, AlertCircle, Search } from 'lucide-react';
 
 function shortAddr(a) {
-  return !a || a === ethers.ZeroAddress ? 'вЂ”' : a.slice(0, 6) + '...' + a.slice(-4);
+  return !a || a === ethers.ZeroAddress ? '—' : a.slice(0, 6) + '...' + a.slice(-4);
 }
 
 function durFmt(r) {
@@ -31,7 +31,7 @@ function AddrCell({ addr }) {
   const [copied, setCopied] = useState(false);
 
   if (!addr || addr === ethers.ZeroAddress) {
-    return <span style={{ color: 'var(--text-muted)' }}>вЂ”</span>;
+    return <span style={{ color: 'var(--text-muted)' }}>—</span>;
   }
 
   const copy = () => {
@@ -74,7 +74,7 @@ function getStatusLabel(status, t) {
     4: t('statusApproved'),
     5: t('statusRemoved'),
     6: t('statusPaid'),
-    7: t('statusDefaulted') || 'Default / toвЂlanmagan'
+    7: t('statusDefaulted') || 'Default / to‘lanmagan'
   };
 
   return statusLabels[s] || `Status ${s}`;
@@ -129,6 +129,88 @@ function calcPriceDiff(listing, tokenKey, tokenId, currentPrices) {
   };
 }
 
+
+function getErrorText(e) {
+  try {
+    const parts = [];
+
+    const add = (v) => {
+      if (v === undefined || v === null) return;
+
+      if (typeof v === 'string') {
+        parts.push(v);
+        return;
+      }
+
+      try {
+        parts.push(JSON.stringify(v));
+      } catch {
+        parts.push(String(v));
+      }
+    };
+
+    add(e?.reason);
+    add(e?.shortMessage);
+    add(e?.message);
+    add(e?.info?.error?.message);
+    add(e?.error?.message);
+    add(e?.data?.message);
+    add(e?.error?.data?.message);
+    add(e?.receipt);
+    add(e);
+
+    return parts.join(' | ');
+  } catch {
+    return String(e?.message || e || '');
+  }
+}
+
+function getFriendlyTxError(e, fallback) {
+  const raw = getErrorText(e);
+  const msg = raw.toLowerCase();
+
+  console.error('TX ERROR RAW:', raw);
+
+  if (
+    msg.includes('total bl limit') ||
+    msg.includes('bl low') ||
+    msg.includes('buyer bl') ||
+    msg.includes('required bl') ||
+    msg.includes('insufficient bl') ||
+    msg.includes('not enough bl') ||
+    msg.includes('no enough bl')
+  ) {
+    return 'Garovsiz e’lonni tasdiqlash uchun BL limitingiz yetarli emas yoki bo‘sh BL limiti talabdan kam.';
+  }
+
+  if (
+    msg.includes('user rejected') ||
+    msg.includes('user denied') ||
+    msg.includes('rejected') ||
+    msg.includes('denied transaction')
+  ) {
+    return 'Tranzaksiya walletda rad etildi.';
+  }
+
+  if (
+    msg.includes('insufficient funds') ||
+    msg.includes('insufficient balance') ||
+    msg.includes('exceeds balance')
+  ) {
+    return "Hamyonda yetarli token yo‘q.";
+  }
+
+  if (
+    msg.includes('wrong network') ||
+    msg.includes('unsupported chain') ||
+    (msg.includes('chain') && msg.includes('optimism'))
+  ) {
+    return 'Optimism Mainnet tarmog‘iga o‘ting.';
+  }
+
+  return fallback || 'Xatolik yuz berdi';
+}
+
 export default function Listings() {
   const {
     account,
@@ -137,7 +219,8 @@ export default function Listings() {
     signer,
     ensureApproval,
     refreshBalances,
-    walletBalances
+    walletBalances,
+    ensureCorrectChain
   } = useWeb3();
 
   const { t } = useLang();
@@ -338,18 +421,11 @@ export default function Listings() {
       fetchListings();
       refreshBalances();
     } catch (e) {
-      const msg = e?.reason || e?.message || '';
-      let userMsg = t('errorOccurred');
+      const userMsg = getFriendlyTxError(e, t('errorOccurred'));
 
-      if (msg.includes('user rejected')) {
-        userMsg = t('walletRejected');
-      } else if (msg.includes('insufficient') || msg.includes('exceeds')) {
-        userMsg = "Hamyonda yetarli token yo'q!";
-      } else if (msg.includes('BL low') || msg.includes('buyer BL')) {
-        userMsg = t('listingsLowBL');
-      }
-
+      console.error('approve listing error:', e);
       toast.error(userMsg, { id: toastId });
+      return;
     } finally {
       setActionLoading(null);
     }
@@ -538,8 +614,8 @@ export default function Listings() {
         >
           {[
             { key: 'all', label: t('filterAll') || 'Barchasi' },
-            { key: 'collateral', label: 'рџ”’' },
-            { key: 'nocollateral', label: 'рџ¤ќ' }
+            { key: 'collateral', label: 'Garovli' },
+            { key: 'nocollateral', label: 'Garovsiz' }
           ].map(f => (
             <button
               key={f.key}
@@ -696,8 +772,8 @@ export default function Listings() {
                         }}
                       >
                         {listing.isCollateral
-                          ? `рџ”’ ${t('listingsCollateral')}`
-                          : `рџ¤ќ ${t('listingsNoCollateral')}`}
+                          ? t('listingsCollateral')
+                          : t('listingsNoCollateral')}
                       </span>
 
                       <span className="badge badge-warning">
@@ -857,7 +933,7 @@ export default function Listings() {
                                     fontWeight: 600
                                   }}
                                 >
-                                  {isLoading ? '...' : amt ? amt : 'вЂ”'}
+                                  {isLoading ? '...' : amt ? amt : '—'}
                                 </span>
 
                                 <PriceDiffBadge
@@ -881,7 +957,7 @@ export default function Listings() {
                           }}
                         >
                           <AlertCircle size={10} />
-                          Narxlar e'lon berilgan vaqtda lock qilingan вЂ” hozirgi bozor narxidan farq qilishi mumkin
+                          Narxlar e'lon berilgan vaqtda lock qilingan — hozirgi bozor narxidan farq qilishi mumkin
                         </div>
                       </div>
                     )}
@@ -986,9 +1062,7 @@ export default function Listings() {
                                   borderRadius: '6px',
                                   fontSize: '12px',
                                   cursor: 'pointer',
-                                  border: `1.5px solid ${chosenKey === tk ? color : notEnough ? 'var(--danger)' : 'var(--border)'}`,
                                   background: chosenKey === tk ? `${color}20` : 'transparent',
-                                  color: chosenKey === tk ? color : notEnough ? 'var(--danger)' : 'var(--text-muted)',
                                   fontWeight: chosenKey === tk ? 700 : 500,
                                   display: 'flex',
                                   flexDirection: 'column',
@@ -1005,7 +1079,6 @@ export default function Listings() {
                                       opacity: 0.8
                                     }}
                                   >
-                                    {enough ? 'вњ“ ' : notEnough ? 'вњ— ' : ''}
                                     {amt}
                                   </span>
                                 )}
@@ -1058,7 +1131,7 @@ export default function Listings() {
                           maxWidth: '150px'
                         }}
                       >
-                        вњ“ Garov contractda saqlangan. Faqat DUR approve kerak.
+                        ✓ Garov contractda saqlangan. Faqat DUR approve kerak.
                       </div>
                     )}
 
@@ -1119,5 +1192,17 @@ export default function Listings() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 

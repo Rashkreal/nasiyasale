@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useWeb3 } from '../hooks/useWeb3';
 import { useLang } from '../hooks/useLang';
 import { maskFromTokens, COLLATERAL_TOKENS, TOKEN_COLORS, TOKEN_IDS, TOKEN_DECIMALS } from '../abi/contract';
@@ -295,7 +295,7 @@ export default function CreateListing() {
                       color: isActive ? color : 'var(--text-muted)',
                       fontWeight: isActive ? 700 : 500, fontSize: '13px', transition: 'all 0.15s',
                     }}>
-                      {isActive ? 'вњ“ ' : ''}{token}
+                      {isActive ? '✓ ' : ''}{token}
                     </button>
                   );
                 })}
@@ -317,7 +317,7 @@ export default function CreateListing() {
                         }}>
                           <span style={{ fontWeight: 700, color, fontSize: '13px' }}>{tk}</span>
                           <span style={{ fontFamily: 'Space Mono, monospace', fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)' }}>
-                            {sellPreviewLoading ? '...' : amt ? amt : 'вЂ”'}
+                            {sellPreviewLoading ? '...' : amt ? amt : '—'}
                           </span>
                         </div>
                       );
@@ -350,7 +350,7 @@ export default function CreateListing() {
                       color: isActive ? color : 'var(--text-muted)',
                       fontWeight: isActive ? 700 : 500, fontSize: '13px', transition: 'all 0.15s',
                     }}>
-                      {isActive ? 'вњ“ ' : ''}{token}
+                      {isActive ? '✓ ' : ''}{token}
                       <span style={{ fontSize: '10px', marginLeft: '4px', opacity: 0.7 }}>({bal.toFixed(2)})</span>
                     </button>
                   );
@@ -365,7 +365,7 @@ export default function CreateListing() {
                 }}>
                   <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{t('clRequiredCollateral')}</span>
                   <span style={{ fontSize: '14px', fontWeight: 700, color: TOKEN_COLORS[buyChosenToken], fontFamily: 'Space Mono, monospace' }}>
-                    {previewLoading ? '...' : collateralPreview ? `${collateralPreview} ${buyChosenToken}` : 'вЂ”'}
+                    {previewLoading ? "..." : collateralPreview ? `${collateralPreview} ${buyChosenToken}` : "—"}
                   </span>
                 </div>
               )}
@@ -380,7 +380,7 @@ export default function CreateListing() {
                       color: ok ? 'var(--success)' : 'var(--danger)',
                       display: 'flex', alignItems: 'center', gap: '6px',
                     }}>
-                      {ok ? 'вњ“' : 'вњ—'} {t('clWalletBalance')} {bal.toFixed(4)} {buyChosenToken}
+                      {ok ? '✓' : '✗'} {t('clWalletBalance')} {bal.toFixed(4)} {buyChosenToken}
                       {!ok && <span> {t('clInsufficientToken')}</span>}
                     </div>
                   );

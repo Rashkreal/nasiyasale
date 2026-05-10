@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import toast from 'react-hot-toast';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useWeb3 } from '../hooks/useWeb3';
@@ -29,7 +29,7 @@ export default function Layout({ children }) {
   const [showModal, setShowModal] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const handleDisconnect = () => { disconnect(); toast(t('walletDisconnected'), { icon: 'рџ‘‹' }); };
+  const handleDisconnect = () => { disconnect({ reload: true }); toast(t('walletDisconnected'), { icon: '👋' }); };
 
   const navItems = [
     { to: '/', icon: LayoutDashboard, label: t('navDashboard') },
@@ -90,7 +90,7 @@ export default function Layout({ children }) {
               ))}
             </nav>
 
-            {/* Vault mini-tabs вЂ” mobil drawer da, faqat /vault va owner uchun */}
+            {/* Vault mini-tabs — mobil drawer da, faqat /vault va owner uchun */}
             {isVaultPage && isOwner && (
               <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', padding: '4px 16px 8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -182,7 +182,7 @@ export default function Layout({ children }) {
               )}
               <div className="addr-chip">
                 <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                  {walletType === 'metamask' ? 'рџ¦Љ' : walletType === 'walletconnect' ? 'рџ”—' : 'рџ‘Ѓ'}
+                  {walletType === 'metamask' ? 'MetaMask' : walletType === 'walletconnect' ? 'WalletConnect' : 'View'}
                 </span>
                 <span className="mono" style={{ fontSize: '12px' }}>{shortAddr(account)}</span>
                 <button onClick={copyAddress} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '1px', display: 'flex' }}>
@@ -221,7 +221,7 @@ export default function Layout({ children }) {
             ))}
           </nav>
 
-          {/* Vault mini-tabs вЂ” sidebar pastida, faqat /vault va owner uchun */}
+            {/* Vault mini-tabs — mobil drawer da, faqat /vault va owner uchun */}
           {isVaultPage && isOwner && (
             <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
               <div style={{
@@ -297,4 +297,6 @@ export default function Layout({ children }) {
     </div>
   );
 }
+
+
 
