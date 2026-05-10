@@ -31,6 +31,16 @@ function openMetaMaskMobile() {
 }
 
 function withWalletTimeout(promise, ms, message) {
+  if (isMobileBrowser()) {
+    setTimeout(() => {
+      try {
+        window.location.href = 'metamask://';
+      } catch (e) {
+        console.warn('MetaMask deeplink failed:', e);
+      }
+    }, 1200);
+  }
+
   return Promise.race([
     promise,
     new Promise((_, reject) => {
@@ -194,7 +204,6 @@ export default function CreateListing() {
     const tid = toast.loading(t('createPosting'));
     try {
       await ensureCorrectChain();
-      openMetaMaskMobile();
       const c = contract.connect(signer);
       let tx;
 
@@ -254,11 +263,50 @@ export default function CreateListing() {
       setCollateralPreview(null);
       refreshBalances();
     } catch (e) {
-      const msg = e?.reason || e?.message || '';
+      const raw = [
+        e?.reason,
+        e?.shortMessage,
+        e?.message,
+        e?.info?.error?.message,
+        e?.error?.message,
+        e?.data?.message,
+        e?.code,
+      ]
+        .filter(Boolean)
+        .join(' | ');
+
+      const msg = raw.toLowerCase();
+
+      console.error('CreateListing error raw:', raw || e);
+
       let m = t('errorOccurred');
-      if (msg.includes('user rejected')) m = t('createRejected');
-      else if (msg.includes('insufficient') || msg.includes('exceeds balance')) m = t('clWalletInsufficient');
-      else if (msg.includes('zero collateral')) m = t('clZeroCollateral');
+
+      if (
+        msg.includes('metamask ochilmadi') ||
+        msg.includes('wallet javob bermadi') ||
+        msg.includes('timeout')
+      ) {
+        m = 'MetaMask ochilmadi yoki wallet javob bermadi. WalletConnect sessiyasini uzib, qayta ulang.';
+      } else if (
+        msg.includes('user rejected') ||
+        msg.includes('user denied') ||
+        msg.includes('rejected')
+      ) {
+        m = t('createRejected') || 'Transaction walletda rad etildi.';
+      } else if (
+        msg.includes('insufficient') ||
+        msg.includes('exceeds balance') ||
+        msg.includes('insufficient funds')
+      ) {
+        m = t('clWalletInsufficient') || 'Hamyonda yetarli token yoki gas yo‘q.';
+      } else if (msg.includes('zero collateral')) {
+        m = t('clZeroCollateral') || 'Garov miqdori 0 bo‘lib qoldi.';
+      } else if (msg.includes('wrong network') || msg.includes('unsupported chain')) {
+        m = 'Optimism Mainnet tarmog‘iga o‘ting.';
+      } else if (raw) {
+        m = raw.slice(0, 220);
+      }
+
       toast.error(m, { id: tid });
     } finally { setLoading(false); }
   };
@@ -477,6 +525,7 @@ export default function CreateListing() {
     </div>
   );
 }
+
 
 
 
