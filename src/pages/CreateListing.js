@@ -8,39 +8,11 @@ import { saveLocalTxHistory } from '../utils/localTxHistory';
 import { PlusSquare, ShieldCheck, ShieldOff, Tag, ShoppingCart, Info, AlertCircle } from 'lucide-react';
 
 
-function isMobileBrowser() {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-    navigator.userAgent || ''
-  );
-}
-
-function openMetaMaskMobile() {
-  if (!isMobileBrowser()) return;
-
-  try {
-    setTimeout(() => {
-      try {
-        window.location.href = 'metamask://';
-      } catch (e) {
-        console.warn('MetaMask deeplink failed:', e);
-      }
-    }, 600);
-  } catch (e) {
-    console.warn('openMetaMaskMobile:', e);
-  }
-}
-
+// Eski metamask:// deep-link logikasi olib tashlandi —
+// endi useWeb3 hook'idagi openWalletForRequest helper'i WalletConnect
+// peer metadata'sidan to'g'ri deep-link'ni olib, har wallet (MetaMask,
+// Trust, Rainbow va boshqalar) bilan to'g'ri ishlaydi.
 function withWalletTimeout(promise, ms, message) {
-  if (isMobileBrowser()) {
-    setTimeout(() => {
-      try {
-        window.location.href = 'metamask://';
-      } catch (e) {
-        console.warn('MetaMask deeplink failed:', e);
-      }
-    }, 1200);
-  }
-
   return Promise.race([
     promise,
     new Promise((_, reject) => {
@@ -50,7 +22,7 @@ function withWalletTimeout(promise, ms, message) {
 }
 
 export default function CreateListing() {
-  const { account, contract, signer, walletBalances, ensureApproval, ensureCorrectChain, refreshBalances } = useWeb3();
+  const { account, contract, signer, walletBalances, ensureApproval, ensureCorrectChain, refreshBalances, openWalletForRequest } = useWeb3();
   const { t } = useLang();
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState({ durAmount: '', priceUSDC: '', paymentPeriod: '' });
@@ -209,6 +181,7 @@ export default function CreateListing() {
 
       if (selected === 'collateral-sell') {
         await ensureApproval('DUR', durRaw);
+        openWalletForRequest();
         tx = await withWalletTimeout(
           c.postListingCollateralSell(durRaw, usdcRaw, period, maskFromTokens(selectedCollaterals)),
           60000,
@@ -221,6 +194,7 @@ export default function CreateListing() {
         const colAmtRaw = await contract.previewCollateral(usdcRaw, tokenId);
         await ensureApproval(buyChosenToken, colAmtRaw);
         const singleMask = 1 << tokenId;
+        openWalletForRequest();
         tx = await withWalletTimeout(
           c.postListingCollateralBuy(durRaw, usdcRaw, period, singleMask, tokenId),
           60000,
@@ -229,6 +203,7 @@ export default function CreateListing() {
 
       } else if (selected === 'nocollateral-sell') {
         await ensureApproval('DUR', durRaw);
+        openWalletForRequest();
         tx = await withWalletTimeout(
           c.postListingNoCollateralSell(durRaw, usdcRaw, period),
           60000,
@@ -236,6 +211,7 @@ export default function CreateListing() {
         );
 
       } else if (selected === 'nocollateral-buy') {
+        openWalletForRequest();
         tx = await withWalletTimeout(
           c.postListingNoCollateralBuy(durRaw, usdcRaw, period),
           60000,
@@ -249,13 +225,42 @@ export default function CreateListing() {
         'Transaction juda uzoq kutilyapti'
       );
 
+      // Listing ID ni receipt.logs ichidan kontrakt event'i orqali olamiz.
+      // Kontraktda ListingPosted yoki shunga o'xshash event bo'lishi kerak —
+      // birinchi indekslangan argument odatda listing ID bo'ladi.
+      let newListingId = null;
+      try {
+        if (receipt && Array.isArray(receipt.logs)) {
+          for (const log of receipt.logs) {
+            try {
+              const parsed = contract.interface.parseLog({
+                topics: log.topics,
+                data: log.data,
+              });
+              if (parsed && /listing/i.test(parsed.name) && parsed.args && parsed.args.length > 0) {
+                // Birinchi argument odatda listing ID (uint256)
+                const idArg = parsed.args[0];
+                if (idArg !== undefined && idArg !== null) {
+                  newListingId = idArg.toString();
+                  break;
+                }
+              }
+            } catch (_) {
+              // Ushbu log bizning kontrakt event'i emas — keyingisiga o'tamiz
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Listing ID ni log\'lardan olib bo\'lmadi:', e);
+      }
+
       saveLocalTxHistory({
         type: 'CreateListing',
         label: 'CreateListing transaction',
-        listingId: typeof listing !== 'undefined' ? (listing.id ?? listing.listingId ?? null) : null,
+        listingId: newListingId,
         txHash: receipt?.hash || tx?.hash,
         status: 'success',
-        account: typeof account !== 'undefined' ? account : '',
+        account: account || '',
         extra: '',
       });
       toast.success(t('createSuccess'), { id: tid });
@@ -525,8 +530,3 @@ export default function CreateListing() {
     </div>
   );
 }
-
-
-
-
-

@@ -1074,6 +1074,7 @@ export function Web3Provider({ children }) {
         ensureApproval,
         ensureCorrectChain,
         switchToOptimism,
+        openWalletForRequest,
 
         isReadOnly: walletType === 'readonly',
       }}
