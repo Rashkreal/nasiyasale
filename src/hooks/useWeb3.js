@@ -241,6 +241,68 @@ export function Web3Provider({ children }) {
   }, [requestSwitchToOptimism]);
 
   // ════════════════════════════════════════════════════════════════════
+  //  openWalletForRequest — mobil walletni oldinga chiqarish
+  //
+  //  Mobil brauzerda WalletConnect sessiyasi bo'lsa, har bir
+  //  eth_sendTransaction / eth_signTypedData / wallet_switchEthereumChain
+  //  chaqiruvidan oldin foydalanuvchini wallet ilovasiga olib o'tish kerak.
+  //  Aks holda popup wallet ichida ko'rinmaydi va foydalanuvchi
+  //  "hech narsa bo'lmadi" deb o'ylaydi.
+  //
+  //  WalletConnect v2 sessiyasi peer (wallet) metadata'sida
+  //  redirect.native deep-link sxemasini qaytaradi
+  //  (masalan "metamask://", "trust://", "rainbow://").
+  //  Universal link mavjud bo'lsa (redirect.universal) — undan foydalanamiz.
+  // ════════════════════════════════════════════════════════════════════
+  const openWalletForRequest = useCallback(() => {
+    if (!isMobile()) return;
+    if (walletTypeRef.current !== 'walletconnect') return;
+
+    const wc = wcProviderRef.current;
+    if (!wc) return;
+
+    try {
+      const peerMeta =
+        wc.session?.peer?.metadata ||
+        wc.signer?.session?.peer?.metadata ||
+        null;
+
+      const redirect = peerMeta?.redirect || {};
+      const native = redirect.native;     // "metamask://", "trust://", ...
+      const universal = redirect.universal; // "https://metamask.app.link", ...
+
+      // Universal linkni afzal ko'ramiz — iOS/Android'da ishonchli ishlaydi.
+      // Native sxemasi (metamask://) iOS Safari'da ba'zan bloklanadi.
+      let target = null;
+
+      if (universal) {
+        target = universal.endsWith('/') ? universal : universal + '/';
+      } else if (native) {
+        target = native;
+      }
+
+      if (!target) {
+        console.warn('openWalletForRequest: peer redirect topilmadi', peerMeta);
+        return;
+      }
+
+      // window.location.href sahifani buzadi — buning o'rniga
+      // a[target=_self] click'ini simulyatsiya qilamiz; mobile OS uni
+      // wallet deep-link sifatida tushunadi va sahifa state'i saqlanib qoladi.
+      const a = document.createElement('a');
+      a.href = target;
+      a.target = '_self';
+      a.rel = 'noopener';
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (e) {
+      console.warn('openWalletForRequest failed:', e);
+    }
+  }, []);
+
+  // ════════════════════════════════════════════════════════════════════
   //  ensureCorrectChain — TRANSAKSIYA YUBORISHDAN OLDIN HAR DOIM CHAQIRING
   //
   //  Muammo: WalletConnect mobile session'larda MetaMask/Trust ba'zan UI'da
@@ -295,6 +357,9 @@ export function Web3Provider({ children }) {
     const tid = toast.loading(
       `Wallet ${currentChainId} tarmog'ida. Optimism'ga o'tkazilmoqda...`
     );
+
+    // Mobile WalletConnect bo'lsa, switch popup'i wallet ichida ko'rinishi uchun
+    openWalletForRequest();
 
     const switched = await requestSwitchToOptimism(walletProvider);
 
@@ -554,7 +619,6 @@ export function Web3Provider({ children }) {
             'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96',
             'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e18e50c9403f29e418',
           ],
-          mobileWallets: undefined,
         },
 
         metadata: {
@@ -571,23 +635,9 @@ export function Web3Provider({ children }) {
 
       wcProvider.on('display_uri', (uri) => {
         console.log('WC URI generated:', uri ? 'yes' : 'no');
-
-        if (isMobile() && uri) {
-          setTimeout(() => {
-            if (document.visibilityState === 'visible') {
-              const trustDeepLink = `trust://wc?uri=${encodeURIComponent(uri)}`;
-              const wcUniversalLink = `https://walletconnect.org/wc?uri=${encodeURIComponent(uri)}`;
-
-              console.log('Attempting mobile deep link...');
-
-              try {
-                window.location.href = trustDeepLink;
-              } catch (e) {
-                window.location.href = wcUniversalLink;
-              }
-            }
-          }, 1500);
-        }
+        // Mobil deep-link WalletConnect modal'i tomonidan boshqariladi.
+        // Bu yerda qo'lda window.location.href qilmaymiz — chunki bu
+        // sahifani boshqa joyga yo'naltirib, WC session muloqotini buzadi.
       });
 
       const enableTimeout = isMobile() ? 120000 : 60000;
@@ -934,6 +984,10 @@ export function Web3Provider({ children }) {
     activeToastRef.current = tid;
 
     try {
+      // Mobile'da WalletConnect bo'lsa, popup ko'rinishi uchun wallet'ni
+      // oldinga chiqaramiz. Desktop'da bu funksiya hech narsa qilmaydi.
+      openWalletForRequest();
+
       const approvePromise = tokenWithSigner
         .connect(signer)
         .approve(CONTRACT_ADDRESS, amountRaw);
@@ -1038,4 +1092,3 @@ export const useWeb3 = () => {
 
   return ctx;
 };
-
