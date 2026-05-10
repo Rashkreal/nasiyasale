@@ -802,7 +802,7 @@ export default function Approved() {
                   textAlign: 'right'
                 }}
               >
-                Default claim bajarilgan. Listing endi active approved ro'yxatda emas.
+                Default claim bajarilgan.
               </div>
             )}
           </div>
@@ -888,7 +888,11 @@ export default function Approved() {
 
       <div>
         <h2 style={{ fontSize: '18px', marginBottom: '12px' }}>
-              Garovsiz default shartnomalar yo'q.
+              {defaultListings.length === 0 && (
+              <div style={{ color: 'var(--text-muted)', fontWeight: 700 }}>
+                Garovsiz default shartnomalar yo'q.
+              </div>
+            )}
         </h2>
 
         {defaultLoading ? (
@@ -908,7 +912,11 @@ export default function Approved() {
           <div className="card" style={{ textAlign: 'center', padding: '32px' }}>
             <CheckCircle size={32} color="var(--text-muted)" style={{ marginBottom: 12 }} />
             <p style={{ color: 'var(--text-secondary)' }}>
-              Garovsiz default shartnomalar yo'q.
+              {defaultListings.length === 0 && (
+              <div style={{ color: 'var(--text-muted)', fontWeight: 700 }}>
+                Garovsiz default shartnomalar yo'q.
+              </div>
+            )}
             </p>
           </div>
         ) : (
@@ -920,6 +928,8 @@ export default function Approved() {
     </div>
   );
 }
+
+
 
 
 
