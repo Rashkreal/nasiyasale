@@ -7,6 +7,38 @@ import toast from 'react-hot-toast';
 import { saveLocalTxHistory } from '../utils/localTxHistory';
 import { PlusSquare, ShieldCheck, ShieldOff, Tag, ShoppingCart, Info, AlertCircle } from 'lucide-react';
 
+
+function isMobileBrowser() {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent || ''
+  );
+}
+
+function openMetaMaskMobile() {
+  if (!isMobileBrowser()) return;
+
+  try {
+    setTimeout(() => {
+      try {
+        window.location.href = 'metamask://';
+      } catch (e) {
+        console.warn('MetaMask deeplink failed:', e);
+      }
+    }, 600);
+  } catch (e) {
+    console.warn('openMetaMaskMobile:', e);
+  }
+}
+
+function withWalletTimeout(promise, ms, message) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(message || 'Wallet javob bermadi')), ms);
+    }),
+  ]);
+}
+
 export default function CreateListing() {
   const { account, contract, signer, walletBalances, ensureApproval, ensureCorrectChain, refreshBalances } = useWeb3();
   const { t } = useLang();
@@ -162,12 +194,17 @@ export default function CreateListing() {
     const tid = toast.loading(t('createPosting'));
     try {
       await ensureCorrectChain();
+      openMetaMaskMobile();
       const c = contract.connect(signer);
       let tx;
 
       if (selected === 'collateral-sell') {
         await ensureApproval('DUR', durRaw);
-        tx = await c.postListingCollateralSell(durRaw, usdcRaw, period, maskFromTokens(selectedCollaterals));
+        tx = await withWalletTimeout(
+          c.postListingCollateralSell(durRaw, usdcRaw, period, maskFromTokens(selectedCollaterals)),
+          60000,
+          'MetaMask ochilmadi yoki wallet javob bermadi'
+        );
 
       } else if (selected === 'collateral-buy') {
         const tokenId = TOKEN_IDS[buyChosenToken];
@@ -175,17 +212,33 @@ export default function CreateListing() {
         const colAmtRaw = await contract.previewCollateral(usdcRaw, tokenId);
         await ensureApproval(buyChosenToken, colAmtRaw);
         const singleMask = 1 << tokenId;
-        tx = await c.postListingCollateralBuy(durRaw, usdcRaw, period, singleMask, tokenId);
+        tx = await withWalletTimeout(
+          c.postListingCollateralBuy(durRaw, usdcRaw, period, singleMask, tokenId),
+          60000,
+          'MetaMask ochilmadi yoki wallet javob bermadi'
+        );
 
       } else if (selected === 'nocollateral-sell') {
         await ensureApproval('DUR', durRaw);
-        tx = await c.postListingNoCollateralSell(durRaw, usdcRaw, period);
+        tx = await withWalletTimeout(
+          c.postListingNoCollateralSell(durRaw, usdcRaw, period),
+          60000,
+          'MetaMask ochilmadi yoki wallet javob bermadi'
+        );
 
       } else if (selected === 'nocollateral-buy') {
-        tx = await c.postListingNoCollateralBuy(durRaw, usdcRaw, period);
+        tx = await withWalletTimeout(
+          c.postListingNoCollateralBuy(durRaw, usdcRaw, period),
+          60000,
+          'MetaMask ochilmadi yoki wallet javob bermadi'
+        );
       }
 
-      const receipt = await tx.wait();
+      const receipt = await withWalletTimeout(
+        tx.wait(),
+        120000,
+        'Transaction juda uzoq kutilyapti'
+      );
 
       saveLocalTxHistory({
         type: 'CreateListing',
@@ -424,5 +477,7 @@ export default function CreateListing() {
     </div>
   );
 }
+
+
 
 
