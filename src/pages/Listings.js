@@ -7,6 +7,17 @@ import toast from 'react-hot-toast';
 import { saveLocalTxHistory } from '../utils/localTxHistory';
 import { List, RefreshCw, CheckCircle, Copy, Check, XCircle, Lock, AlertCircle, Search } from 'lucide-react';
 
+// withWalletTimeout — tx.wait() ga timeout o'rovchisi (mobile WC sessiyada
+// wallet javob bermay qolsa, foydalanuvchini cheksiz kutishdan qutqaradi).
+function withWalletTimeout(promise, ms, message) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(message || 'Wallet javob bermadi')), ms);
+    }),
+  ]);
+}
+
 function shortAddr(a) {
   return !a || a === ethers.ZeroAddress ? '—' : a.slice(0, 6) + '...' + a.slice(-4);
 }
@@ -74,7 +85,7 @@ function getStatusLabel(status, t) {
     4: t('statusApproved'),
     5: t('statusRemoved'),
     6: t('statusPaid'),
-    7: t('statusDefaulted') || 'Default / to‘lanmagan'
+    7: t('statusDefaulted') || 'Default / to\u2018lanmagan'
   };
 
   return statusLabels[s] || `Status ${s}`;
@@ -203,19 +214,19 @@ function getFriendlyTxError(e, fallback) {
   console.error('TX CONTRACT REASON:', reason || '(reason topilmadi)');
 
   if (r.includes('total bl limit') || rawLower.includes('total bl limit')) {
-    return 'Contract rad etdi: total BL limit — aktiv garovsiz qarzlar yoki band BL sabab yangi garovsiz e’lon uchun bo‘sh BL limiti yetmayapti.';
+    return 'Contract rad etdi: total BL limit \u2014 aktiv garovsiz qarzlar yoki band BL sabab yangi garovsiz e\u2019lon uchun bo\u2018sh BL limiti yetmayapti.';
   }
 
   if (r.includes('bl low') || rawLower.includes('bl low')) {
-    return 'Contract rad etdi: BL low — BL darajangiz bu garovsiz e’lon uchun talab qilingan darajadan past.';
+    return 'Contract rad etdi: BL low \u2014 BL darajangiz bu garovsiz e\u2019lon uchun talab qilingan darajadan past.';
   }
 
   if (r.includes('buyer bl') || rawLower.includes('buyer bl')) {
-    return 'Contract rad etdi: buyer BL — xaridorning BL limiti yoki pairwise BL talabi yetarli emas.';
+    return 'Contract rad etdi: buyer BL \u2014 xaridorning BL limiti yoki pairwise BL talabi yetarli emas.';
   }
 
   if (r.includes('seller bl') || rawLower.includes('seller bl')) {
-    return 'Contract rad etdi: seller BL — sotuvchining BL limiti yoki pairwise BL talabi yetarli emas.';
+    return 'Contract rad etdi: seller BL \u2014 sotuvchining BL limiti yoki pairwise BL talabi yetarli emas.';
   }
 
   if (r.includes('blacklist') || rawLower.includes('blacklist')) {
@@ -223,7 +234,7 @@ function getFriendlyTxError(e, fallback) {
   }
 
   if (r.includes('default') || rawLower.includes('defaulted')) {
-    return 'Contract rad etdi: e’lon yoki foydalanuvchi default holati sabab amal bajarilmadi.';
+    return 'Contract rad etdi: e\u2019lon yoki foydalanuvchi default holati sabab amal bajarilmadi.';
   }
 
   if (
@@ -240,7 +251,7 @@ function getFriendlyTxError(e, fallback) {
     rawLower.includes('insufficient balance') ||
     rawLower.includes('exceeds balance')
   ) {
-    return "Hamyonda yetarli token yo‘q.";
+    return "Hamyonda yetarli token yo\u2018q.";
   }
 
   if (
@@ -248,7 +259,7 @@ function getFriendlyTxError(e, fallback) {
     rawLower.includes('unsupported chain') ||
     (rawLower.includes('chain') && rawLower.includes('optimism'))
   ) {
-    return 'Optimism Mainnet tarmog‘iga o‘ting.';
+    return 'Optimism Mainnet tarmog\u2018iga o\u2018ting.';
   }
 
   if (reason) {
@@ -267,7 +278,8 @@ export default function Listings() {
     ensureApproval,
     refreshBalances,
     walletBalances,
-    ensureCorrectChain
+    ensureCorrectChain,
+    openWalletForRequest
   } = useWeb3();
 
   const { t } = useLang();
@@ -424,6 +436,57 @@ export default function Listings() {
     }
 
     const status = Number(listing.status);
+    const lid = listing?.id ?? listing?.listingId ?? null;
+
+    // ====================================================================
+    // Garovsiz e'lon tasdiqlash: kontrakt revertini oldindan ushlash uchun
+    // BL va blacklist precheck. status === 2 (pendingSellerN) yoki
+    // status === 3 (pendingBuyerN) — bularning ikkalasi ham garovsiz.
+    // ====================================================================
+    if (!listing.isCollateral) {
+      const c0 = readOnlyContract || contract;
+      if (c0) {
+        try {
+          // 1) Blacklist tekshirish
+          let isBL = false;
+          try {
+            isBL = await c0.isBlacklisted(account);
+          } catch (_) {}
+
+          if (isBL) {
+            toast.error(
+              "Wallet blacklist holatida. Avval mavjud default qarzlarni to'lang."
+            );
+            return;
+          }
+
+          // 2) Required BL = DUR × 10
+          const durRaw = listing.durAmount;
+          const requiredBLRaw = durRaw * 10n;
+
+          // 3) freeTotalBL — band qilinmagan BL
+          const freeBLRaw = await c0.freeTotalBL(account);
+
+          if (freeBLRaw < requiredBLRaw) {
+            const freeFmt = parseFloat(
+              ethers.formatUnits(freeBLRaw, 18)
+            ).toFixed(2);
+            const needFmt = parseFloat(
+              ethers.formatUnits(requiredBLRaw, 18)
+            ).toFixed(2);
+
+            toast.error(
+              `BL yetarli emas. Sizning bo'sh BL: ${freeFmt}, kerak: ${needFmt}.`
+            );
+            return;
+          }
+        } catch (precheckErr) {
+          // Precheck o'zi xato bersa — to'xtatmaymiz
+          console.warn('BL precheck failed (davom etamiz):', precheckErr);
+        }
+      }
+    }
+
     let chosenTokenId = 0;
 
     if (listing.isCollateral && status === 0) {
@@ -450,16 +513,24 @@ export default function Listings() {
 
     try {
       await ensureCorrectChain();
+
+      openWalletForRequest && openWalletForRequest();
+
       const tx = await contract.connect(signer).approveListing(listingId, chosenTokenId);
-      const receipt = await tx.wait();
+
+      const receipt = await withWalletTimeout(
+        tx.wait(),
+        120000,
+        'Transaction juda uzoq kutilyapti'
+      );
 
       saveLocalTxHistory({
         type: 'Listings',
         label: 'Listings transaction',
-        listingId: typeof listing !== 'undefined' ? (listing.id ?? listing.listingId ?? null) : null,
+        listingId: lid !== null ? lid.toString() : null,
         txHash: receipt?.hash || tx?.hash,
         status: 'success',
-        account: typeof account !== 'undefined' ? account : '',
+        account: account || '',
         extra: '',
       });
 
@@ -489,22 +560,32 @@ export default function Listings() {
       return;
     }
 
+    const lid = listing?.id ?? listing?.listingId ?? null;
+
     setActionLoading(listingId);
 
     const toastId = toast.loading('Bekor qilinmoqda...');
 
     try {
       await ensureCorrectChain();
+
+      openWalletForRequest && openWalletForRequest();
+
       const tx = await contract.connect(signer).cancelListing(listingId);
-      const receipt = await tx.wait();
+
+      const receipt = await withWalletTimeout(
+        tx.wait(),
+        120000,
+        'Transaction juda uzoq kutilyapti'
+      );
 
       saveLocalTxHistory({
         type: 'Listings',
-        label: 'Listings transaction',
-        listingId: typeof listing !== 'undefined' ? (listing.id ?? listing.listingId ?? null) : null,
+        label: 'Listings cancel',
+        listingId: lid !== null ? lid.toString() : null,
         txHash: receipt?.hash || tx?.hash,
         status: 'success',
-        account: typeof account !== 'undefined' ? account : '',
+        account: account || '',
         extra: '',
       });
 
@@ -519,12 +600,9 @@ export default function Listings() {
       fetchListings();
       refreshBalances();
     } catch (e) {
-      const msg = e?.reason || e?.message || '';
-
-      toast.error(
-        msg.includes('user rejected') ? t('walletRejected') : t('errorOccurred'),
-        { id: toastId }
-      );
+      const userMsg = getFriendlyTxError(e, t('errorOccurred'));
+      console.error('cancel listing error:', e);
+      toast.error(userMsg, { id: toastId });
     } finally {
       setActionLoading(null);
     }
@@ -735,11 +813,6 @@ export default function Listings() {
             const isBuyer = listing.buyer?.toLowerCase() === account?.toLowerCase();
             const isOwner = isSeller || isBuyer;
             const canApprove = !isOwner;
-
-            const requiredNoCollateralBL = !listing.isCollateral ? Number(ethers.formatUnits(listing.durAmount || 0n, 18)) * 10 : 0;
-            const listingFreeBL = !listing.isCollateral ? Number(ethers.formatUnits(listing.freeBL || 0n, 18)) : 0;
-            const listingTotalBL = !listing.isCollateral ? Number(ethers.formatUnits(listing.totalBLValue || 0n, 18)) : 0;
-            const listingPendingBL = !listing.isCollateral ? Number(ethers.formatUnits(listing.pendingBLValue || 0n, 18)) : 0;
 
             const isPendingBuyerCollateral = status === 1 && listing.isCollateral;
 
@@ -1099,10 +1172,6 @@ export default function Listings() {
                         >
                           {acceptedTokens.map(tk => {
                             const amt = collateralPreviews[id]?.[tk];
-                            const walletBal = parseFloat(walletBalances?.[tk] || '0');
-                            const needed = parseFloat(amt || '0');
-                            const enough = needed > 0 && walletBal >= needed;
-                            const notEnough = needed > 0 && walletBal < needed;
                             const color = TOKEN_COLORS[tk];
 
                             return (
@@ -1244,19 +1313,3 @@ export default function Listings() {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

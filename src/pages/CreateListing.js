@@ -22,7 +22,7 @@ function withWalletTimeout(promise, ms, message) {
 }
 
 export default function CreateListing() {
-  const { account, contract, signer, walletBalances, ensureApproval, ensureCorrectChain, refreshBalances, openWalletForRequest } = useWeb3();
+  const { account, contract, readOnlyContract, signer, walletBalances, ensureApproval, ensureCorrectChain, refreshBalances, openWalletForRequest } = useWeb3();
   const { t } = useLang();
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState({ durAmount: '', priceUSDC: '', paymentPeriod: '' });
@@ -176,6 +176,66 @@ export default function CreateListing() {
     const tid = toast.loading(t('createPosting'));
     try {
       await ensureCorrectChain();
+
+      // ====================================================================
+      // Garovsiz e'lon berish uchun BL va blacklist precheck
+      // (kontrakt revertini oldindan ushlab, MetaMask'ni bekorga ochmaslik
+      // uchun)
+      // ====================================================================
+      const isNoCollateral =
+        selected === 'nocollateral-sell' || selected === 'nocollateral-buy';
+
+      if (isNoCollateral) {
+        const c0 = readOnlyContract || contract;
+        if (c0) {
+          try {
+            // Blacklist tekshirish
+            let isBL = false;
+            try {
+              isBL = await c0.isBlacklisted(account);
+            } catch (_) {
+              // Eski versiya kontraktda bu funksiya bo'lmasligi mumkin
+            }
+
+            if (isBL) {
+              toast.error(
+                'Wallet blacklist holatida. Avval mavjud default qarzlarni to\'lang.',
+                { id: tid }
+              );
+              setLoading(false);
+              return;
+            }
+
+            // Required BL = DUR miqdori × 10 (raw wei, 18 decimals)
+            const requiredBLRaw = durRaw * 10n;
+
+            // freeTotalBL — band qilinmagan BL
+            // (totalBL - barcha pending va aktiv garovsiz qarzlardagi BL)
+            const freeBLRaw = await c0.freeTotalBL(account);
+
+            if (freeBLRaw < requiredBLRaw) {
+              const freeFmt = parseFloat(
+                ethers.formatUnits(freeBLRaw, 18)
+              ).toFixed(2);
+              const needFmt = parseFloat(
+                ethers.formatUnits(requiredBLRaw, 18)
+              ).toFixed(2);
+
+              toast.error(
+                `BL yetarli emas. Sizning bo'sh BL: ${freeFmt}, kerak: ${needFmt}.`,
+                { id: tid }
+              );
+              setLoading(false);
+              return;
+            }
+          } catch (precheckErr) {
+            // Precheck o'zi xato bersa — to'xtatmaymiz, davom etamiz va
+            // kontraktning haqiqiy javobini olamiz
+            console.warn('BL precheck failed (davom etamiz):', precheckErr);
+          }
+        }
+      }
+
       const c = contract.connect(signer);
       let tx;
 
@@ -308,6 +368,10 @@ export default function CreateListing() {
         m = t('clZeroCollateral') || 'Garov miqdori 0 bo‘lib qoldi.';
       } else if (msg.includes('wrong network') || msg.includes('unsupported chain')) {
         m = 'Optimism Mainnet tarmog‘iga o‘ting.';
+      } else if (msg.includes('total bl limit') || msg.includes('bl low')) {
+        m = "BL yetarli emas. Garovsiz e'lon uchun bo'sh BL limitingiz yetmayapti.";
+      } else if (msg.includes('blacklist')) {
+        m = 'Wallet blacklist holatida.';
       } else if (raw) {
         m = raw.slice(0, 220);
       }
