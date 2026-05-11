@@ -17,6 +17,18 @@ import {
   Ban
 } from 'lucide-react';
 
+// ====================================================================
+//  withWalletTimeout — har tx.wait() chaqiruvi uchun timeout o'rovchisi
+// ====================================================================
+function withWalletTimeout(promise, ms, message) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(message || 'Wallet javob bermadi')), ms);
+    }),
+  ]);
+}
+
 function AddrCell({ addr }) {
   const [copied, setCopied] = React.useState(false);
 
@@ -90,7 +102,8 @@ export default function Approved() {
     ensureApproval,
     refreshBalances,
     walletBalances,
-    ensureCorrectChain
+    ensureCorrectChain,
+    openWalletForRequest
   } = useWeb3();
 
   const { t } = useLang();
@@ -168,72 +181,88 @@ export default function Approved() {
   }, [refreshAll]);
 
   const timeLeft = (dueDate) => {
-  const now = Math.floor(Date.now() / 1000);
-  const due = Number(dueDate);
-  const diff = due - now;
+    const now = Math.floor(Date.now() / 1000);
+    const due = Number(dueDate);
+    const diff = due - now;
 
-  if (diff <= 0) {
-    return {
-      expired: true,
-      text: t('approvedExpired') || "Muddati o'tgan"
-    };
-  }
+    if (diff <= 0) {
+      return {
+        expired: true,
+        text: t('approvedExpired') || "Muddati o'tgan"
+      };
+    }
 
-  const d = Math.floor(diff / 86400);
-  const h = Math.floor((diff % 86400) / 3600);
-  const m = Math.floor((diff % 3600) / 60);
-  const s = diff % 60;
+    const d = Math.floor(diff / 86400);
+    const h = Math.floor((diff % 86400) / 3600);
+    const m = Math.floor((diff % 3600) / 60);
+    const s = diff % 60;
 
-  if (d > 0) {
+    if (d > 0) {
+      return {
+        expired: false,
+        text: `${d} ${t('approvedDays')} ${h} ${t('approvedHours')} ${t('approvedTimeLeft')}`
+      };
+    }
+
+    if (h > 0) {
+      return {
+        expired: false,
+        text: `${h} ${t('approvedHours')} ${m} daqiqa ${t('approvedTimeLeft')}`
+      };
+    }
+
+    if (m > 0) {
+      return {
+        expired: false,
+        text: `${m} daqiqa ${s} soniya ${t('approvedTimeLeft')}`
+      };
+    }
+
     return {
       expired: false,
-      text: `${d} ${t('approvedDays')} ${h} ${t('approvedHours')} ${t('approvedTimeLeft')}`
+      text: `${s} soniya ${t('approvedTimeLeft')}`
     };
-  }
-
-  if (h > 0) {
-    return {
-      expired: false,
-      text: `${h} ${t('approvedHours')} ${m} daqiqa ${t('approvedTimeLeft')}`
-    };
-  }
-
-  if (m > 0) {
-    return {
-      expired: false,
-      text: `${m} daqiqa ${s} soniya ${t('approvedTimeLeft')}`
-    };
-  }
-
-  return {
-    expired: false,
-    text: `${s} soniya ${t('approvedTimeLeft')}`
   };
-};
 
+  // ====================================================================
+  //  doPayment — xaridor to'lov qiladi (faol shartnoma)
+  // ====================================================================
   const doPayment = async (listing) => {
     if (!account) return toast.error(t('connectPrompt'));
     if (!signer) return toast.error(t('connectPrompt'));
 
     const id = Number(listing.id);
+    const lid = listing?.id ?? listing?.listingId ?? null;
 
     setActionLoading(`pay-${id}`);
 
     const tid = toast.loading(t('clPaymentProcessing'));
 
     try {
+      // 1) Tarmoq Optimism ekanligini tasdiqlash
+      await ensureCorrectChain();
+
+      // 2) USDC approve (ichida o'zi wallet'ni ochadi)
       await ensureApproval('USDC', listing.priceUSDC);
 
+      // 3) Asosiy tx — wallet'ni oldindan ochib qo'yish (mobile uchun)
+      openWalletForRequest && openWalletForRequest();
+
       const tx = await contract.connect(signer).makePayment(id);
-      const receipt = await tx.wait();
+
+      const receipt = await withWalletTimeout(
+        tx.wait(),
+        120000,
+        'Transaction juda uzoq kutilyapti'
+      );
 
       saveLocalTxHistory({
-        type: 'DefaultClaimed',
-        label: 'Default claimed',
-        listingId: typeof listing !== 'undefined' ? (listing.id ?? listing.listingId ?? null) : null,
+        type: 'Payment',
+        label: 'Payment made',
+        listingId: lid !== null ? lid.toString() : null,
         txHash: receipt?.hash || tx?.hash,
         status: 'success',
-        account: typeof account !== 'undefined' ? account : '',
+        account: account || '',
         extra: '',
       });
 
@@ -242,12 +271,15 @@ export default function Approved() {
       await refreshAll();
       refreshBalances();
     } catch (e) {
-      const msg = e?.reason || e?.shortMessage || e?.message || '';
+      const msg = (e?.reason || e?.shortMessage || e?.message || '').toString();
+      const lower = msg.toLowerCase();
 
-      if (msg.includes('user rejected') || msg.includes('User rejected')) {
+      if (lower.includes('user rejected') || lower.includes('rejected')) {
         toast.error(t('walletRejected'), { id: tid });
-      } else if (msg.includes('insufficient') || msg.includes('exceeds')) {
+      } else if (lower.includes('insufficient') || lower.includes('exceeds')) {
         toast.error(t('approvedUSDCInsufficient'), { id: tid });
+      } else if (lower.includes('timeout') || lower.includes('javob bermadi')) {
+        toast.error('Wallet javob bermadi. Qaytadan urinib ko\'ring.', { id: tid });
       } else {
         console.error('makePayment error:', e);
         toast.error(t('errorOccurred'), { id: tid });
@@ -257,12 +289,16 @@ export default function Approved() {
     }
   };
 
-  // V5: garovli va garovsiz default uchun bitta claimDefault()
+  // ====================================================================
+  //  doClaimDefault — sotuvchi muddati o'tgan e'londan garov/blacklist olib qo'yadi
+  //  V5: garovli va garovsiz default uchun bitta claimDefault()
+  // ====================================================================
   const doClaimDefault = async (listing) => {
     if (!account) return toast.error(t('connectPrompt'));
     if (!signer) return toast.error(t('connectPrompt'));
 
     const id = Number(listing.id);
+    const lid = listing?.id ?? listing?.listingId ?? null;
 
     setActionLoading(`claim-${id}`);
 
@@ -270,15 +306,24 @@ export default function Approved() {
 
     try {
       await ensureCorrectChain();
+
+      openWalletForRequest && openWalletForRequest();
+
       const tx = await contract.connect(signer).claimDefault(id);
-      const receipt = await tx.wait();
+
+      const receipt = await withWalletTimeout(
+        tx.wait(),
+        120000,
+        'Transaction juda uzoq kutilyapti'
+      );
 
       saveLocalTxHistory({
-        label: 'Paid after default',
-        listingId: typeof listing !== 'undefined' ? (listing.id ?? listing.listingId ?? null) : null,
+        type: 'DefaultClaimed',
+        label: 'Default claimed',
+        listingId: lid !== null ? lid.toString() : null,
         txHash: receipt?.hash || tx?.hash,
         status: 'success',
-        account: typeof account !== 'undefined' ? account : '',
+        account: account || '',
         extra: '',
       });
 
@@ -290,10 +335,13 @@ export default function Approved() {
       await refreshAll();
       refreshBalances();
     } catch (e) {
-      const msg = e?.reason || e?.shortMessage || e?.message || '';
+      const msg = (e?.reason || e?.shortMessage || e?.message || '').toString();
+      const lower = msg.toLowerCase();
 
-      if (msg.includes('user rejected') || msg.includes('User rejected')) {
+      if (lower.includes('user rejected') || lower.includes('rejected')) {
         toast.error(t('walletRejected'), { id: tid });
+      } else if (lower.includes('timeout') || lower.includes('javob bermadi')) {
+        toast.error('Wallet javob bermadi. Qaytadan urinib ko\'ring.', { id: tid });
       } else {
         console.error('claimDefault error:', e);
         toast.error(msg || t('errorOccurred'), { id: tid });
@@ -303,12 +351,15 @@ export default function Approved() {
     }
   };
 
-    // V5: buyer garovsiz default qarzni keyin to'laydi
+  // ====================================================================
+  //  doPayAfterDefault — buyer garovsiz default qarzni keyin to'laydi (V5)
+  // ====================================================================
   const doPayAfterDefault = async (listing) => {
     if (!account) return toast.error(t('connectPrompt'));
     if (!signer) return toast.error(t('connectPrompt'));
 
     const id = Number(listing.id);
+    const lid = listing?.id ?? listing?.listingId ?? null;
 
     if (listing.isCollateral) {
       return toast.error('Garovli default uchun keyin to‘lash funksiyasi yo‘q');
@@ -323,15 +374,23 @@ export default function Approved() {
 
       await ensureApproval('USDC', listing.priceUSDC);
 
+      openWalletForRequest && openWalletForRequest();
+
       const tx = await contract.connect(signer).payAfterDefault(id);
-      const receipt = await tx.wait();
+
+      const receipt = await withWalletTimeout(
+        tx.wait(),
+        120000,
+        'Transaction juda uzoq kutilyapti'
+      );
 
       saveLocalTxHistory({
+        type: 'PayAfterDefault',
         label: 'Paid after default',
-        listingId: listing?.id ?? listing?.listingId ?? null,
+        listingId: lid !== null ? lid.toString() : null,
         txHash: receipt?.hash || tx?.hash,
         status: 'success',
-        account: typeof account !== 'undefined' ? account : '',
+        account: account || '',
         extra: '',
       });
 
@@ -343,12 +402,15 @@ export default function Approved() {
       await refreshAll();
       refreshBalances();
     } catch (e) {
-      const msg = e?.reason || e?.shortMessage || e?.message || '';
+      const msg = (e?.reason || e?.shortMessage || e?.message || '').toString();
+      const lower = msg.toLowerCase();
 
-      if (msg.includes('user rejected') || msg.includes('User rejected')) {
+      if (lower.includes('user rejected') || lower.includes('rejected')) {
         toast.error(t('walletRejected'), { id: tid });
-      } else if (msg.includes('insufficient') || msg.includes('exceeds')) {
+      } else if (lower.includes('insufficient') || lower.includes('exceeds')) {
         toast.error(t('approvedUSDCInsufficient'), { id: tid });
+      } else if (lower.includes('timeout') || lower.includes('javob bermadi')) {
+        toast.error('Wallet javob bermadi. Qaytadan urinib ko\'ring.', { id: tid });
       } else {
         toast.error(msg || t('errorOccurred'), { id: tid });
       }
@@ -356,6 +418,7 @@ export default function Approved() {
       setActionLoading(null);
     }
   };
+
   const renderListingCard = (listing) => {
     const id = Number(listing.id);
     const isBuyer = isSameAddress(listing.buyer, account);
@@ -571,7 +634,7 @@ export default function Approved() {
                   textAlign: 'right'
                 }}
               >
-                ? "Garovli default: garov sellerga o'tadi, buyer blacklistga tushmaydi."
+                Garovli default: garov sellerga o'tadi, buyer blacklistga tushmaydi.
               </div>
             )}
 
@@ -584,7 +647,7 @@ export default function Approved() {
                   textAlign: 'right'
                 }}
               >
-                : "Garovsiz default: buyer blacklistga tushgan."}
+                Garovsiz default: buyer blacklistga tushgan.
               </div>
             )}
           </div>
@@ -777,6 +840,7 @@ export default function Approved() {
                 ) : (
                   <CreditCard size={15} />
                 )}
+                {t('payAfterDefaultBtn') || 'Keyin to‘lash'}
               </button>
             )}
 
@@ -789,7 +853,7 @@ export default function Approved() {
                   textAlign: 'right'
                 }}
               >
-      return toast.error('Garovli default uchun keyin to‘lash funksiyasi yo‘q');
+                Garovli default uchun keyin to‘lash funksiyasi yo‘q.
               </div>
             )}
 
@@ -888,11 +952,7 @@ export default function Approved() {
 
       <div>
         <h2 style={{ fontSize: '18px', marginBottom: '12px' }}>
-              {defaultListings.length === 0 && (
-              <div style={{ color: 'var(--text-muted)', fontWeight: 700 }}>
-                Garovsiz default shartnomalar yo'q.
-              </div>
-            )}
+          Garovsiz default shartnomalar
         </h2>
 
         {defaultLoading ? (
@@ -912,11 +972,7 @@ export default function Approved() {
           <div className="card" style={{ textAlign: 'center', padding: '32px' }}>
             <CheckCircle size={32} color="var(--text-muted)" style={{ marginBottom: 12 }} />
             <p style={{ color: 'var(--text-secondary)' }}>
-              {defaultListings.length === 0 && (
-              <div style={{ color: 'var(--text-muted)', fontWeight: 700 }}>
-                Garovsiz default shartnomalar yo'q.
-              </div>
-            )}
+              Garovsiz default shartnomalar yo'q.
             </p>
           </div>
         ) : (
@@ -928,12 +984,3 @@ export default function Approved() {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
