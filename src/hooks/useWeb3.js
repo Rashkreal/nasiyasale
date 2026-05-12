@@ -998,6 +998,16 @@ export function Web3Provider({ children }) {
     ]);
   };
 
+  // ════════════════════════════════════════════════════════════════════
+  //  ensureApproval — token approve qilish.
+  //
+  //  Mobile WalletConnect sessiyada ba'zan tx.wait() javob bermay turadi
+  //  (WC bridge transaction'ni frontend'ga yetkazmaydi), garchi blockchain'da
+  //  approve allaqachon tasdiqlangan bo'lsa ham. Buni hal qilish uchun
+  //  tx.wait() bilan parallel ravishda har 3 soniyada allowance'ni qayta
+  //  o'qib turamiz. Qaysi birinchi muvaffaqiyatli bo'lsa — shu bilan davom
+  //  etamiz.
+  // ════════════════════════════════════════════════════════════════════
   const ensureApproval = async (tokenKey, amountRaw) => {
     const token = tokens[tokenKey];
 
@@ -1017,38 +1027,69 @@ export function Web3Provider({ children }) {
       throw new Error('Wallet uzilmoqda');
     }
 
-    // ⬇️ MUHIM: har approval'dan oldin tarmoqni tekshirish
+    // Tarmoqni tasdiqlash
     await ensureCorrectChain();
 
     actionAbortRef.current = false;
 
-    // ensureCorrectChain'dan keyin signer yangilangan bo'lishi mumkin —
-    // shuning uchun token contract'ni qaytadan signer bilan bog'laymiz
+    // Signer yangilangan bo'lishi mumkin — qayta olamiz
     const tokenWithSigner = tokens[tokenKey];
 
-    const allowance = await tokenWithSigner.allowance(account, CONTRACT_ADDRESS);
+    // Joriy allowance — agar yetarli bo'lsa, approve shart emas
+    const initialAllowance = await tokenWithSigner.allowance(account, CONTRACT_ADDRESS);
 
-    if (allowance >= amountRaw) {
+    if (initialAllowance >= amountRaw) {
       return true;
     }
 
     const tid = toast.loading(
-      `${tokenKey} uchun ruxsat so'ralmoqda... MetaMask/Wallet ilovasini tekshiring.`
+      `${tokenKey} uchun ruxsat so'ralmoqda... Wallet ilovasini tekshiring.`
     );
     activeToastRef.current = tid;
 
+    // Polling: har 3 soniyada allowance'ni qayta o'qib, yetarli bo'lsa
+    // muvaffaqiyat deb tan olamiz (tx.wait() WC bridge bilan muammoda
+    // bo'lsa ham, blockchain holatiga ishonamiz).
+    const pollAllowance = () => {
+      return new Promise((resolve, reject) => {
+        let cancelled = false;
+        const tick = async () => {
+          if (cancelled) return;
+          if (actionAbortRef.current || disconnectingRef.current) {
+            cancelled = true;
+            reject(new Error('Approval bekor qilindi'));
+            return;
+          }
+          try {
+            const current = await tokenWithSigner.allowance(account, CONTRACT_ADDRESS);
+            if (current >= amountRaw) {
+              cancelled = true;
+              resolve('polling');
+              return;
+            }
+          } catch (_) {
+            // RPC vaqtincha xato — keyingi tick'ga o'tamiz
+          }
+          if (!cancelled) {
+            setTimeout(tick, 3000);
+          }
+        };
+        // Birinchi tick'ni 3 soniyadan keyin boshlaymiz
+        // (approve hali yangi yuborilgan, darrov tekshirish ortiqcha)
+        setTimeout(tick, 3000);
+      });
+    };
+
     try {
-      // Mobile'da WalletConnect bo'lsa, popup ko'rinishi uchun wallet'ni
-      // oldinga chiqaramiz. Desktop'da bu funksiya hech narsa qilmaydi.
+      // Mobile uchun wallet'ni oldinga chiqaramiz
       openWalletForRequest();
 
-      const approvePromise = tokenWithSigner
-        .connect(signer)
-        .approve(CONTRACT_ADDRESS, amountRaw);
-
+      // Approve tx yuborish — bu yer wallet popupini ko'rsatadi
+      // va foydalanuvchi imzolagandan keyin tx obyektini qaytaradi.
+      // Mobile WC'da bu 30-60 soniya olishi mumkin.
       const tx = await withTimeout(
-        approvePromise,
-        60000,
+        tokenWithSigner.connect(signer).approve(CONTRACT_ADDRESS, amountRaw),
+        90000,
         `${tokenKey} approval oynasi chiqmadi yoki wallet javob bermadi`
       );
 
@@ -1060,10 +1101,19 @@ export function Web3Provider({ children }) {
         id: tid,
       });
 
+      // tx.wait() va allowance polling parallel — qaysi birinchi tugasa
+      // shu bilan davom etamiz. 120 soniya umumiy timeout.
       await withTimeout(
-        tx.wait(),
+        Promise.race([
+          tx.wait().catch((e) => {
+            // tx.wait() xato bersa polling davom etsin
+            console.warn(`${tokenKey} tx.wait failed, polling continues:`, e?.message || e);
+            return new Promise(() => {}); // hech qachon resolve qilmaydi
+          }),
+          pollAllowance(),
+        ]),
         120000,
-        `${tokenKey} approval transaction juda uzoq kutilyapti`
+        `${tokenKey} approval blockchain'da tasdiqlanmadi`
       );
 
       if (actionAbortRef.current || disconnectingRef.current) {
@@ -1074,6 +1124,18 @@ export function Web3Provider({ children }) {
       activeToastRef.current = null;
       return true;
     } catch (e) {
+      // Xato bo'lganda ham allowance'ni yana bir bor tekshirib ko'ramiz —
+      // ehtimol blockchain'da approve o'tib ketgan, lekin frontend o'tkazib
+      // yuborgan.
+      try {
+        const finalCheck = await tokenWithSigner.allowance(account, CONTRACT_ADDRESS);
+        if (finalCheck >= amountRaw) {
+          toast.success(`${tokenKey} ruxsat berildi`, { id: tid });
+          activeToastRef.current = null;
+          return true;
+        }
+      } catch (_) {}
+
       const msg = String(e?.reason || e?.message || e || '').toLowerCase();
 
       if (
@@ -1092,9 +1154,15 @@ export function Web3Provider({ children }) {
         msg.includes('wallet javob bermadi') ||
         msg.includes('timeout')
       ) {
-        toast.error(`${tokenKey} approval oynasi chiqmadi. WalletConnect/MetaMaskni qayta ulang.`, {
-          id: tid,
-        });
+        toast.error(
+          `${tokenKey} approval oynasi chiqmadi. Walletni qayta ulang.`,
+          { id: tid }
+        );
+      } else if (msg.includes("blockchain'da tasdiqlanmadi")) {
+        toast.error(
+          `${tokenKey} approval blockchain'da tasdiqlanmadi. Wallet sessiyasini yangilang.`,
+          { id: tid }
+        );
       } else {
         toast.error(`${tokenKey} approval xato bo‘ldi`, { id: tid });
       }
