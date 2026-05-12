@@ -36,6 +36,27 @@ function withProgressToast(promise, toastId, stages) {
   });
 }
 
+// formatTokenAmount — token miqdorini 4 muhim raqam bilan formatlaydi.
+// WBTC/WETH kabi qimmat tokenlar uchun kichik garovlar 0 ko'rinishini
+// oldini oladi. Misol:
+//   123.456 -> "123.5", 0.0000001234 -> "0.0000001234"
+function formatTokenAmount(value, sigFigs = 4) {
+  const num = typeof value === 'number' ? value : parseFloat(value);
+  if (!isFinite(num) || num === 0) return '0';
+  const abs = Math.abs(num);
+  const precisionStr = num.toPrecision(sigFigs);
+  if (precisionStr.includes('e') || precisionStr.includes('E')) {
+    const parsed = Number(precisionStr);
+    if (abs < 1) {
+      const exp = Math.floor(Math.log10(abs));
+      const decimalPlaces = -exp + (sigFigs - 1);
+      return parsed.toFixed(decimalPlaces);
+    }
+    return parsed.toFixed(0);
+  }
+  return precisionStr;
+}
+
 export default function CreateListing() {
   const { account, contract, readOnlyContract, signer, walletBalances, ensureApproval, ensureCorrectChain, refreshBalances, openWalletForRequest } = useWeb3();
   const { t } = useLang();
@@ -122,7 +143,7 @@ export default function CreateListing() {
         const tokenId = TOKEN_IDS[buyChosenToken];
         const colAmt = await contract.previewCollateral(priceRaw, tokenId);
         const dec = TOKEN_DECIMALS[buyChosenToken];
-        setCollateralPreview(parseFloat(ethers.formatUnits(colAmt, dec)).toFixed(dec <= 8 ? 6 : 4));
+        setCollateralPreview(formatTokenAmount(ethers.formatUnits(colAmt, dec)));
       } catch (e) {
         setCollateralPreview(null);
       } finally {
@@ -148,7 +169,7 @@ export default function CreateListing() {
             const tokenId = TOKEN_IDS[tk];
             const colAmt = await contract.previewCollateral(priceRaw, tokenId);
             const dec = TOKEN_DECIMALS[tk];
-            results[tk] = parseFloat(ethers.formatUnits(colAmt, dec)).toFixed(dec <= 8 ? 6 : 4);
+            results[tk] = formatTokenAmount(ethers.formatUnits(colAmt, dec));
           } catch { results[tk] = null; }
         }));
         setSellPreviews(results);

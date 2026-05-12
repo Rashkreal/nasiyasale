@@ -32,6 +32,27 @@ function withProgressToast(promise, toastId, stages) {
   });
 }
 
+// formatTokenAmount — token miqdorini 4 muhim raqam bilan formatlaydi.
+// WBTC/WETH kabi qimmat tokenlar uchun kichik garovlar 0 ko'rinishini
+// oldini oladi. Misol:
+//   123.456 -> "123.5", 0.0000001234 -> "0.0000001234"
+function formatTokenAmount(value, sigFigs = 4) {
+  const num = typeof value === 'number' ? value : parseFloat(value);
+  if (!isFinite(num) || num === 0) return '0';
+  const abs = Math.abs(num);
+  const precisionStr = num.toPrecision(sigFigs);
+  if (precisionStr.includes('e') || precisionStr.includes('E')) {
+    const parsed = Number(precisionStr);
+    if (abs < 1) {
+      const exp = Math.floor(Math.log10(abs));
+      const decimalPlaces = -exp + (sigFigs - 1);
+      return parsed.toFixed(decimalPlaces);
+    }
+    return parsed.toFixed(0);
+  }
+  return precisionStr;
+}
+
 function shortAddr(a) {
   return !a || a === ethers.ZeroAddress ? '—' : a.slice(0, 6) + '...' + a.slice(-4);
 }
@@ -352,7 +373,7 @@ export default function Listings() {
       const colAmt = await c.getCollateralAmount(listingId, tokenId);
       const dec = TOKEN_DECIMALS[tokenKey];
 
-      const formatted = parseFloat(ethers.formatUnits(colAmt, dec)).toFixed(dec <= 8 ? 6 : 4);
+      const formatted = formatTokenAmount(ethers.formatUnits(colAmt, dec));
 
       setCollateralPreviews(prev => ({
         ...prev,
@@ -881,12 +902,12 @@ export default function Listings() {
               : '';
 
             const lockedColAmt = isPendingBuyerCollateral && listing.collateralAmount > 0
-              ? parseFloat(
+              ? formatTokenAmount(
                   ethers.formatUnits(
                     listing.collateralAmount,
                     TOKEN_DECIMALS[lockedTokenName] || 18
                   )
-                ).toFixed((TOKEN_DECIMALS[lockedTokenName] || 18) <= 8 ? 6 : 4)
+                )
               : null;
 
             const buyerPriceDiff = isPendingBuyerCollateral && lockedTokenName
