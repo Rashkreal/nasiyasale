@@ -143,8 +143,6 @@ export default function Approved() {
 
       const arr = [];
 
-      console.log(`[Approved] Scanning ${total} listings, account=${account}`);
-
       for (let i = 0; i < total; i++) {
         try {
           const item = await c.getListingById(i);
@@ -152,11 +150,6 @@ export default function Approved() {
           const status = Number(item.status);
           const buyerIsMe = account && isSameAddress(item.buyer, account);
           const sellerIsMe = account && isSameAddress(item.seller, account);
-
-          // Debug log - har bir listing'ni tekshiramiz
-          if (buyerIsMe || sellerIsMe) {
-            console.log(`[Approved] Listing #${i}: status=${status}, isCollateral=${item.isCollateral}, buyer=${buyerIsMe}, seller=${sellerIsMe}`);
-          }
 
           // V5 status 7 = Defaulted
           // Buyer uchun keyin to'lash, seller uchun default tarixini ko'rish
@@ -167,8 +160,6 @@ export default function Approved() {
           console.warn('getListingById skipped:', i, innerErr);
         }
       }
-
-      console.log(`[Approved] Found ${arr.length} default listings`);
 
       arr.sort((a, b) => Number(b.id) - Number(a.id));
       setDefaultListings(arr);
