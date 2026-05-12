@@ -362,7 +362,7 @@ export default function Approved() {
     const lid = listing?.id ?? listing?.listingId ?? null;
 
     if (listing.isCollateral) {
-      return toast.error('Garovli default uchun keyin to‘lash funksiyasi yo‘q');
+      return toast.error("Garov sellerga o'tib bo‘lgan, qo‘shimcha to‘lov kerak emas");
     }
 
     setActionLoading(`after-${id}`);
@@ -475,10 +475,7 @@ export default function Approved() {
                   }`
                 }}
               >
-                {listing.isCollateral ? 'Garovli' : 'Garovsiz'}{' '}
-                {listing.isCollateral
-                  ? t('listingsCollateral')
-                  : t('listingsNoCollateral')}
+                {listing.isCollateral ? 'Garovli' : 'Garovsiz'}
               </span>
 
               {listing.isCollateral && (
@@ -634,7 +631,7 @@ export default function Approved() {
                   textAlign: 'right'
                 }}
               >
-                Garovli default: garov sellerga o'tadi, buyer blacklistga tushmaydi.
+                Garov sellerga o'tadi, buyer blacklistga tushmaydi.
               </div>
             )}
 
@@ -647,7 +644,7 @@ export default function Approved() {
                   textAlign: 'right'
                 }}
               >
-                Garovsiz default: buyer blacklistga tushgan.
+                Buyer blacklistga tushgan.
               </div>
             )}
           </div>
@@ -703,7 +700,7 @@ export default function Approved() {
                   border: '1px solid var(--danger)'
                 }}
               >
-                <Ban size={12} /> {t('statusDefaulted') || 'Default / to‘lanmagan'}
+                <Ban size={12} /> To'lanmagan
               </span>
 
               <span
@@ -720,10 +717,7 @@ export default function Approved() {
                   }`
                 }}
               >
-                {listing.isCollateral ? 'Garovli' : 'Garovsiz'}{' '}
-                {listing.isCollateral
-                  ? t('listingsCollateral')
-                  : t('listingsNoCollateral')}
+                {listing.isCollateral ? 'Garovli' : 'Garovsiz'}
               </span>
 
               {isBuyer && (
@@ -816,8 +810,8 @@ export default function Approved() {
             >
               <Clock size={12} />
               {listing.isCollateral
-                ? "Garovli default: garov sellerga o'tadi, buyer blacklistga tushmaydi."
-                : "Garovsiz default: buyer blacklistga tushgan."}
+                ? "Garov sellerga o'tadi, buyer blacklistga tushmaydi."
+                : "Buyer blacklistga tushgan."}
             </div>
           </div>
 
@@ -834,13 +828,21 @@ export default function Approved() {
                 className="btn btn-success"
                 disabled={actionLoading === `after-${id}`}
                 onClick={() => doPayAfterDefault(listing)}
+                style={{
+                  fontSize: '12px',
+                  lineHeight: '1.25',
+                  padding: '8px 12px',
+                  maxWidth: '180px',
+                  whiteSpace: 'normal',
+                  textAlign: 'left',
+                }}
               >
                 {actionLoading === `after-${id}` ? (
-                  <div className="spinner" />
+                  <div className="spinner" style={{ flexShrink: 0 }} />
                 ) : (
-                  <CreditCard size={15} />
+                  <CreditCard size={15} style={{ flexShrink: 0 }} />
                 )}
-                {t('payAfterDefaultBtn') || 'Keyin to‘lash'}
+                Qarzni to‘lab qora ro‘yxatdan chiqish
               </button>
             )}
 
@@ -853,7 +855,7 @@ export default function Approved() {
                   textAlign: 'right'
                 }}
               >
-                Garovli default uchun keyin to‘lash funksiyasi yo‘q.
+                Garov sellerga o'tib bo‘lgan.
               </div>
             )}
 
@@ -952,7 +954,7 @@ export default function Approved() {
 
       <div>
         <h2 style={{ fontSize: '18px', marginBottom: '12px' }}>
-          Garovsiz default shartnomalar
+          Garovsiz to‘lanmagan shartnomalar
         </h2>
 
         {defaultLoading ? (
@@ -972,7 +974,7 @@ export default function Approved() {
           <div className="card" style={{ textAlign: 'center', padding: '32px' }}>
             <CheckCircle size={32} color="var(--text-muted)" style={{ marginBottom: 12 }} />
             <p style={{ color: 'var(--text-secondary)' }}>
-              Garovsiz default shartnomalar yo'q.
+              Garovsiz to‘lanmagan shartnomalar yo'q.
             </p>
           </div>
         ) : (
