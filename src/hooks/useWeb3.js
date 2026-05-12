@@ -302,18 +302,6 @@ export function Web3Provider({ children }) {
     }
   }, []);
 
-  // ====================================================================
-  //  resetWalletConnection — muzlagan WC sessiyani toza disconnect qilish
-  //
-  //  Foydalanuvchi tugmasi orqali chaqiriladi. Hozirgi WC sessiyani
-  //  to'liq tozalaydi va sahifani yangilaydi. Sekin internet yoki
-  //  qotgan sessiyada foydali.
-  // ====================================================================
-  const resetWalletConnection = useCallback(async () => {
-    toast.loading("Wallet sessiyasi tozalanmoqda...", { duration: 1500 });
-    await disconnect({ reload: true, silent: true });
-  }, [disconnect]);
-
 
   // ════════════════════════════════════════════════════════════════════
   //  ensureCorrectChain — TRANSAKSIYA YUBORISHDAN OLDIN HAR DOIM CHAQIRING
@@ -495,6 +483,18 @@ export function Web3Provider({ children }) {
     },
     [walletType, clearWalletSessionStorage]
   );
+
+  // ====================================================================
+  //  resetWalletConnection — muzlagan WC sessiyani toza disconnect qilish
+  //
+  //  Foydalanuvchi tugmasi orqali chaqiriladi. Hozirgi WC sessiyani
+  //  to'liq tozalaydi va sahifani yangilaydi. Sekin internet yoki
+  //  qotgan sessiyada foydali.
+  // ====================================================================
+  const resetWalletConnection = useCallback(async () => {
+    toast.loading("Wallet sessiyasi tozalanmoqda...", { duration: 1500 });
+    await disconnect({ reload: true, silent: true });
+  }, [disconnect]);
 
   const connectMetaMask = useCallback(async () => {
     if (!window.ethereum) {
