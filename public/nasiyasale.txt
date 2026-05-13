@@ -1,7 +1,6 @@
-════════════════════════════════════════════════════════════════════
-                         NasiyaSale
+ NasiyaSale
           Loyiha hujjati — Smart Kontrakt va UI
-     Versiya: 3.0 | Sana: 2026-04-07 | Tarmoq: Optimism Mainnet
+     Versiya: 3.1 | Sana: 2026-05-12 | Tarmoq: Optimism Mainnet
 ════════════════════════════════════════════════════════════════════
 
 
@@ -15,8 +14,8 @@ yoki boshqaruvchi talab etilmaydi.
 
 1.1. Asosiy manzillar
 ─────────────────────
-NasiyaSale Kontrakt : 0x7569bfE19a083172b4a02E2accc8a35Cf1f703EA
-Vault Kontrakt      : 0x686A5AF9669b9eE62630Df985faD3Ee5fB7b464e
+NasiyaSale Kontrakt : 0x86808FFD1204C2BD9Ad5B79022968D11408d3efc
+Vault Kontrakt      : 0x1B1F96f30B8F6265a299000Ab23862c35a41B4a9
 Owner               : 0x0e86d8afaa0B77D732d89BD5ceC3dC9003b321dA
 Withdrawal          : 0xc87B4d564775A748595240f66d47C3a88a43baA4
 Sayt                : https://nasiyasale.vercel.app
@@ -73,7 +72,7 @@ Taqsimot:
 
 3.1. Vault kontrakt
 ────────────────────
-Manzil     : 0x686A5AF9669b9eE62630Df985faD3Ee5fB7b464e
+Manzil     : 0x1B1F96f30B8F6265a299000Ab23862c35a41B4a9
 Owner      : 0x0e86d8afaa0B77D732d89BD5ceC3dC9003b321dA
 Withdrawal : 0xc87B4d564775A748595240f66d47C3a88a43baA4
 Tarmoq     : Optimism Mainnet
@@ -104,7 +103,7 @@ Jami lock qilingan:
 4. NASIYASALE SMART KONTRAKT (CreditSaleV4)
 ═════════════════════════════════════════════════════════════════
 
-Manzil  : 0x7569bfE19a083172b4a02E2accc8a35Cf1f703EA
+Manzil  : 0x86808FFD1204C2BD9Ad5B79022968D11408d3efc
 Solidity: ^0.8.34
 Tarmoq  : Optimism Mainnet
 
@@ -205,8 +204,8 @@ Firebase Realtime Database orqali real-time:
 
 1.1. Асосий манзиллар
 ──────────────────────
-НасияСале Контракт : 0x7569bfE19a083172b4a02E2accc8a35Cf1f703EA
-Vault Контракт     : 0x686A5AF9669b9eE62630Df985faD3Ee5fB7b464e
+НасияСале Контракт : 0x86808FFD1204C2BD9Ad5B79022968D11408d3efc
+Vault Контракт     : 0x1B1F96f30B8F6265a299000Ab23862c35a41B4a9
 Эгаси (Owner)      : 0x0e86d8afaa0B77D732d89BD5ceC3dC9003b321dA
 Withdrawal         : 0xc87B4d564775A748595240f66d47C3a88a43baA4
 Сайт               : https://nasiyasale.vercel.app
@@ -259,7 +258,13 @@ WETH  | 0x4200000000000000000000000000000000000006 | 18 | Гаров
 3. VAULT — ТОКЕН LOCK ТИЗИМИ
 ══════════════════════════════════════════════════════════════════
 
-3.1. Lock жадвали
+3.1. Контракт манзили
+──────────────────────
+Vault      : 0x1B1F96f30B8F6265a299000Ab23862c35a41B4a9
+Owner      : 0x0e86d8afaa0B77D732d89BD5ceC3dC9003b321dA
+Withdrawal : 0xc87B4d564775A748595240f66d47C3a88a43baA4
+
+3.2. Lock жадвали
 ──────────────────
 Токен | Миқдор         | Муддат    | Вазифа
 ------|----------------|-----------|----------------------------
@@ -272,7 +277,7 @@ BLT   | 10,000,000     | 3 йил     | Ўрта муддатли lock
   DUR : 90,000,000 (90%)
   BLT : 90,000,000 (90%)
 
-3.2. Vault хусусиятлари
+3.3. Vault хусусиятлари
 ────────────────────────
   * Ечилган токенлар Withdrawal манзилига боради
   * Emergency withdraw : unlock + 48 соатдан кейин
@@ -281,6 +286,8 @@ BLT   | 10,000,000     | 3 йил     | Ўрта муддатли lock
 
 4. НАСИЯСАЛЕ СМАРТ КОНТРАКТ
 ══════════════════════════════════════════════════════════════════
+
+Манзил : 0x86808FFD1204C2BD9Ad5B79022968D11408d3efc
 
 4.1. BL (Business Level) тизими
 ────────────────────────────────
@@ -318,8 +325,8 @@ NasiyaSale — это децентрализованная платформа д
 
 1.1. Основные адреса
 ─────────────────────
-Контракт NasiyaSale : 0x7569bfE19a083172b4a02E2accc8a35Cf1f703EA
-Vault контракт      : 0x686A5AF9669b9eE62630Df985faD3Ee5fB7b464e
+Контракт NasiyaSale : 0x86808FFD1204C2BD9Ad5B79022968D11408d3efc
+Vault контракт      : 0x1B1F96f30B8F6265a299000Ab23862c35a41B4a9
 Владелец (Owner)    : 0x0e86d8afaa0B77D732d89BD5ceC3dC9003b321dA
 Withdrawal          : 0xc87B4d564775A748595240f66d47C3a88a43baA4
 Сайт                : https://nasiyasale.vercel.app
@@ -372,7 +379,13 @@ WETH  | 0x4200000000000000000000000000000000000006 | 18 | Залог
 3. VAULT — БЛОКИРОВКА ТОКЕНОВ
 ══════════════════════════════════════════════════════════════════
 
-3.1. График блокировки
+3.1. Адреса
+────────────
+Vault      : 0x1B1F96f30B8F6265a299000Ab23862c35a41B4a9
+Owner      : 0x0e86d8afaa0B77D732d89BD5ceC3dC9003b321dA
+Withdrawal : 0xc87B4d564775A748595240f66d47C3a88a43baA4
+
+3.2. График блокировки
 ───────────────────────
 Токен | Количество     | Срок      | Назначение
 ------|----------------|-----------|----------------------------
@@ -385,7 +398,7 @@ BLT   | 10,000,000     | 3 года    | Среднесрочная блокир
   DUR : 90,000,000 (90%)
   BLT : 90,000,000 (90%)
 
-3.2. Особенности Vault
+3.3. Особенности Vault
 ───────────────────────
   * Разблокированные токены — на адрес Withdrawal
   * Emergency withdraw : через 48 часов после разблокировки
@@ -394,6 +407,8 @@ BLT   | 10,000,000     | 3 года    | Среднесрочная блокир
 
 4. СМАРТ-КОНТРАКТ NASIYASALE
 ══════════════════════════════════════════════════════════════════
+
+Адрес : 0x86808FFD1204C2BD9Ad5B79022968D11408d3efc
 
 4.1. Система BL (Business Level)
 ──────────────────────────────────
@@ -432,8 +447,8 @@ through smart contracts with no intermediaries or administrators.
 
 1.1. Main Addresses
 ────────────────────
-NasiyaSale Contract : 0x7569bfE19a083172b4a02E2accc8a35Cf1f703EA
-Vault Contract      : 0x686A5AF9669b9eE62630Df985faD3Ee5fB7b464e
+NasiyaSale Contract : 0x86808FFD1204C2BD9Ad5B79022968D11408d3efc
+Vault Contract      : 0x1B1F96f30B8F6265a299000Ab23862c35a41B4a9
 Owner               : 0x0e86d8afaa0B77D732d89BD5ceC3dC9003b321dA
 Withdrawal          : 0xc87B4d564775A748595240f66d47C3a88a43baA4
 Website             : https://nasiyasale.vercel.app
@@ -488,7 +503,13 @@ Distribution:
 3. VAULT — TOKEN LOCK SYSTEM
 ══════════════════════════════════════════════════════════════════
 
-3.1. Lock Schedule
+3.1. Addresses
+───────────────
+Vault      : 0x1B1F96f30B8F6265a299000Ab23862c35a41B4a9
+Owner      : 0x0e86d8afaa0B77D732d89BD5ceC3dC9003b321dA
+Withdrawal : 0xc87B4d564775A748595240f66d47C3a88a43baA4
+
+3.2. Lock Schedule
 ───────────────────
 Token | Amount         | Duration  | Purpose
 ------|----------------|-----------|----------------------------
@@ -501,7 +522,7 @@ Total locked:
   DUR : 90,000,000 (90%)
   BLT : 90,000,000 (90%)
 
-3.2. Vault Features
+3.3. Vault Features
 ────────────────────
   * Unlocked tokens go to the Withdrawal address
   * Emergency withdraw : 48 hours after unlock time
@@ -514,7 +535,7 @@ Total locked:
 4. NASIYASALE SMART CONTRACT (CreditSaleV4)
 ══════════════════════════════════════════════════════════════════
 
-Address  : 0x7569bfE19a083172b4a02E2accc8a35Cf1f703EA
+Address  : 0x86808FFD1204C2BD9Ad5B79022968D11408d3efc
 Solidity : ^0.8.34
 Network  : Optimism Mainnet
 
@@ -552,5 +573,5 @@ Buyer - No Collateral  | Buyer                 | None (BL req.)  | postListingNo
 
 
 ════════════════════════════════════════════════════════════════════
-     Versiya: 3.0 | 2026-04-07 | nasiyasale.vercel.app
+     Versiya: 3.1 | 2026-05-12 | nasiyasale.vercel.app
 ════════════════════════════════════════════════════════════════════
