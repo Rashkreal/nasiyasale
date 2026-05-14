@@ -64,16 +64,16 @@ export default function TxHistory() {
       setGlobalItems([]);
     } catch (e) {
       console.error('clearGlobal:', e);
-      alert('Global history tozalashda xato bo\u2018ldi');
+      alert('Global history tozalashda xato bo‘ldi');
     }
   };
 
   const formatTime = (ms) => {
-    if (!ms) return '\u2014';
+    if (!ms) return '—';
     try {
       return new Date(Number(ms)).toLocaleString();
     } catch {
-      return '\u2014';
+      return '—';
     }
   };
 
@@ -118,8 +118,8 @@ export default function TxHistory() {
           <Clock size={32} color="var(--text-muted)" style={{ marginBottom: 12 }} />
           <p style={{ color: 'var(--text-secondary)' }}>
             {mode === 'global'
-              ? 'Hali global saqlangan amal yo\u2018q.'
-              : 'Hali bu browserda saqlangan amal yo\u2018q.'}
+              ? 'Hali global saqlangan amal yo‘q.'
+              : 'Hali bu browserda saqlangan amal yo‘q.'}
           </p>
         </div>
       );
@@ -230,7 +230,7 @@ export default function TxHistory() {
                     }}
                     title={ev.txHash}
                   >
-                    {shortHash(ev.txHash)} \u2197
+                    {shortHash(ev.txHash)} ↗
                   </a>
                 ) : (
                   <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
@@ -296,7 +296,7 @@ export default function TxHistory() {
                 Owner global oxirgi 20 amal
               </h2>
               <p className="page-subtitle">
-                Bu bo\u2018lim faqat owner wallet uchun ko\u2018rinadi. Barcha userlardan Firebase orqali kelgan oxirgi amallar.
+                Bu bo‘lim faqat owner wallet uchun ko‘rinadi. Barcha userlardan Firebase orqali kelgan oxirgi amallar.
               </p>
             </div>
 
