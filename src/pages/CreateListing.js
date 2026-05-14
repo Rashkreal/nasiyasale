@@ -4,10 +4,61 @@ import { useLang } from '../hooks/useLang';
 import { maskFromTokens, COLLATERAL_TOKENS, TOKEN_COLORS, TOKEN_IDS, TOKEN_DECIMALS } from '../abi/contract';
 import { ethers } from 'ethers';
 import toast from 'react-hot-toast';
+import { saveLocalTxHistory } from '../utils/localTxHistory';
 import { PlusSquare, ShieldCheck, ShieldOff, Tag, ShoppingCart, Info, AlertCircle } from 'lucide-react';
 
+
+// Eski metamask:// deep-link logikasi olib tashlandi —
+// endi useWeb3 hook'idagi openWalletForRequest helper'i WalletConnect
+// peer metadata'sidan to'g'ri deep-link'ni olib, har wallet (MetaMask,
+// Trust, Rainbow va boshqalar) bilan to'g'ri ishlaydi.
+function withWalletTimeout(promise, ms, message) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(message || 'Wallet javob bermadi')), ms);
+    }),
+  ]);
+}
+
+// withProgressToast — uzoq kutilayotgan promise davomida toast'ni
+// yangilab turadi. Sekin internet/WC kechikishi paytida foydalanuvchi
+// nima qilishi kerakligini biladi.
+function withProgressToast(promise, toastId, stages) {
+  const timers = [];
+  stages.forEach(([ms, msg]) => {
+    timers.push(setTimeout(() => {
+      toast.loading(msg, { id: toastId });
+    }, ms));
+  });
+  return promise.finally(() => {
+    timers.forEach(clearTimeout);
+  });
+}
+
+// formatTokenAmount — token miqdorini 4 muhim raqam bilan formatlaydi.
+// WBTC/WETH kabi qimmat tokenlar uchun kichik garovlar 0 ko'rinishini
+// oldini oladi. Misol:
+//   123.456 -> "123.5", 0.0000001234 -> "0.0000001234"
+function formatTokenAmount(value, sigFigs = 4) {
+  const num = typeof value === 'number' ? value : parseFloat(value);
+  if (!isFinite(num) || num === 0) return '0';
+  const abs = Math.abs(num);
+  const precisionStr = num.toPrecision(sigFigs);
+  if (precisionStr.includes('e') || precisionStr.includes('E')) {
+    const parsed = Number(precisionStr);
+    if (abs < 1) {
+      const exp = Math.floor(Math.log10(abs));
+      const decimalPlaces = -exp + (sigFigs - 1);
+      return parsed.toFixed(decimalPlaces);
+    }
+    return parsed.toFixed(0);
+  }
+  return precisionStr;
+}
+
 export default function CreateListing() {
-  const { account, contract, signer, walletBalances, ensureApproval, refreshBalances } = useWeb3();
+  const { account, contract, readOnlyContract, signer, walletBalances, ensureApproval, ensureCorrectChain, refreshBalances, openWalletForRequest } = useWeb3();
   const { t } = useLang();
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState({ durAmount: '', priceUSDC: '', paymentPeriod: '' });
@@ -52,7 +103,7 @@ export default function CreateListing() {
       info: [
         { label: t('infoYouPut'), value: t('clInfoDURFromWallet') },
         { label: t('infoBuyerPut'), value: t('clInfoOnlyBLNeeded') },
-        { label: t('infoRequiredBL'), value: 'DUR × 10' },
+        { label: t('infoRequiredBL'), value: 'DUR Г— 10' },
         { label: t('infoBuyerPaid'), value: t('clInfoBuyerPaidNoColl') },
         { label: t('infoBuyerNotPaid'), value: t('clInfoBuyerNotPaidNoColl') },
         { label: t('infoRisk'), value: t('clInfoRiskHigh') },
@@ -63,7 +114,7 @@ export default function CreateListing() {
       title: t('lt4Title'), desc: t('lt4Desc'), fn: 'postListingNoCollateralBuy',
       info: [
         { label: t('infoYouPut'), value: t('clInfoOnlyBLNeeded') },
-        { label: t('infoRequiredBL'), value: 'DUR × 10' },
+        { label: t('infoRequiredBL'), value: 'DUR Г— 10' },
         { label: t('infoWhereBL'), value: t('clInfoBLFromPrevious') },
         { label: t('infoIfPaid'), value: t('clInfoYouPaidNoColl') },
         { label: t('infoIfNotPaid'), value: t('clInfoYouNotPaidNoColl') },
@@ -92,7 +143,7 @@ export default function CreateListing() {
         const tokenId = TOKEN_IDS[buyChosenToken];
         const colAmt = await contract.previewCollateral(priceRaw, tokenId);
         const dec = TOKEN_DECIMALS[buyChosenToken];
-        setCollateralPreview(parseFloat(ethers.formatUnits(colAmt, dec)).toFixed(dec <= 8 ? 6 : 4));
+        setCollateralPreview(formatTokenAmount(ethers.formatUnits(colAmt, dec)));
       } catch (e) {
         setCollateralPreview(null);
       } finally {
@@ -118,7 +169,7 @@ export default function CreateListing() {
             const tokenId = TOKEN_IDS[tk];
             const colAmt = await contract.previewCollateral(priceRaw, tokenId);
             const dec = TOKEN_DECIMALS[tk];
-            results[tk] = parseFloat(ethers.formatUnits(colAmt, dec)).toFixed(dec <= 8 ? 6 : 4);
+            results[tk] = formatTokenAmount(ethers.formatUnits(colAmt, dec));
           } catch { results[tk] = null; }
         }));
         setSellPreviews(results);
@@ -160,12 +211,86 @@ export default function CreateListing() {
     setLoading(true);
     const tid = toast.loading(t('createPosting'));
     try {
+      await ensureCorrectChain();
+
+      // ====================================================================
+      // BL/blacklist precheck — FAQAT garovsiz xaridor e'loni uchun.
+      // Kontrakt qoidasi: nocollateral-sell (sotuvchi garovsiz) uchun
+      // BL talab qilinmaydi. Faqat nocollateral-buy (xaridor garovsiz)
+      // uchun BL = DUR × 10 talab qilinadi.
+      // ====================================================================
+      const needsBLCheck = selected === 'nocollateral-buy';
+
+      if (needsBLCheck) {
+        const c0 = readOnlyContract || contract;
+        if (c0) {
+          try {
+            // Blacklist tekshirish
+            let isBL = false;
+            try {
+              isBL = await c0.isBlacklisted(account);
+            } catch (_) {
+              // Eski versiya kontraktda bu funksiya bo'lmasligi mumkin
+            }
+
+            if (isBL) {
+              toast.error(
+                'Wallet blacklist holatida. Avval mavjud default qarzlarni to\'lang.',
+                { id: tid }
+              );
+              setLoading(false);
+              return;
+            }
+
+            // Required BL = DUR miqdori × 10 (raw wei, 18 decimals)
+            const requiredBLRaw = durRaw * 10n;
+
+            // freeTotalBL — band qilinmagan BL
+            // (totalBL - barcha pending va aktiv garovsiz qarzlardagi BL)
+            const freeBLRaw = await c0.freeTotalBL(account);
+
+            if (freeBLRaw < requiredBLRaw) {
+              const freeFmt = parseFloat(
+                ethers.formatUnits(freeBLRaw, 18)
+              ).toFixed(2);
+              const needFmt = parseFloat(
+                ethers.formatUnits(requiredBLRaw, 18)
+              ).toFixed(2);
+
+              toast.error(
+                `BL yetarli emas. Sizning bo'sh BL: ${freeFmt}, kerak: ${needFmt}.`,
+                { id: tid }
+              );
+              setLoading(false);
+              return;
+            }
+          } catch (precheckErr) {
+            // Precheck o'zi xato bersa — to'xtatmaymiz, davom etamiz va
+            // kontraktning haqiqiy javobini olamiz
+            console.warn('BL precheck failed (davom etamiz):', precheckErr);
+          }
+        }
+      }
+
       const c = contract.connect(signer);
       let tx;
 
       if (selected === 'collateral-sell') {
         await ensureApproval('DUR', durRaw);
-        tx = await c.postListingCollateralSell(durRaw, usdcRaw, period, maskFromTokens(selectedCollaterals));
+        openWalletForRequest();
+        tx = await withProgressToast(
+          withWalletTimeout(
+            c.postListingCollateralSell(durRaw, usdcRaw, period, maskFromTokens(selectedCollaterals)),
+            90000,
+            'MetaMask ochilmadi yoki wallet javob bermadi'
+          ),
+          tid,
+          [
+            [8000, "MetaMask'da tasdiqlashni kuting..."],
+            [20000, "Sekin tarmoq — MetaMask'ni oching va tasdiqlang"],
+            [45000, "Hali kutilmoqda. MetaMask ilovasini qayta oching."],
+          ]
+        );
 
       } else if (selected === 'collateral-buy') {
         const tokenId = TOKEN_IDS[buyChosenToken];
@@ -173,27 +298,159 @@ export default function CreateListing() {
         const colAmtRaw = await contract.previewCollateral(usdcRaw, tokenId);
         await ensureApproval(buyChosenToken, colAmtRaw);
         const singleMask = 1 << tokenId;
-        tx = await c.postListingCollateralBuy(durRaw, usdcRaw, period, singleMask, tokenId);
+        openWalletForRequest();
+        tx = await withProgressToast(
+          withWalletTimeout(
+            c.postListingCollateralBuy(durRaw, usdcRaw, period, singleMask, tokenId),
+            90000,
+            'MetaMask ochilmadi yoki wallet javob bermadi'
+          ),
+          tid,
+          [
+            [8000, "MetaMask'da tasdiqlashni kuting..."],
+            [20000, "Sekin tarmoq — MetaMask'ni oching va tasdiqlang"],
+            [45000, "Hali kutilmoqda. MetaMask ilovasini qayta oching."],
+          ]
+        );
 
       } else if (selected === 'nocollateral-sell') {
         await ensureApproval('DUR', durRaw);
-        tx = await c.postListingNoCollateralSell(durRaw, usdcRaw, period);
+        openWalletForRequest();
+        tx = await withProgressToast(
+          withWalletTimeout(
+            c.postListingNoCollateralSell(durRaw, usdcRaw, period),
+            90000,
+            'MetaMask ochilmadi yoki wallet javob bermadi'
+          ),
+          tid,
+          [
+            [8000, "MetaMask'da tasdiqlashni kuting..."],
+            [20000, "Sekin tarmoq — MetaMask'ni oching va tasdiqlang"],
+            [45000, "Hali kutilmoqda. MetaMask ilovasini qayta oching."],
+          ]
+        );
 
       } else if (selected === 'nocollateral-buy') {
-        tx = await c.postListingNoCollateralBuy(durRaw, usdcRaw, period);
+        openWalletForRequest();
+        tx = await withProgressToast(
+          withWalletTimeout(
+            c.postListingNoCollateralBuy(durRaw, usdcRaw, period),
+            90000,
+            'MetaMask ochilmadi yoki wallet javob bermadi'
+          ),
+          tid,
+          [
+            [8000, "MetaMask'da tasdiqlashni kuting..."],
+            [20000, "Sekin tarmoq — MetaMask'ni oching va tasdiqlang"],
+            [45000, "Hali kutilmoqda. MetaMask ilovasini qayta oching."],
+          ]
+        );
       }
 
-      await tx.wait();
+      const receipt = await withProgressToast(
+        withWalletTimeout(
+          tx.wait(),
+          180000,
+          'Transaction blockchain\'da juda uzoq tasdiqlanmoqda'
+        ),
+        tid,
+        [
+          [10000, "Blockchain'da tasdiqlanmoqda..."],
+          [40000, "Hali kutilmoqda — Optimism tarmog'i band bo'lishi mumkin"],
+        ]
+      );
+
+      // Listing ID ni receipt.logs ichidan kontrakt event'i orqali olamiz.
+      // Kontraktda ListingPosted yoki shunga o'xshash event bo'lishi kerak —
+      // birinchi indekslangan argument odatda listing ID bo'ladi.
+      let newListingId = null;
+      try {
+        if (receipt && Array.isArray(receipt.logs)) {
+          for (const log of receipt.logs) {
+            try {
+              const parsed = contract.interface.parseLog({
+                topics: log.topics,
+                data: log.data,
+              });
+              if (parsed && /listing/i.test(parsed.name) && parsed.args && parsed.args.length > 0) {
+                // Birinchi argument odatda listing ID (uint256)
+                const idArg = parsed.args[0];
+                if (idArg !== undefined && idArg !== null) {
+                  newListingId = idArg.toString();
+                  break;
+                }
+              }
+            } catch (_) {
+              // Ushbu log bizning kontrakt event'i emas — keyingisiga o'tamiz
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Listing ID ni log\'lardan olib bo\'lmadi:', e);
+      }
+
+      saveLocalTxHistory({
+        type: 'createListing',
+        label: 'CreateListing transaction',
+        listingId: newListingId,
+        txHash: receipt?.hash || tx?.hash,
+        status: 'success',
+        account: account || '',
+        extra: '',
+      });
       toast.success(t('createSuccess'), { id: tid });
       setForm({ durAmount: '', priceUSDC: '', paymentPeriod: '' });
       setCollateralPreview(null);
       refreshBalances();
     } catch (e) {
-      const msg = e?.reason || e?.message || '';
+      const raw = [
+        e?.reason,
+        e?.shortMessage,
+        e?.message,
+        e?.info?.error?.message,
+        e?.error?.message,
+        e?.data?.message,
+        e?.code,
+      ]
+        .filter(Boolean)
+        .join(' | ');
+
+      const msg = raw.toLowerCase();
+
+      console.error('CreateListing error raw:', raw || e);
+
       let m = t('errorOccurred');
-      if (msg.includes('user rejected')) m = t('createRejected');
-      else if (msg.includes('insufficient') || msg.includes('exceeds balance')) m = t('clWalletInsufficient');
-      else if (msg.includes('zero collateral')) m = t('clZeroCollateral');
+
+      if (
+        msg.includes('metamask ochilmadi') ||
+        msg.includes('wallet javob bermadi') ||
+        msg.includes('timeout')
+      ) {
+        m = 'MetaMask ochilmadi yoki wallet javob bermadi. WalletConnect sessiyasini uzib, qayta ulang.';
+      } else if (
+        msg.includes('user rejected') ||
+        msg.includes('user denied') ||
+        msg.includes('rejected')
+      ) {
+        m = t('createRejected') || 'Transaction walletda rad etildi.';
+      } else if (
+        msg.includes('insufficient') ||
+        msg.includes('exceeds balance') ||
+        msg.includes('insufficient funds')
+      ) {
+        m = t('clWalletInsufficient') || 'Hamyonda yetarli token yoki gas yo‘q.';
+      } else if (msg.includes('zero collateral')) {
+        m = t('clZeroCollateral') || 'Garov miqdori 0 bo‘lib qoldi.';
+      } else if (msg.includes('wrong network') || msg.includes('unsupported chain')) {
+        m = 'Optimism Mainnet tarmog‘iga o‘ting.';
+      } else if (msg.includes('total bl limit') || msg.includes('bl low')) {
+        m = "BL yetarli emas. Garovsiz e'lon uchun bo'sh BL limitingiz yetmayapti.";
+      } else if (msg.includes('blacklist')) {
+        m = 'Wallet blacklist holatida.';
+      } else if (raw) {
+        m = raw.slice(0, 220);
+      }
+
       toast.error(m, { id: tid });
     } finally { setLoading(false); }
   };
@@ -353,7 +610,7 @@ export default function CreateListing() {
                 }}>
                   <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{t('clRequiredCollateral')}</span>
                   <span style={{ fontSize: '14px', fontWeight: 700, color: TOKEN_COLORS[buyChosenToken], fontFamily: 'Space Mono, monospace' }}>
-                    {previewLoading ? '...' : collateralPreview ? `${collateralPreview} ${buyChosenToken}` : '—'}
+                    {previewLoading ? "..." : collateralPreview ? `${collateralPreview} ${buyChosenToken}` : "—"}
                   </span>
                 </div>
               )}
