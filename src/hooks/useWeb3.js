@@ -1035,8 +1035,21 @@ export function Web3Provider({ children }) {
     // Signer yangilangan bo'lishi mumkin — qayta olamiz
     const tokenWithSigner = tokens[tokenKey];
 
+    // MUHIM: allowance() faqat o'qish (view) chaqirig'i — uni signer'siz
+    // read-only RPC orqali bajaramiz. Aks holda ba'zi mobile walletlar
+    // (MetaMask Mobile, Trust Wallet) wallet popup'ini ochishi mumkin va
+    // foydalanuvchi bir necha marta approve tugmasini bosadi (har birida
+    // gaz to'lab).
+    const roProvider = new ethers.JsonRpcProvider(READ_ONLY_RPC);
+    const tokenContractAddress = await tokenWithSigner.getAddress();
+    const tokenReadOnly = new ethers.Contract(
+      tokenContractAddress,
+      ['function allowance(address,address) view returns (uint256)'],
+      roProvider
+    );
+
     // Joriy allowance — agar yetarli bo'lsa, approve shart emas
-    const initialAllowance = await tokenWithSigner.allowance(account, CONTRACT_ADDRESS);
+    const initialAllowance = await tokenReadOnly.allowance(account, CONTRACT_ADDRESS);
 
     if (initialAllowance >= amountRaw) {
       return true;
@@ -1061,7 +1074,7 @@ export function Web3Provider({ children }) {
             return;
           }
           try {
-            const current = await tokenWithSigner.allowance(account, CONTRACT_ADDRESS);
+            const current = await tokenReadOnly.allowance(account, CONTRACT_ADDRESS);
             if (current >= amountRaw) {
               cancelled = true;
               resolve('polling');
@@ -1128,7 +1141,7 @@ export function Web3Provider({ children }) {
       // ehtimol blockchain'da approve o'tib ketgan, lekin frontend o'tkazib
       // yuborgan.
       try {
-        const finalCheck = await tokenWithSigner.allowance(account, CONTRACT_ADDRESS);
+        const finalCheck = await tokenReadOnly.allowance(account, CONTRACT_ADDRESS);
         if (finalCheck >= amountRaw) {
           toast.success(`${tokenKey} ruxsat berildi`, { id: tid });
           activeToastRef.current = null;
