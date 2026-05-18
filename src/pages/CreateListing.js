@@ -310,7 +310,7 @@ export default function CreateListing() {
         openWalletForRequest();
         tx = await withProgressToast(
           withWalletTimeout(
-            c.postListingCollateralSell(durRaw, usdcRaw, period, maskFromTokens(selectedCollaterals), collateralBufferBps, 0),
+            c.postListingCollateralSell(durRaw, usdcRaw, period, maskFromTokens(selectedCollaterals), collateralBufferBps, Math.floor(Date.now() / 1000) + 90 * 24 * 3600),
             90000,
             'MetaMask ochilmadi yoki wallet javob bermadi'
           ),
@@ -331,7 +331,7 @@ export default function CreateListing() {
         openWalletForRequest();
         tx = await withProgressToast(
           withWalletTimeout(
-            c.postListingCollateralBuy(durRaw, usdcRaw, period, singleMask, tokenId, collateralBufferBps, 0),
+            c.postListingCollateralBuy(durRaw, usdcRaw, period, singleMask, tokenId, collateralBufferBps, Math.floor(Date.now() / 1000) + 90 * 24 * 3600),
             90000,
             'MetaMask ochilmadi yoki wallet javob bermadi'
           ),
@@ -348,7 +348,7 @@ export default function CreateListing() {
         openWalletForRequest();
         tx = await withProgressToast(
           withWalletTimeout(
-            c.postListingNoCollateralSell(durRaw, usdcRaw, period, 0),
+            c.postListingNoCollateralSell(durRaw, usdcRaw, period, Math.floor(Date.now() / 1000) + 90 * 24 * 3600),
             90000,
             'MetaMask ochilmadi yoki wallet javob bermadi'
           ),
@@ -364,7 +364,7 @@ export default function CreateListing() {
         openWalletForRequest();
         tx = await withProgressToast(
           withWalletTimeout(
-            c.postListingNoCollateralBuy(durRaw, usdcRaw, period, 0),
+            c.postListingNoCollateralBuy(durRaw, usdcRaw, period, Math.floor(Date.now() / 1000) + 90 * 24 * 3600),
             90000,
             'MetaMask ochilmadi yoki wallet javob bermadi'
           ),
