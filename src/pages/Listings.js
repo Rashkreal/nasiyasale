@@ -590,7 +590,7 @@ export default function Listings() {
 
       openWalletForRequest && openWalletForRequest();
 
-      const txPromise = contract.connect(signer).approveListing(listingId, chosenTokenId, 0);
+      const txPromise = contract.connect(signer).approveListing(listingId, chosenTokenId, 500);
       const tx = await withProgressToast(
         withWalletTimeout(
           txPromise,

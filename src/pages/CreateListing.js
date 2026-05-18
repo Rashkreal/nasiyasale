@@ -726,6 +726,7 @@ export default function CreateListing() {
               <div className="input-group">
                 <label className="input-label">{t('createPrice')}</label>
                 <input className="input" type="number" min="0" placeholder="0.00" value={form.priceUSDC} onChange={handle('priceUSDC')} />
+                
               </div>
               <div className="input-group">
                 <label className="input-label">{t('createPeriod')}</label>
