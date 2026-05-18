@@ -3,6 +3,7 @@ import { useWeb3 } from '../hooks/useWeb3';
 import { useLang } from '../hooks/useLang';
 import { COLLATERAL_TOKENS, TOKEN_COLORS } from '../abi/contract';
 import { ethers } from 'ethers';
+import { CONTRACT_ADDRESS, TOKEN_ADDRESSES, ERC20_ABI, OP_MAINNET } from '../abi/contract';
 import toast from 'react-hot-toast';
 import { saveLocalTxHistory } from '../utils/localTxHistory';
 import {
@@ -92,6 +93,35 @@ function isSameAddress(a, b) {
   if (!a || !b) return false;
   return a.toLowerCase() === b.toLowerCase();
 }
+
+
+
+async function waitAllowanceReadyApproved(owner, neededRaw) {
+  const provider = new ethers.JsonRpcProvider(OP_MAINNET.rpcUrl);
+
+  const token = new ethers.Contract(
+    TOKEN_ADDRESSES.USDC,
+    ERC20_ABI,
+    provider
+  );
+
+  for (let i = 0; i < 20; i++) {
+    try {
+      const allowance = await token.allowance(owner, CONTRACT_ADDRESS);
+
+      if (allowance >= neededRaw) {
+        return true;
+      }
+    } catch (e) {
+      console.warn("USDC allowance wait:", e?.message || e);
+    }
+
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+
+  return false;
+}
+
 
 export default function Approved() {
   const {
@@ -245,6 +275,17 @@ export default function Approved() {
       // 2) USDC approve (ichida o'zi wallet'ni ochadi)
       await ensureApproval('USDC', listing.priceUSDC);
 
+      const allowanceReady = await waitAllowanceReadyApproved(
+        account,
+        listing.priceUSDC
+      );
+
+      if (!allowanceReady) {
+        toast.error("USDC approve hali blockchain'da ko'rinmayapti. 5 soniyadan keyin qayta urinib ko'ring.", { id: tid });
+        setActionLoading(null);
+        return;
+      }
+
       // 3) Asosiy tx — wallet'ni oldindan ochib qo'yish (mobile uchun)
       openWalletForRequest && openWalletForRequest();
 
@@ -373,6 +414,17 @@ export default function Approved() {
       await ensureCorrectChain();
 
       await ensureApproval('USDC', listing.priceUSDC);
+
+      const allowanceReady = await waitAllowanceReadyApproved(
+        account,
+        listing.priceUSDC
+      );
+
+      if (!allowanceReady) {
+        toast.error("USDC approve hali blockchain'da ko'rinmayapti. 5 soniyadan keyin qayta urinib ko'ring.", { id: tid });
+        setActionLoading(null);
+        return;
+      }
 
       openWalletForRequest && openWalletForRequest();
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useWeb3 } from '../hooks/useWeb3';
 import { useLang } from '../hooks/useLang';
-import { maskFromTokens, COLLATERAL_TOKENS, TOKEN_COLORS, TOKEN_IDS, TOKEN_DECIMALS } from '../abi/contract';
+import { maskFromTokens, COLLATERAL_TOKENS, TOKEN_COLORS, TOKEN_IDS, TOKEN_DECIMALS, TOKEN_ADDRESSES, ERC20_ABI, CONTRACT_ADDRESS, OP_MAINNET } from '../abi/contract';
 import { ethers } from 'ethers';
 import toast from 'react-hot-toast';
 import { saveLocalTxHistory } from '../utils/localTxHistory';
@@ -57,6 +57,30 @@ function formatTokenAmount(value, sigFigs = 4) {
   return precisionStr;
 }
 
+
+async function waitAllowanceForCreateListing(tokenKey, owner, neededRaw) {
+  const tokenAddress = TOKEN_ADDRESSES[tokenKey];
+  if (!tokenAddress || !owner) return false;
+
+  const provider = new ethers.JsonRpcProvider(OP_MAINNET.rpcUrl);
+  const token = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+
+  for (let i = 0; i < 15; i++) {
+    try {
+      const allowance = await token.allowance(owner, CONTRACT_ADDRESS);
+      if (allowance >= neededRaw) {
+        return true;
+      }
+    } catch (e) {
+      console.warn('allowance wait error:', e?.message || e);
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+  }
+
+  return false;
+}
+
 export default function CreateListing() {
   const { account, contract, readOnlyContract, signer, walletBalances, ensureApproval, ensureCorrectChain, refreshBalances, openWalletForRequest } = useWeb3();
   const { t } = useLang();
@@ -64,6 +88,12 @@ export default function CreateListing() {
   const [form, setForm] = useState({ durAmount: '', priceUSDC: '', paymentPeriod: '' });
   const [loading, setLoading] = useState(false);
   const [selectedCollaterals, setSelectedCollaterals] = useState(['USDC']);
+  const [collateralBufferPct, setCollateralBufferPct] = useState(0);
+
+  const collateralBufferBps = Math.min(
+    2000,
+    Math.max(0, Math.round(Number(collateralBufferPct || 0) * 100))
+  );
 
   const [buyChosenToken, setBuyChosenToken] = useState('USDC');
   const [collateralPreview, setCollateralPreview] = useState(null);
@@ -141,7 +171,7 @@ export default function CreateListing() {
       try {
         const priceRaw = ethers.parseUnits(form.priceUSDC, 6);
         const tokenId = TOKEN_IDS[buyChosenToken];
-        const colAmt = await contract.previewCollateral(priceRaw, tokenId);
+        const colAmt = await contract.previewCollateral(priceRaw, tokenId, collateralBufferBps);
         const dec = TOKEN_DECIMALS[buyChosenToken];
         setCollateralPreview(formatTokenAmount(ethers.formatUnits(colAmt, dec)));
       } catch (e) {
@@ -152,7 +182,7 @@ export default function CreateListing() {
     };
     const timer = setTimeout(fetchPreview, 500);
     return () => clearTimeout(timer);
-  }, [selected, form.priceUSDC, buyChosenToken, contract]);
+  }, [selected, form.priceUSDC, buyChosenToken, contract, collateralBufferBps]);
 
   useEffect(() => {
     if (selected !== 'collateral-sell' || !contract || !form.priceUSDC || parseFloat(form.priceUSDC) <= 0 || selectedCollaterals.length === 0) {
@@ -167,7 +197,7 @@ export default function CreateListing() {
         await Promise.all(selectedCollaterals.map(async tk => {
           try {
             const tokenId = TOKEN_IDS[tk];
-            const colAmt = await contract.previewCollateral(priceRaw, tokenId);
+            const colAmt = await contract.previewCollateral(priceRaw, tokenId, collateralBufferBps);
             const dec = TOKEN_DECIMALS[tk];
             results[tk] = formatTokenAmount(ethers.formatUnits(colAmt, dec));
           } catch { results[tk] = null; }
@@ -178,7 +208,7 @@ export default function CreateListing() {
     };
     const timer = setTimeout(fetchSellPreviews, 500);
     return () => clearTimeout(timer);
-  }, [selected, form.priceUSDC, selectedCollaterals, contract]);
+  }, [selected, form.priceUSDC, selectedCollaterals, contract, collateralBufferBps]);
 
   const submit = async () => {
     if (!account || !contract || !signer) return toast.error(t('connectPrompt'));
@@ -280,7 +310,7 @@ export default function CreateListing() {
         openWalletForRequest();
         tx = await withProgressToast(
           withWalletTimeout(
-            c.postListingCollateralSell(durRaw, usdcRaw, period, maskFromTokens(selectedCollaterals)),
+            c.postListingCollateralSell(durRaw, usdcRaw, period, maskFromTokens(selectedCollaterals), collateralBufferBps, 0),
             90000,
             'MetaMask ochilmadi yoki wallet javob bermadi'
           ),
@@ -295,13 +325,13 @@ export default function CreateListing() {
       } else if (selected === 'collateral-buy') {
         const tokenId = TOKEN_IDS[buyChosenToken];
         const dec = TOKEN_DECIMALS[buyChosenToken];
-        const colAmtRaw = await contract.previewCollateral(usdcRaw, tokenId);
+        const colAmtRaw = await contract.previewCollateral(usdcRaw, tokenId, collateralBufferBps);
         await ensureApproval(buyChosenToken, colAmtRaw);
         const singleMask = 1 << tokenId;
         openWalletForRequest();
         tx = await withProgressToast(
           withWalletTimeout(
-            c.postListingCollateralBuy(durRaw, usdcRaw, period, singleMask, tokenId),
+            c.postListingCollateralBuy(durRaw, usdcRaw, period, singleMask, tokenId, collateralBufferBps, 0),
             90000,
             'MetaMask ochilmadi yoki wallet javob bermadi'
           ),
@@ -318,7 +348,7 @@ export default function CreateListing() {
         openWalletForRequest();
         tx = await withProgressToast(
           withWalletTimeout(
-            c.postListingNoCollateralSell(durRaw, usdcRaw, period),
+            c.postListingNoCollateralSell(durRaw, usdcRaw, period, 0),
             90000,
             'MetaMask ochilmadi yoki wallet javob bermadi'
           ),
@@ -334,7 +364,7 @@ export default function CreateListing() {
         openWalletForRequest();
         tx = await withProgressToast(
           withWalletTimeout(
-            c.postListingNoCollateralBuy(durRaw, usdcRaw, period),
+            c.postListingNoCollateralBuy(durRaw, usdcRaw, period, 0),
             90000,
             'MetaMask ochilmadi yoki wallet javob bermadi'
           ),
@@ -522,6 +552,53 @@ export default function CreateListing() {
             </div>
           )}
 
+
+          {/* Qo'shimcha garov buffer */}
+          {isCollateralType && (
+            <div className="card" style={{ marginBottom: '16px', padding: '20px' }}>
+              <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '8px' }}>
+                Qo'shimcha garov
+              </div>
+
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                0-20%. Garov qiymatini tanlangan foizga oshiradi.
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {[0, 5, 10, 15, 20].map((pct) => (
+                  <button
+                    key={pct}
+                    type="button"
+                    onClick={() => setCollateralBufferPct(pct)}
+                    className={`btn btn-sm ${Number(collateralBufferPct) === pct ? 'btn-primary' : 'btn-outline'}`}
+                    style={{ fontSize: '12px', padding: '6px 12px' }}
+                  >
+                    {pct}%
+                  </button>
+                ))}
+              </div>
+
+              {form.priceUSDC && parseFloat(form.priceUSDC) > 0 && Number(collateralBufferPct) > 0 && (
+                <div
+                  style={{
+                    marginTop: '12px',
+                    fontSize: '12px',
+                    color: 'var(--text-secondary)',
+                    padding: '8px 10px',
+                    borderRadius: '8px',
+                    background: 'var(--bg-secondary)'
+                  }}
+                >
+                  {form.priceUSDC} USDC savdo uchun garov taxminan{' '}
+                  <span className="mono" style={{ fontWeight: 700, color: 'var(--accent-bright)' }}>
+                    {(parseFloat(form.priceUSDC) * (1 + Number(collateralBufferPct) / 100)).toFixed(2)} USDC
+                  </span>{' '}
+                  qiymatida hisoblanadi.
+                </div>
+              )}
+            </div>
+          )}
+
           {/* collateral-sell: multi token select */}
           {selected === 'collateral-sell' && (
             <div className="card" style={{ marginBottom: '16px', padding: '20px' }}>
@@ -669,3 +746,7 @@ export default function CreateListing() {
     </div>
   );
 }
+
+
+
+

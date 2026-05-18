@@ -304,6 +304,37 @@ function getFriendlyTxError(e, fallback) {
   return fallback || 'Xatolik yuz berdi';
 }
 
+
+
+async function waitAllowanceReadyListings(tokenAddress, owner, neededRaw) {
+  if (!tokenAddress || !owner || !neededRaw) return false;
+
+  const provider = new ethers.JsonRpcProvider(OP_MAINNET.rpcUrl);
+
+  const token = new ethers.Contract(
+    tokenAddress,
+    ERC20_ABI,
+    provider
+  );
+
+  for (let i = 0; i < 20; i++) {
+    try {
+      const allowance = await token.allowance(owner, CONTRACT_ADDRESS);
+
+      if (allowance >= neededRaw) {
+        return true;
+      }
+    } catch (e) {
+      console.warn("Listings allowance wait:", e?.message || e);
+    }
+
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+
+  return false;
+}
+
+
 export default function Listings() {
   const {
     account,
@@ -559,7 +590,7 @@ export default function Listings() {
 
       openWalletForRequest && openWalletForRequest();
 
-      const txPromise = contract.connect(signer).approveListing(listingId, chosenTokenId);
+      const txPromise = contract.connect(signer).approveListing(listingId, chosenTokenId, 0);
       const tx = await withProgressToast(
         withWalletTimeout(
           txPromise,
@@ -1394,3 +1425,6 @@ export default function Listings() {
     </div>
   );
 }
+
+
+
