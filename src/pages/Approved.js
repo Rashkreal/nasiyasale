@@ -96,30 +96,18 @@ function isSameAddress(a, b) {
 
 
 
-async function waitAllowanceReadyApproved(owner, neededRaw) {
-  const provider = new ethers.JsonRpcProvider(OP_MAINNET.rpcUrl);
-
-  const token = new ethers.Contract(
-    TOKEN_ADDRESSES.USDC,
-    ERC20_ABI,
-    provider
-  );
-
-  for (let i = 0; i < 20; i++) {
-    try {
-      const allowance = await token.allowance(owner, CONTRACT_ADDRESS);
-
-      if (allowance >= neededRaw) {
-        return true;
-      }
-    } catch (e) {
-      console.warn("USDC allowance wait:", e?.message || e);
-    }
-
-    await new Promise((r) => setTimeout(r, 1500));
-  }
-
-  return false;
+// withProgressToast — uzoq kutilayotgan promise davomida toast'ni
+// yangilab turadi. Sekin internet/WC kechikishi paytida foydali.
+function withProgressToast(promise, toastId, stages) {
+  const timers = [];
+  stages.forEach(([ms, msg]) => {
+    timers.push(setTimeout(() => {
+      toast.loading(msg, { id: toastId });
+    }, ms));
+  });
+  return promise.finally(() => {
+    timers.forEach(clearTimeout);
+  });
 }
 
 
@@ -272,29 +260,39 @@ export default function Approved() {
       // 1) Tarmoq Optimism ekanligini tasdiqlash
       await ensureCorrectChain();
 
-      // 2) USDC approve (ichida o'zi wallet'ni ochadi)
+      // 2) USDC approve (ensureApproval ichida polling bor — allowance
+      //    blockchain'da tasdiqlanmaguncha kutadi)
       await ensureApproval('USDC', listing.priceUSDC);
-
-      const allowanceReady = await waitAllowanceReadyApproved(
-        account,
-        listing.priceUSDC
-      );
-
-      if (!allowanceReady) {
-        toast.error("USDC approve hali blockchain'da ko'rinmayapti. 5 soniyadan keyin qayta urinib ko'ring.", { id: tid });
-        setActionLoading(null);
-        return;
-      }
 
       // 3) Asosiy tx — wallet'ni oldindan ochib qo'yish (mobile uchun)
       openWalletForRequest && openWalletForRequest();
 
-      const tx = await contract.connect(signer).makePayment(id);
+      const txPromise = contract.connect(signer).makePayment(id);
+      const tx = await withProgressToast(
+        withWalletTimeout(
+          txPromise,
+          90000,
+          'MetaMask ochilmadi yoki wallet javob bermadi'
+        ),
+        tid,
+        [
+          [8000, "MetaMask'da tasdiqlashni kuting..."],
+          [20000, "Sekin tarmoq — MetaMask'ni oching va tasdiqlang"],
+          [45000, "Hali kutilmoqda. MetaMask ilovasini qayta oching."],
+        ]
+      );
 
-      const receipt = await withWalletTimeout(
-        tx.wait(),
-        120000,
-        'Transaction juda uzoq kutilyapti'
+      const receipt = await withProgressToast(
+        withWalletTimeout(
+          tx.wait(),
+          180000,
+          'Transaction blockchain\'da juda uzoq tasdiqlanmoqda'
+        ),
+        tid,
+        [
+          [10000, "Blockchain'da tasdiqlanmoqda..."],
+          [40000, "Optimism tarmog'i band bo'lishi mumkin..."],
+        ]
       );
 
       saveLocalTxHistory({
@@ -350,12 +348,32 @@ export default function Approved() {
 
       openWalletForRequest && openWalletForRequest();
 
-      const tx = await contract.connect(signer).claimDefault(id);
+      const txPromise = contract.connect(signer).claimDefault(id);
+      const tx = await withProgressToast(
+        withWalletTimeout(
+          txPromise,
+          90000,
+          'MetaMask ochilmadi yoki wallet javob bermadi'
+        ),
+        tid,
+        [
+          [8000, "MetaMask'da tasdiqlashni kuting..."],
+          [20000, "Sekin tarmoq — MetaMask'ni oching va tasdiqlang"],
+          [45000, "Hali kutilmoqda. MetaMask ilovasini qayta oching."],
+        ]
+      );
 
-      const receipt = await withWalletTimeout(
-        tx.wait(),
-        120000,
-        'Transaction juda uzoq kutilyapti'
+      const receipt = await withProgressToast(
+        withWalletTimeout(
+          tx.wait(),
+          180000,
+          'Transaction blockchain\'da juda uzoq tasdiqlanmoqda'
+        ),
+        tid,
+        [
+          [10000, "Blockchain'da tasdiqlanmoqda..."],
+          [40000, "Optimism tarmog'i band bo'lishi mumkin..."],
+        ]
       );
 
       saveLocalTxHistory({
@@ -415,25 +433,34 @@ export default function Approved() {
 
       await ensureApproval('USDC', listing.priceUSDC);
 
-      const allowanceReady = await waitAllowanceReadyApproved(
-        account,
-        listing.priceUSDC
-      );
-
-      if (!allowanceReady) {
-        toast.error("USDC approve hali blockchain'da ko'rinmayapti. 5 soniyadan keyin qayta urinib ko'ring.", { id: tid });
-        setActionLoading(null);
-        return;
-      }
-
       openWalletForRequest && openWalletForRequest();
 
-      const tx = await contract.connect(signer).payAfterDefault(id);
+      const txPromise = contract.connect(signer).payAfterDefault(id);
+      const tx = await withProgressToast(
+        withWalletTimeout(
+          txPromise,
+          90000,
+          'MetaMask ochilmadi yoki wallet javob bermadi'
+        ),
+        tid,
+        [
+          [8000, "MetaMask'da tasdiqlashni kuting..."],
+          [20000, "Sekin tarmoq — MetaMask'ni oching va tasdiqlang"],
+          [45000, "Hali kutilmoqda. MetaMask ilovasini qayta oching."],
+        ]
+      );
 
-      const receipt = await withWalletTimeout(
-        tx.wait(),
-        120000,
-        'Transaction juda uzoq kutilyapti'
+      const receipt = await withProgressToast(
+        withWalletTimeout(
+          tx.wait(),
+          180000,
+          'Transaction blockchain\'da juda uzoq tasdiqlanmoqda'
+        ),
+        tid,
+        [
+          [10000, "Blockchain'da tasdiqlanmoqda..."],
+          [40000, "Optimism tarmog'i band bo'lishi mumkin..."],
+        ]
       );
 
       saveLocalTxHistory({
