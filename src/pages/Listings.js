@@ -306,34 +306,33 @@ function getFriendlyTxError(e, fallback) {
 
 
 
-async function waitAllowanceReadyListings(tokenAddress, owner, neededRaw) {
-  if (!tokenAddress || !owner || !neededRaw) return false;
+// Narx farqi cheklovi (maxPriceDeviationBps) — approveListing chaqirig'iga
+// uchinchi parametr. 1 bps = 0.01%, default 300 = 3%.
+// Min 100 (1%), max 2000 (20%). localStorage'da saqlanadi.
+const DEVIATION_STORAGE_KEY = 'nasiyasale_max_price_deviation_bps';
+const DEVIATION_DEFAULT_BPS = 300;
+const DEVIATION_MIN_BPS = 100;
+const DEVIATION_MAX_BPS = 2000;
 
-  const provider = new ethers.JsonRpcProvider(OP_MAINNET.rpcUrl);
-
-  const token = new ethers.Contract(
-    tokenAddress,
-    ERC20_ABI,
-    provider
-  );
-
-  for (let i = 0; i < 20; i++) {
-    try {
-      const allowance = await token.allowance(owner, CONTRACT_ADDRESS);
-
-      if (allowance >= neededRaw) {
-        return true;
-      }
-    } catch (e) {
-      console.warn("Listings allowance wait:", e?.message || e);
+function loadDeviationBps() {
+  try {
+    const raw = localStorage.getItem(DEVIATION_STORAGE_KEY);
+    if (raw === null) return DEVIATION_DEFAULT_BPS;
+    const n = parseInt(raw, 10);
+    if (!isFinite(n) || n < DEVIATION_MIN_BPS || n > DEVIATION_MAX_BPS) {
+      return DEVIATION_DEFAULT_BPS;
     }
-
-    await new Promise((r) => setTimeout(r, 1500));
+    return n;
+  } catch {
+    return DEVIATION_DEFAULT_BPS;
   }
-
-  return false;
 }
 
+function saveDeviationBps(bps) {
+  try {
+    localStorage.setItem(DEVIATION_STORAGE_KEY, String(bps));
+  } catch {}
+}
 
 export default function Listings() {
   const {
@@ -362,6 +361,33 @@ export default function Listings() {
   const [collateralPreviews, setCollateralPreviews] = useState({});
   const [previewLoading, setPreviewLoading] = useState({});
   const [currentPrices, setCurrentPrices] = useState({});
+
+  // Narx farqi cheklovi — sahifa yuqorisida sozlanadi va localStorage'da
+  // saqlanadi. approveListing chaqirig'iga uzatiladi.
+  const [deviationBps, setDeviationBps] = useState(loadDeviationBps);
+  const [deviationInput, setDeviationInput] = useState(
+    () => (loadDeviationBps() / 100).toFixed(1)
+  );
+
+  const handleDeviationChange = (val) => {
+    setDeviationInput(val);
+    const num = parseFloat(val);
+    if (!isFinite(num)) return;
+    const bps = Math.round(num * 100);
+    if (bps < DEVIATION_MIN_BPS || bps > DEVIATION_MAX_BPS) return;
+    setDeviationBps(bps);
+    saveDeviationBps(bps);
+  };
+
+  const handleDeviationBlur = () => {
+    // Maydon tarkidagi qiymat noto'g'ri bo'lsa, oxirgi to'g'ri qiymatga qaytaramiz
+    const num = parseFloat(deviationInput);
+    if (!isFinite(num) || Math.round(num * 100) < DEVIATION_MIN_BPS || Math.round(num * 100) > DEVIATION_MAX_BPS) {
+      setDeviationInput((deviationBps / 100).toFixed(1));
+    } else {
+      setDeviationInput((deviationBps / 100).toFixed(1));
+    }
+  };
 
   const fetchListings = useCallback(async () => {
     const c = readOnlyContract || contract;
@@ -590,7 +616,7 @@ export default function Listings() {
 
       openWalletForRequest && openWalletForRequest();
 
-      const txPromise = contract.connect(signer).approveListing(listingId, chosenTokenId, 500);
+      const txPromise = contract.connect(signer).approveListing(listingId, chosenTokenId, deviationBps);
       const tx = await withProgressToast(
         withWalletTimeout(
           txPromise,
@@ -771,6 +797,88 @@ export default function Listings() {
         >
           <RefreshCw size={14} /> {t('approvedRefresh')}
         </button>
+      </div>
+
+      {/* Sozlamalar paneli — narx farqi cheklovi (maxPriceDeviationBps).
+          Bir marta belgilab qo'yiladi, localStorage'da saqlanadi va har
+          tasdiqlash uchun avtomatik qo'llaniladi. */}
+      <div
+        className="card"
+        style={{
+          marginBottom: '12px',
+          padding: '12px 14px',
+          background: 'rgba(59,130,246,0.05)',
+          borderColor: 'rgba(59,130,246,0.25)'
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            flexWrap: 'wrap',
+            justifyContent: 'space-between'
+          }}
+        >
+          <div style={{ flex: '1 1 auto', minWidth: '200px' }}>
+            <div
+              style={{
+                fontSize: '13px',
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                marginBottom: '4px'
+              }}
+            >
+              <Lock size={13} color="rgb(59,130,246)" />
+              Narx farqi cheklovi
+            </div>
+            <div
+              style={{
+                fontSize: '11px',
+                color: 'var(--text-muted)',
+                lineHeight: 1.4
+              }}
+            >
+              Tasdiqlash vaqtida bozor narxi e'londagi lock narxidan shuncha foizdan
+              ko'p farqlansa, tranzaksiya avtomatik bekor qilinadi (flash loan himoyasi).
+              Bir marta belgilab qo'ying — har tasdiqlash uchun ishlatiladi.
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              flexShrink: 0
+            }}
+          >
+            <input
+              type="number"
+              className="input"
+              value={deviationInput}
+              onChange={(e) => handleDeviationChange(e.target.value)}
+              onBlur={handleDeviationBlur}
+              min={(DEVIATION_MIN_BPS / 100).toFixed(1)}
+              max={(DEVIATION_MAX_BPS / 100).toFixed(1)}
+              step="0.1"
+              style={{
+                width: '70px',
+                textAlign: 'center',
+                fontSize: '14px',
+                fontWeight: 600,
+                padding: '6px 8px'
+              }}
+            />
+            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>%</span>
+            <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginLeft: '4px' }}>
+              ({DEVIATION_MIN_BPS / 100}-{DEVIATION_MAX_BPS / 100}%)
+            </span>
+          </div>
+        </div>
       </div>
 
       <div
@@ -1425,6 +1533,3 @@ export default function Listings() {
     </div>
   );
 }
-
-
-
