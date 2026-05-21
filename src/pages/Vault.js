@@ -1120,9 +1120,11 @@ const countdown = (unlockTs, status) => {
                   <div>{formatDate(s.endTime)}</div>
                 </div>
                 <div>
-                  <div style={{fontSize:11,color:"var(--text-muted)"}}>Yechish mumkin</div>
+                  <div style={{fontSize:11,color:"var(--text-muted)"}}>Qolgan</div>
+                  <div style={{fontSize:13,color:"var(--text-primary)",fontFamily:"var(--font-mono)"}}>{formatAmt(BigInt(s.totalAmount) - BigInt(s.withdrawnAmount), dec)} {sym}</div>
+                  <div style={{fontSize:11,color:"var(--text-muted)",marginTop:6}}>Yechish mumkin</div>
                   <div style={{fontSize:13,color:"var(--success)"}}>{formatAmt(withdrawable, dec)} {sym}</div>
-                </div>
+                </div> 
                 <div className="lock-actions">
                   {isOwner && BigInt(withdrawable) > 0n && (
                     <button className="btn btn-primary btn-sm" onClick={() => handleWithdrawStream(s.id)} disabled={!!txLoading["ws"+s.id]}>
@@ -1524,6 +1526,46 @@ const countdown = (unlockTs, status) => {
                         <span className="status-dot" />{isUnlocked ? t("vaultUnlocked") : t("vaultActive")}
                       </span>
                     </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {/* Streamlar — barcha foydalanuvchilar uchun (faqat ko'rish) */}
+          <h2 style={{fontSize:16,fontWeight:700,marginBottom:16,marginTop:32}}>
+            Streamlar
+            <span style={{marginLeft:8,fontSize:12,color:"var(--text-muted)",fontFamily:"var(--font-mono)",fontWeight:400}}>
+              {streams.filter(s => Number(s.status) === 0).length}{t("vaultCount")}
+            </span>
+          </h2>
+          {streams.filter(s => Number(s.status) === 0).length === 0 ? (
+            <div className="empty-state"><Zap size={40}/><p>Faol stream yoq</p></div>
+          ) : (
+            <div className="lock-list">
+              {streams.filter(s => Number(s.status) === 0).map(s => {
+                const token = TOKEN_BY_ADDR[s.token?.toLowerCase()];
+                const sym = token?.symbol || "???";
+                const dec = token?.decimals || 18;
+                const withdrawable = s.ti?.withdrawable || 0n;
+                return (
+                  <div key={s.id} className="lock-row">
+                    <div className="lock-id">#{s.id}</div>
+                    <div>
+                      <span className={"token-badge " + sym.toLowerCase()}>{sym}</span>
+                      <span className="lock-amount" style={{marginLeft:10}}>{formatAmt(s.totalAmount, dec)}</span>
+                    </div>
+                    <div className="lock-time">
+                      <div style={{fontSize:11,color:"var(--text-muted)",marginBottom:2}}>Tugash</div>
+                      <div>{formatDate(s.endTime)}</div>
+                    </div>
+                    <div>
+                      <div style={{fontSize:11,color:"var(--text-muted)"}}>Qolgan</div>
+                      <div style={{fontSize:13,color:"var(--text-primary)",fontFamily:"var(--font-mono)"}}>{formatAmt(BigInt(s.totalAmount) - BigInt(s.withdrawnAmount), dec)} {sym}</div>
+                      <div style={{fontSize:11,color:"var(--text-muted)",marginTop:6}}>Yechish mumkin</div>
+                      <div style={{fontSize:13,color:"var(--success)"}}>{formatAmt(withdrawable, dec)} {sym}</div>
+                    </div>
+                    <div />
+                    <div />
                   </div>
                 );
               })}
