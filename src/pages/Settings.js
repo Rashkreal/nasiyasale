@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useLang } from '../hooks/useLang';
-import { Settings as SettingsIcon, Clock, Check, Lock } from 'lucide-react';
+import { useWeb3 } from '../hooks/useWeb3';
+import toast from 'react-hot-toast';
+import { Settings as SettingsIcon, Clock, Check, Lock, Zap, ShieldOff, AlertTriangle } from 'lucide-react';
 
 // ====================================================================
 //  E'lon muddati (listingDurationDays) sozlamasi
@@ -69,8 +71,43 @@ export function saveDeviationBps(bps) {
   } catch {}
 }
 
+// ====================================================================
+//  Approve ko'paytirgichi sozlamasi
+//
+//  useWeb3.js'dagi ensureApproval bu qiymatni o'qiydi va approve
+//  miqdorini ko'paytiradi. Qiymatlar: '1', '10', '100', 'max'.
+//  '1' = aniq kerakli miqdor (eng xavfsiz, default).
+//  'max' = cheksiz (MaxUint256, eng kam popup, lekin ko'p ishonch kerak).
+// ====================================================================
+export const APPROVE_MULT_STORAGE_KEY = 'nasiyasale_approve_multiplier';
+export const APPROVE_MULT_DEFAULT = '1';
+export const APPROVE_MULT_OPTIONS = ['1', '10', '100', 'max'];
+
+export function loadApproveMultiplier() {
+  try {
+    const raw = localStorage.getItem(APPROVE_MULT_STORAGE_KEY);
+    if (raw === null) return APPROVE_MULT_DEFAULT;
+    if (APPROVE_MULT_OPTIONS.includes(raw)) return raw;
+    return APPROVE_MULT_DEFAULT;
+  } catch {
+    return APPROVE_MULT_DEFAULT;
+  }
+}
+
+export function saveApproveMultiplier(mult) {
+  try {
+    localStorage.setItem(APPROVE_MULT_STORAGE_KEY, String(mult));
+  } catch {}
+}
+
 export default function Settings() {
   const { t } = useLang();
+  const { account, revokeAllApprovals } = useWeb3();
+
+  const [approveMult, setApproveMult] = useState(loadApproveMultiplier);
+  const [multSavedFlash, setMultSavedFlash] = useState(false);
+  const [revoking, setRevoking] = useState(false);
+  const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
 
   const [durationDays, setDurationDays] = useState(loadListingDurationDays);
   const [durationInput, setDurationInput] = useState(
@@ -132,6 +169,56 @@ export default function Settings() {
       setDeviationInput((deviationBps / 100).toFixed(1));
     } else {
       setDeviationInput((deviationBps / 100).toFixed(1));
+    }
+  };
+
+  const handleMultChange = (val) => {
+    setApproveMult(val);
+    saveApproveMultiplier(val);
+    setMultSavedFlash(true);
+    setTimeout(() => setMultSavedFlash(false), 2000);
+  };
+
+  const handleRevokeAll = async () => {
+    if (!account) {
+      toast.error(t('connectPrompt') || 'Avval walletni ulang');
+      return;
+    }
+    setShowRevokeConfirm(false);
+    setRevoking(true);
+    const tid = toast.loading(t('settingsRevokeChecking') || "Approve'lar tekshirilmoqda...");
+    try {
+      const result = await revokeAllApprovals((done, total, tokenKey) => {
+        if (tokenKey) {
+          toast.loading(
+            `${done + 1}/${total} ${tokenKey} ${t('settingsRevokeProgress') || 'bekor qilinmoqda...'}`,
+            { id: tid }
+          );
+        }
+      });
+
+      if (result.message === 'no_approvals' || result.total === 0) {
+        toast.success(t('settingsRevokeNone') || "Bekor qilinadigan approve yo'q", { id: tid });
+      } else if (result.failed && result.failed.length > 0) {
+        toast.error(
+          `${result.revoked}/${result.total} bekor qilindi. Xato: ${result.failed.join(', ')}`,
+          { id: tid }
+        );
+      } else {
+        toast.success(
+          `${result.revoked} ${t('settingsRevokeDone') || "approve bekor qilindi"}`,
+          { id: tid }
+        );
+      }
+    } catch (e) {
+      const msg = String(e?.message || '').toLowerCase();
+      if (msg.includes('rejected') || msg.includes('denied')) {
+        toast.error(t('settingsRevokeRejected') || 'Bekor qilish rad etildi', { id: tid });
+      } else {
+        toast.error(t('errorOccurred') || 'Xatolik yuz berdi', { id: tid });
+      }
+    } finally {
+      setRevoking(false);
     }
   };
 
@@ -337,6 +424,199 @@ export default function Settings() {
         >
           {t('settingsDurationRange') || 'Oraliq'}: {DEVIATION_MIN_BPS / 100}–{DEVIATION_MAX_BPS / 100}%
         </div>
+      </div>
+
+      {/* Approve ko'paytirgich sozlamasi */}
+      <div className="card" style={{ padding: '20px', marginTop: '16px' }}>
+        <div
+          style={{
+            fontSize: '15px',
+            fontWeight: 600,
+            color: 'var(--text-primary)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginBottom: '6px',
+          }}
+        >
+          <Zap size={16} color="var(--accent-bright)" />
+          {t('settingsApproveMultLabel') || "Approve miqdori"}
+
+          {multSavedFlash && (
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontSize: '12px',
+                color: 'var(--success)',
+                fontWeight: 600,
+              }}
+            >
+              <Check size={14} />
+              {t('settingsSaved') || 'Saqlandi'}
+            </span>
+          )}
+        </div>
+
+        <div
+          style={{
+            fontSize: '12px',
+            color: 'var(--text-muted)',
+            lineHeight: 1.5,
+            marginBottom: '14px',
+          }}
+        >
+          {t('settingsApproveMultDesc') ||
+            "Har e'lon uchun qancha token approve qilinsin. Yuqori qiymat = kelgusi e'lonlarda approve qayta so'ralmaydi (gaz tejaydi), lekin kontraktga ko'proq ishonish kerak."}
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {APPROVE_MULT_OPTIONS.map((opt) => {
+            const isActive = approveMult === opt;
+            const label =
+              opt === '1'
+                ? (t('settingsApproveMult1') || '1x (kerakli)')
+                : opt === 'max'
+                  ? (t('settingsApproveMultMax') || 'Cheksiz')
+                  : `${opt}x`;
+            return (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => handleMultChange(opt)}
+                className={`btn btn-sm ${isActive ? 'btn-primary' : 'btn-outline'}`}
+                style={{ fontSize: '13px', padding: '7px 14px' }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
+        {approveMult === 'max' && (
+          <div
+            style={{
+              marginTop: '12px',
+              fontSize: '11px',
+              color: 'var(--warning)',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '6px',
+              lineHeight: 1.5,
+            }}
+          >
+            <AlertTriangle size={13} style={{ flexShrink: 0, marginTop: 1 }} />
+            {t('settingsApproveMultMaxWarn') ||
+              "Cheksiz approve — kontrakt istalgan vaqtda shu tokendan cheksiz miqdor yecha oladi. Faqat ishonchli kontraktlar uchun."}
+          </div>
+        )}
+      </div>
+
+      {/* Barcha approve'larni bekor qilish */}
+      <div
+        className="card"
+        style={{
+          padding: '20px',
+          marginTop: '16px',
+          borderColor: 'var(--danger)',
+        }}
+      >
+        <div
+          style={{
+            fontSize: '15px',
+            fontWeight: 600,
+            color: 'var(--text-primary)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginBottom: '6px',
+          }}
+        >
+          <ShieldOff size={16} color="var(--danger)" />
+          {t('settingsRevokeLabel') || "Barcha approve'larni bekor qilish"}
+        </div>
+
+        <div
+          style={{
+            fontSize: '12px',
+            color: 'var(--text-muted)',
+            lineHeight: 1.5,
+            marginBottom: '14px',
+          }}
+        >
+          {t('settingsRevokeDesc') ||
+            "Kontraktga berilgan barcha token ruxsatlarini 0 ga tushiradi. Faqat ruxsat berilgan tokenlar uchun tranzaksiya yuboriladi (har biri uchun alohida tasdiq). Xavfsizlik uchun savdoni tugatgandan keyin foydalaning."}
+        </div>
+
+        {!showRevokeConfirm ? (
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={() => setShowRevokeConfirm(true)}
+            disabled={revoking || !account}
+            style={{
+              fontSize: '13px',
+              padding: '8px 16px',
+              color: 'var(--danger)',
+              borderColor: 'var(--danger)',
+              background: 'transparent',
+              border: '1px solid var(--danger)',
+            }}
+          >
+            {revoking ? (
+              <><div className="spinner" style={{ width: 13, height: 13 }} /> {t('settingsRevoking') || 'Bekor qilinmoqda...'}</>
+            ) : (
+              <><ShieldOff size={14} /> {t('settingsRevokeBtn') || "Barchasini bekor qilish"}</>
+            )}
+          </button>
+        ) : (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+              padding: '12px',
+              borderRadius: '8px',
+              background: 'var(--danger-glow)',
+              border: '1px solid var(--danger)',
+            }}
+          >
+            <div style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 600 }}>
+              {t('settingsRevokeConfirmQ') || "Ishonchingiz komilmi? Har bir token uchun alohida tasdiq so'raladi."}
+            </div>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn btn-sm"
+                onClick={handleRevokeAll}
+                style={{
+                  fontSize: '13px',
+                  padding: '8px 16px',
+                  background: 'var(--danger)',
+                  color: 'white',
+                  border: 'none',
+                }}
+              >
+                {t('settingsRevokeConfirmYes') || "Ha, bekor qil"}
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={() => setShowRevokeConfirm(false)}
+                style={{ fontSize: '13px', padding: '8px 16px' }}
+              >
+                {t('settingsRevokeConfirmNo') || 'Yo\'q'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!account && (
+          <div style={{ marginTop: '10px', fontSize: '11px', color: 'var(--text-muted)' }}>
+            {t('connectPrompt') || 'Avval walletni ulang'}
+          </div>
+        )}
       </div>
     </div>
   );

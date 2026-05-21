@@ -42,6 +42,26 @@ const isMobile = () => {
   );
 };
 
+// ════════════════════════════════════════════════════════════════════
+//  Approve ko'paytirgichi — Settings sahifasidan o'qiladi.
+//  Qiymatlar: '1' (kerakli/exact), '10', '100', 'max' (cheksiz).
+//  Default: '1' (eng xavfsiz — har e'lon uchun aniq miqdor).
+// ════════════════════════════════════════════════════════════════════
+const APPROVE_MULT_STORAGE_KEY = 'nasiyasale_approve_multiplier';
+
+function loadApproveMultiplier() {
+  try {
+    const raw = localStorage.getItem(APPROVE_MULT_STORAGE_KEY);
+    if (raw === null) return '1';
+    if (raw === 'max' || raw === '1' || raw === '10' || raw === '100') {
+      return raw;
+    }
+    return '1';
+  } catch {
+    return '1';
+  }
+}
+
 export function Web3Provider({ children }) {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
@@ -1055,6 +1075,29 @@ export function Web3Provider({ children }) {
       return true;
     }
 
+    // ====================================================================
+    //  Approve ko'paytirgichi (Settings sahifasidan)
+    //
+    //  Foydalanuvchi Settings'da tanlaydi: 1x (kerakli), 10x, 100x, Cheksiz.
+    //  approveAmount = amountRaw * multiplier. Cheksiz = MaxUint256.
+    //  Yuqori ko'paytirgich -> kelgusi e'lonlar uchun approve qayta
+    //  so'ralmaydi (gaz tejaydi), lekin kontraktga ko'proq ishonish kerak.
+    // ====================================================================
+    let approveAmount = amountRaw;
+    try {
+      const mult = loadApproveMultiplier(); // 1, 10, 100, yoki 'max'
+      if (mult === 'max') {
+        approveAmount = ethers.MaxUint256;
+      } else {
+        const m = BigInt(mult);
+        if (m > 1n) {
+          approveAmount = amountRaw * m;
+        }
+      }
+    } catch (_) {
+      approveAmount = amountRaw;
+    }
+
     const tid = toast.loading(
       `${tokenKey} uchun ruxsat so'ralmoqda... Wallet ilovasini tekshiring.`
     );
@@ -1101,7 +1144,7 @@ export function Web3Provider({ children }) {
       // va foydalanuvchi imzolagandan keyin tx obyektini qaytaradi.
       // Mobile WC'da bu 30-60 soniya olishi mumkin.
       const tx = await withTimeout(
-        tokenWithSigner.connect(signer).approve(CONTRACT_ADDRESS, amountRaw),
+        tokenWithSigner.connect(signer).approve(CONTRACT_ADDRESS, approveAmount),
         90000,
         `${tokenKey} approval oynasi chiqmadi yoki wallet javob bermadi`
       );
@@ -1177,12 +1220,127 @@ export function Web3Provider({ children }) {
           { id: tid }
         );
       } else {
-        toast.error(`${tokenKey} approval xato bo‘ldi`, { id: tid });
+        toast.error(`${tokenKey} approval xato bo\u2018ldi`, { id: tid });
       }
 
       activeToastRef.current = null;
       throw e;
     }
+  };
+
+  // ════════════════════════════════════════════════════════════════════
+  //  revokeAllApprovals — barcha tokenlar uchun kontraktga berilgan
+  //  approve'larni 0 ga tushiradi (bekor qiladi).
+  //
+  //  Smart: faqat allowance > 0 bo'lgan tokenlarni bekor qiladi (gaz
+  //  tejaydi). Allowance read-only RPC orqali tekshiriladi (popup ochmaydi).
+  //  Har token uchun approve(CONTRACT, 0) ketma-ket yuboriladi.
+  //  onProgress(done, total, tokenKey) — UI progress uchun chaqiriladi.
+  // ════════════════════════════════════════════════════════════════════
+  const revokeAllApprovals = async (onProgress) => {
+    if (!account) {
+      throw new Error('Wallet ulanmagan');
+    }
+    if (!signer) {
+      throw new Error('Wallet signer topilmadi. Qayta ulang.');
+    }
+    if (walletType === 'readonly') {
+      throw new Error("Faqat ko'rish rejimi");
+    }
+    if (disconnectingRef.current) {
+      throw new Error('Wallet uzilmoqda');
+    }
+
+    // Tarmoqni tasdiqlash
+    await ensureCorrectChain();
+
+    actionAbortRef.current = false;
+
+    // Read-only RPC orqali har token uchun allowance tekshiramiz
+    const roProvider = new ethers.JsonRpcProvider(READ_ONLY_RPC);
+
+    // 1-bosqich: qaysi tokenlarda allowance > 0 ekanini aniqlaymiz
+    const toRevoke = [];
+    for (const tokenKey of ALL_TOKENS) {
+      try {
+        const tokenAddr = TOKEN_ADDRESSES[tokenKey];
+        const roToken = new ethers.Contract(
+          tokenAddr,
+          ['function allowance(address,address) view returns (uint256)'],
+          roProvider
+        );
+        const allowance = await roToken.allowance(account, CONTRACT_ADDRESS);
+        if (allowance > 0n) {
+          toRevoke.push(tokenKey);
+        }
+      } catch (e) {
+        console.warn(`${tokenKey} allowance tekshirishda xato:`, e?.message || e);
+      }
+    }
+
+    if (toRevoke.length === 0) {
+      return { revoked: 0, total: 0, message: 'no_approvals' };
+    }
+
+    // 2-bosqich: har birini ketma-ket bekor qilamiz (approve 0)
+    let done = 0;
+    const total = toRevoke.length;
+    const failed = [];
+
+    for (const tokenKey of toRevoke) {
+      if (actionAbortRef.current || disconnectingRef.current) {
+        throw new Error('Bekor qilish to\'xtatildi');
+      }
+
+      try {
+        if (typeof onProgress === 'function') {
+          onProgress(done, total, tokenKey);
+        }
+
+        const tokenWithSigner = tokens[tokenKey];
+
+        // Mobile uchun wallet'ni oldinga chiqaramiz
+        openWalletForRequest();
+
+        const tx = await withTimeout(
+          tokenWithSigner.connect(signer).approve(CONTRACT_ADDRESS, 0),
+          90000,
+          `${tokenKey} bekor qilish oynasi chiqmadi`
+        );
+
+        // tx.wait() — blockchain tasdig'ini kutamiz (90s)
+        await withTimeout(
+          tx.wait().catch((e) => {
+            console.warn(`${tokenKey} revoke tx.wait failed:`, e?.message || e);
+            return null;
+          }),
+          90000,
+          `${tokenKey} bekor qilish tasdiqlanmadi`
+        );
+
+        done += 1;
+      } catch (e) {
+        const msg = String(e?.reason || e?.message || e || '').toLowerCase();
+        console.error(`${tokenKey} revoke error:`, e);
+
+        // Foydalanuvchi rad etsa — to'xtaymiz
+        if (
+          msg.includes('user rejected') ||
+          msg.includes('rejected') ||
+          msg.includes('denied')
+        ) {
+          throw new Error('rejected');
+        }
+
+        failed.push(tokenKey);
+      }
+    }
+
+    if (typeof onProgress === 'function') {
+      onProgress(done, total, null);
+    }
+
+    return { revoked: done, total, failed };
   };
 
   return (
@@ -1207,6 +1365,7 @@ export function Web3Provider({ children }) {
 
         refreshBalances,
         ensureApproval,
+        revokeAllApprovals,
         ensureCorrectChain,
         switchToOptimism,
         openWalletForRequest,
