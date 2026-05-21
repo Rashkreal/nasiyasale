@@ -14,8 +14,8 @@ yoki boshqaruvchi talab etilmaydi.
 
 1.1. Asosiy manzillar
 ─────────────────────
-NasiyaSale Kontrakt : 0x86808FFD1204C2BD9Ad5B79022968D11408d3efc
-Vault Kontrakt      : 0x1B1F96f30B8F6265a299000Ab23862c35a41B4a9
+NasiyaSale Kontrakt : 0xc96A9D80E03BC97EDb7DB189c0bE233aD151F232
+Vault Kontrakt      : 0xaB7B9E2d539Bbcd6a8Bde434ab481D192DDC2Ba5
 Owner               : 0x0e86d8afaa0B77D732d89BD5ceC3dC9003b321dA
 Withdrawal          : 0xc87B4d564775A748595240f66d47C3a88a43baA4
 Sayt                : https://nasiyasale.vercel.app
@@ -72,7 +72,7 @@ Taqsimot:
 
 3.1. Vault kontrakt
 ────────────────────
-Manzil     : 0x1B1F96f30B8F6265a299000Ab23862c35a41B4a9
+Manzil     : 0xaB7B9E2d539Bbcd6a8Bde434ab481D192DDC2Ba5
 Owner      : 0x0e86d8afaa0B77D732d89BD5ceC3dC9003b321dA
 Withdrawal : 0xc87B4d564775A748595240f66d47C3a88a43baA4
 Tarmoq     : Optimism Mainnet
@@ -103,7 +103,7 @@ Jami lock qilingan:
 4. NASIYASALE SMART KONTRAKT (CreditSaleV4)
 ═════════════════════════════════════════════════════════════════
 
-Manzil  : 0x86808FFD1204C2BD9Ad5B79022968D11408d3efc
+Manzil  : 0xc96A9D80E03BC97EDb7DB189c0bE233aD151F232
 Solidity: ^0.8.34
 Tarmoq  : Optimism Mainnet
 
@@ -204,8 +204,8 @@ Firebase Realtime Database orqali real-time:
 
 1.1. Асосий манзиллар
 ──────────────────────
-НасияСале Контракт : 0x86808FFD1204C2BD9Ad5B79022968D11408d3efc
-Vault Контракт     : 0x1B1F96f30B8F6265a299000Ab23862c35a41B4a9
+НасияСале Контракт : 0xc96A9D80E03BC97EDb7DB189c0bE233aD151F232
+Vault Контракт     : 0xaB7B9E2d539Bbcd6a8Bde434ab481D192DDC2Ba5
 Эгаси (Owner)      : 0x0e86d8afaa0B77D732d89BD5ceC3dC9003b321dA
 Withdrawal         : 0xc87B4d564775A748595240f66d47C3a88a43baA4
 Сайт               : https://nasiyasale.vercel.app
@@ -260,7 +260,7 @@ WETH  | 0x4200000000000000000000000000000000000006 | 18 | Гаров
 
 3.1. Контракт манзили
 ──────────────────────
-Vault      : 0x1B1F96f30B8F6265a299000Ab23862c35a41B4a9
+Vault      : 0xaB7B9E2d539Bbcd6a8Bde434ab481D192DDC2Ba5
 Owner      : 0x0e86d8afaa0B77D732d89BD5ceC3dC9003b321dA
 Withdrawal : 0xc87B4d564775A748595240f66d47C3a88a43baA4
 
@@ -287,7 +287,7 @@ BLT   | 10,000,000     | 3 йил     | Ўрта муддатли lock
 4. НАСИЯСАЛЕ СМАРТ КОНТРАКТ
 ══════════════════════════════════════════════════════════════════
 
-Манзил : 0x86808FFD1204C2BD9Ad5B79022968D11408d3efc
+Манзил : 0xc96A9D80E03BC97EDb7DB189c0bE233aD151F232
 
 4.1. BL (Business Level) тизими
 ────────────────────────────────
@@ -325,8 +325,8 @@ NasiyaSale — это децентрализованная платформа д
 
 1.1. Основные адреса
 ─────────────────────
-Контракт NasiyaSale : 0x86808FFD1204C2BD9Ad5B79022968D11408d3efc
-Vault контракт      : 0x1B1F96f30B8F6265a299000Ab23862c35a41B4a9
+Контракт NasiyaSale : 0xc96A9D80E03BC97EDb7DB189c0bE233aD151F232
+Vault контракт      : 0xaB7B9E2d539Bbcd6a8Bde434ab481D192DDC2Ba5
 Владелец (Owner)    : 0x0e86d8afaa0B77D732d89BD5ceC3dC9003b321dA
 Withdrawal          : 0xc87B4d564775A748595240f66d47C3a88a43baA4
 Сайт                : https://nasiyasale.vercel.app
@@ -381,7 +381,7 @@ WETH  | 0x4200000000000000000000000000000000000006 | 18 | Залог
 
 3.1. Адреса
 ────────────
-Vault      : 0x1B1F96f30B8F6265a299000Ab23862c35a41B4a9
+Vault      : 0xaB7B9E2d539Bbcd6a8Bde434ab481D192DDC2Ba5
 Owner      : 0x0e86d8afaa0B77D732d89BD5ceC3dC9003b321dA
 Withdrawal : 0xc87B4d564775A748595240f66d47C3a88a43baA4
 
@@ -408,7 +408,7 @@ BLT   | 10,000,000     | 3 года    | Среднесрочная блокир
 4. СМАРТ-КОНТРАКТ NASIYASALE
 ══════════════════════════════════════════════════════════════════
 
-Адрес : 0x86808FFD1204C2BD9Ad5B79022968D11408d3efc
+Адрес : 0xc96A9D80E03BC97EDb7DB189c0bE233aD151F232
 
 4.1. Система BL (Business Level)
 ──────────────────────────────────
@@ -447,8 +447,8 @@ through smart contracts with no intermediaries or administrators.
 
 1.1. Main Addresses
 ────────────────────
-NasiyaSale Contract : 0x86808FFD1204C2BD9Ad5B79022968D11408d3efc
-Vault Contract      : 0x1B1F96f30B8F6265a299000Ab23862c35a41B4a9
+NasiyaSale Contract : 0xc96A9D80E03BC97EDb7DB189c0bE233aD151F232
+Vault Contract      : 0xaB7B9E2d539Bbcd6a8Bde434ab481D192DDC2Ba5
 Owner               : 0x0e86d8afaa0B77D732d89BD5ceC3dC9003b321dA
 Withdrawal          : 0xc87B4d564775A748595240f66d47C3a88a43baA4
 Website             : https://nasiyasale.vercel.app
@@ -505,7 +505,7 @@ Distribution:
 
 3.1. Addresses
 ───────────────
-Vault      : 0x1B1F96f30B8F6265a299000Ab23862c35a41B4a9
+Vault      : 0xaB7B9E2d539Bbcd6a8Bde434ab481D192DDC2Ba5
 Owner      : 0x0e86d8afaa0B77D732d89BD5ceC3dC9003b321dA
 Withdrawal : 0xc87B4d564775A748595240f66d47C3a88a43baA4
 
@@ -535,7 +535,7 @@ Total locked:
 4. NASIYASALE SMART CONTRACT (CreditSaleV4)
 ══════════════════════════════════════════════════════════════════
 
-Address  : 0x86808FFD1204C2BD9Ad5B79022968D11408d3efc
+Address  : 0xc96A9D80E03BC97EDb7DB189c0bE233aD151F232
 Solidity : ^0.8.34
 Network  : Optimism Mainnet
 
