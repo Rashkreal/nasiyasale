@@ -5,6 +5,7 @@ import { maskFromTokens, COLLATERAL_TOKENS, TOKEN_COLORS, TOKEN_IDS, TOKEN_DECIM
 import { ethers } from 'ethers';
 import toast from 'react-hot-toast';
 import { saveLocalTxHistory } from '../utils/localTxHistory';
+import { loadListingDurationDays } from './Settings';
 import { PlusSquare, ShieldCheck, ShieldOff, Tag, ShoppingCart, Info, AlertCircle } from 'lucide-react';
 
 
@@ -133,7 +134,7 @@ export default function CreateListing() {
       info: [
         { label: t('infoYouPut'), value: t('clInfoDURFromWallet') },
         { label: t('infoBuyerPut'), value: t('clInfoOnlyBLNeeded') },
-        { label: t('infoRequiredBL'), value: 'DUR Г— 10' },
+        { label: t('infoRequiredBL'), value: 'DUR \u0413\u2014 10' },
         { label: t('infoBuyerPaid'), value: t('clInfoBuyerPaidNoColl') },
         { label: t('infoBuyerNotPaid'), value: t('clInfoBuyerNotPaidNoColl') },
         { label: t('infoRisk'), value: t('clInfoRiskHigh') },
@@ -144,7 +145,7 @@ export default function CreateListing() {
       title: t('lt4Title'), desc: t('lt4Desc'), fn: 'postListingNoCollateralBuy',
       info: [
         { label: t('infoYouPut'), value: t('clInfoOnlyBLNeeded') },
-        { label: t('infoRequiredBL'), value: 'DUR Г— 10' },
+        { label: t('infoRequiredBL'), value: 'DUR \u0413\u2014 10' },
         { label: t('infoWhereBL'), value: t('clInfoBLFromPrevious') },
         { label: t('infoIfPaid'), value: t('clInfoYouPaidNoColl') },
         { label: t('infoIfNotPaid'), value: t('clInfoYouNotPaidNoColl') },
@@ -224,6 +225,11 @@ export default function CreateListing() {
     const usdcRaw = ethers.parseUnits(form.priceUSDC, 6);
     const period = parseInt(form.paymentPeriod);
 
+    // E'lon muddati (expiresAt) — Settings sahifasidagi sozlamadan o'qiladi.
+    // Kunlar -> Unix timestamp (hozirgi vaqt + kunlar).
+    const durationDays = loadListingDurationDays();
+    const expiresAt = Math.floor(Date.now() / 1000) + durationDays * 24 * 3600;
+
     const needsDUR = selected === 'collateral-sell' || selected === 'nocollateral-sell';
     if (needsDUR) {
       const durBal = parseFloat(walletBalances.DUR || '0');
@@ -247,7 +253,7 @@ export default function CreateListing() {
       // BL/blacklist precheck — FAQAT garovsiz xaridor e'loni uchun.
       // Kontrakt qoidasi: nocollateral-sell (sotuvchi garovsiz) uchun
       // BL talab qilinmaydi. Faqat nocollateral-buy (xaridor garovsiz)
-      // uchun BL = DUR × 10 talab qilinadi.
+      // uchun BL = DUR \u00d7 10 talab qilinadi.
       // ====================================================================
       const needsBLCheck = selected === 'nocollateral-buy';
 
@@ -272,7 +278,7 @@ export default function CreateListing() {
               return;
             }
 
-            // Required BL = DUR miqdori × 10 (raw wei, 18 decimals)
+            // Required BL = DUR miqdori \u00d7 10 (raw wei, 18 decimals)
             const requiredBLRaw = durRaw * 10n;
 
             // freeTotalBL — band qilinmagan BL
@@ -310,7 +316,7 @@ export default function CreateListing() {
         openWalletForRequest();
         tx = await withProgressToast(
           withWalletTimeout(
-            c.postListingCollateralSell(durRaw, usdcRaw, period, maskFromTokens(selectedCollaterals), collateralBufferBps, Math.floor(Date.now() / 1000) + 90 * 24 * 3600),
+            c.postListingCollateralSell(durRaw, usdcRaw, period, maskFromTokens(selectedCollaterals), collateralBufferBps, expiresAt),
             90000,
             'MetaMask ochilmadi yoki wallet javob bermadi'
           ),
@@ -331,7 +337,7 @@ export default function CreateListing() {
         openWalletForRequest();
         tx = await withProgressToast(
           withWalletTimeout(
-            c.postListingCollateralBuy(durRaw, usdcRaw, period, singleMask, tokenId, collateralBufferBps, Math.floor(Date.now() / 1000) + 90 * 24 * 3600),
+            c.postListingCollateralBuy(durRaw, usdcRaw, period, singleMask, tokenId, collateralBufferBps, expiresAt),
             90000,
             'MetaMask ochilmadi yoki wallet javob bermadi'
           ),
@@ -348,7 +354,7 @@ export default function CreateListing() {
         openWalletForRequest();
         tx = await withProgressToast(
           withWalletTimeout(
-            c.postListingNoCollateralSell(durRaw, usdcRaw, period, Math.floor(Date.now() / 1000) + 90 * 24 * 3600),
+            c.postListingNoCollateralSell(durRaw, usdcRaw, period, expiresAt),
             90000,
             'MetaMask ochilmadi yoki wallet javob bermadi'
           ),
@@ -364,7 +370,7 @@ export default function CreateListing() {
         openWalletForRequest();
         tx = await withProgressToast(
           withWalletTimeout(
-            c.postListingNoCollateralBuy(durRaw, usdcRaw, period, Math.floor(Date.now() / 1000) + 90 * 24 * 3600),
+            c.postListingNoCollateralBuy(durRaw, usdcRaw, period, expiresAt),
             90000,
             'MetaMask ochilmadi yoki wallet javob bermadi'
           ),
@@ -468,11 +474,11 @@ export default function CreateListing() {
         msg.includes('exceeds balance') ||
         msg.includes('insufficient funds')
       ) {
-        m = t('clWalletInsufficient') || 'Hamyonda yetarli token yoki gas yo‘q.';
+        m = t('clWalletInsufficient') || 'Hamyonda yetarli token yoki gas yo\u2018q.';
       } else if (msg.includes('zero collateral')) {
-        m = t('clZeroCollateral') || 'Garov miqdori 0 bo‘lib qoldi.';
+        m = t('clZeroCollateral') || 'Garov miqdori 0 bo\u2018lib qoldi.';
       } else if (msg.includes('wrong network') || msg.includes('unsupported chain')) {
-        m = 'Optimism Mainnet tarmog‘iga o‘ting.';
+        m = 'Optimism Mainnet tarmog\u2018iga o\u2018ting.';
       } else if (msg.includes('total bl limit') || msg.includes('bl low')) {
         m = "BL yetarli emas. Garovsiz e'lon uchun bo'sh BL limitingiz yetmayapti.";
       } else if (msg.includes('blacklist')) {
@@ -617,7 +623,7 @@ export default function CreateListing() {
                       color: isActive ? color : 'var(--text-muted)',
                       fontWeight: isActive ? 700 : 500, fontSize: '13px', transition: 'all 0.15s',
                     }}>
-                      {isActive ? '✓ ' : ''}{token}
+                      {isActive ? '\u2713 ' : ''}{token}
                     </button>
                   );
                 })}
@@ -639,7 +645,7 @@ export default function CreateListing() {
                         }}>
                           <span style={{ fontWeight: 700, color, fontSize: '13px' }}>{tk}</span>
                           <span style={{ fontFamily: 'Space Mono, monospace', fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)' }}>
-                            {sellPreviewLoading ? '...' : amt ? amt : '—'}
+                            {sellPreviewLoading ? '...' : amt ? amt : '\u2014'}
                           </span>
                         </div>
                       );
@@ -672,7 +678,7 @@ export default function CreateListing() {
                       color: isActive ? color : 'var(--text-muted)',
                       fontWeight: isActive ? 700 : 500, fontSize: '13px', transition: 'all 0.15s',
                     }}>
-                      {isActive ? '✓ ' : ''}{token}
+                      {isActive ? '\u2713 ' : ''}{token}
                       <span style={{ fontSize: '10px', marginLeft: '4px', opacity: 0.7 }}>({bal.toFixed(2)})</span>
                     </button>
                   );
@@ -687,7 +693,7 @@ export default function CreateListing() {
                 }}>
                   <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{t('clRequiredCollateral')}</span>
                   <span style={{ fontSize: '14px', fontWeight: 700, color: TOKEN_COLORS[buyChosenToken], fontFamily: 'Space Mono, monospace' }}>
-                    {previewLoading ? "..." : collateralPreview ? `${collateralPreview} ${buyChosenToken}` : "—"}
+                    {previewLoading ? "..." : collateralPreview ? `${collateralPreview} ${buyChosenToken}` : "\u2014"}
                   </span>
                 </div>
               )}
@@ -702,7 +708,7 @@ export default function CreateListing() {
                       color: ok ? 'var(--success)' : 'var(--danger)',
                       display: 'flex', alignItems: 'center', gap: '6px',
                     }}>
-                      {ok ? '✓' : '✗'} {t('clWalletBalance')} {bal.toFixed(4)} {buyChosenToken}
+                      {ok ? '\u2713' : '\u2717'} {t('clWalletBalance')} {bal.toFixed(4)} {buyChosenToken}
                       {!ok && <span> {t('clInsufficientToken')}</span>}
                     </div>
                   );
@@ -726,7 +732,7 @@ export default function CreateListing() {
               <div className="input-group">
                 <label className="input-label">{t('createPrice')}</label>
                 <input className="input" type="number" min="0" placeholder="0.00" value={form.priceUSDC} onChange={handle('priceUSDC')} />
-                
+
               </div>
               <div className="input-group">
                 <label className="input-label">{t('createPeriod')}</label>
@@ -747,7 +753,3 @@ export default function CreateListing() {
     </div>
   );
 }
-
-
-
-

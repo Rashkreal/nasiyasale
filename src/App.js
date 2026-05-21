@@ -14,8 +14,8 @@ import TxHistory from './pages/TxHistory';
 import About from './pages/About';
 import Vault from './pages/Vault';
 import Tokenomics from './pages/Tokenomics';
+import Settings from './pages/Settings';
 import './App.css';
-
 export default function App() {
   return (
     <ThemeProvider>
@@ -38,6 +38,7 @@ export default function App() {
                 <Route path="/about" element={<About />} />
                 <Route path="/vault" element={<Vault />} />
                 <Route path="/tokenomics" element={<Tokenomics />} />
+                <Route path="/settings" element={<Settings />} />
               </Routes>
             </Layout>
           </BrowserRouter>

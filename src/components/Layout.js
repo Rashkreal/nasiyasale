@@ -8,7 +8,7 @@ import LangSwitcher from './LangSwitcher';
 import {
   LayoutDashboard, PlusSquare, List,
   CheckCircle, BarChart3, Zap, Clock,
-  AlertTriangle, LogOut, Copy, Check, Info, Wallet, Menu, X, Sun, Moon, Lock, TrendingUp
+  AlertTriangle, LogOut, Copy, Check, Info, Wallet, Menu, X, Sun, Moon, Lock, TrendingUp, Settings
 } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 
@@ -41,6 +41,7 @@ export default function Layout({ children }) {
     { to: '/about', icon: Info, label: t('navAbout') || 'Haqida' },
     { to: '/vault', icon: Lock, label: 'Vault' },
     { to: '/tokenomics', icon: TrendingUp, label: 'Tokenomics' },
+    { to: '/settings', icon: Settings, label: t('navSettings') || 'Sozlamalar' },
   ];
 
   // Pastki tab uchun asosiy 5 ta sahifa
@@ -297,6 +298,3 @@ export default function Layout({ children }) {
     </div>
   );
 }
-
-
-
