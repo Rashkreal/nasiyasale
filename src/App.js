@@ -15,6 +15,7 @@ import About from './pages/About';
 import Vault from './pages/Vault';
 import Tokenomics from './pages/Tokenomics';
 import Settings from './pages/Settings';
+import Whitepaper from './pages/Whitepaper';
 import './App.css';
 export default function App() {
   return (
@@ -39,6 +40,7 @@ export default function App() {
                 <Route path="/vault" element={<Vault />} />
                 <Route path="/tokenomics" element={<Tokenomics />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/whitepaper" element={<Whitepaper />} />
               </Routes>
             </Layout>
           </BrowserRouter>
