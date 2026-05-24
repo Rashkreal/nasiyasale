@@ -24,9 +24,11 @@ const Q96  = BigInt(2) ** BigInt(96);
 const Q192 = BigInt(2) ** BigInt(192);
 
 const TOTAL_SUPPLY  = 100_000_000;
-const LOCKED_AMOUNT = 90_000_000;
-const LOCKED_PCT    = 90;
+const LOCKED_AMOUNT = 66_000_000;
+const LOCKED_PCT    = 66;
 const FREE_AMOUNT   = TOTAL_SUPPLY - LOCKED_AMOUNT;
+const STREAM_AMOUNT = 56_000_000;
+const LP_LOCK_AMOUNT = 10_000_000;
 
 // ─── Yordamchilar ─────────────────────────────────────────────────────────────
 function fmtNum(n, digits = 2) {
@@ -247,17 +249,17 @@ export default function Tokenomics() {
       <div className="card" style={{ marginBottom: 28 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
           <div style={{ textAlign: 'center', padding: 16 }}>
-            <div style={{ fontSize: 36, fontWeight: 700, fontFamily: 'Space Mono, monospace', color: 'var(--accent-bright)' }}>90%</div>
+            <div style={{ fontSize: 36, fontWeight: 700, fontFamily: 'Space Mono, monospace', color: 'var(--accent-bright)' }}>66%</div>
             <div style={{ fontWeight: 600, marginBottom: 4 }}>{t('tokenLocked')}</div>
             <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-              80M — 10+ {t('approvedDays')}<br />10M — 3 {t('approvedDays')}
+              56M stream — 1/5/10 yil<br />10M likvidlik — 1-4 yil
             </div>
           </div>
           <div style={{ textAlign: 'center', padding: 16, borderLeft: '1px solid var(--border)', borderRight: '1px solid var(--border)' }}>
-            <div style={{ fontSize: 36, fontWeight: 700, fontFamily: 'Space Mono, monospace', color: 'var(--success)' }}>10%</div>
+            <div style={{ fontSize: 36, fontWeight: 700, fontFamily: 'Space Mono, monospace', color: 'var(--success)' }}>34%</div>
             <div style={{ fontWeight: 600, marginBottom: 4 }}>{t('tokenCirculating')}</div>
             <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-              Likvidlik va savdo<br />uchun mavjud
+              10M faol likvidlik<br />24M erkin · savdo uchun
             </div>
           </div>
           <div style={{ textAlign: 'center', padding: 16 }}>
