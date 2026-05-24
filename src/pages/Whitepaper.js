@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, Lock, Coins, Shield, Map, AlertTriangle, ExternalLink } from 'lucide-react';
+import { FileText, Lock, Coins, Shield, Map, AlertTriangle, ExternalLink, BarChart3 } from 'lucide-react';
 
 // ─── Ma'lumotlar ─────────────────────────────────────────────────────────────
 const DUR_ADDRESS    = "0xf2f471dd1fBD278e54a81af7D5a22E3a38eA43Ff";
