@@ -12,7 +12,7 @@ import toast from 'react-hot-toast';
 
 const Web3Context = createContext(null);
 
-const ALL_TOKENS = ['DUR', 'USDC', 'USDT', 'BLT', 'WBTC', 'WETH'];
+const ALL_TOKENS = ['DUR', 'USDC', 'WBTC', 'WETH'];
 const emptyBals = () => Object.fromEntries(ALL_TOKENS.map((k) => [k, '0']));
 
 // WalletConnect Project ID — https://cloud.walletconnect.com
