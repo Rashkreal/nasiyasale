@@ -557,7 +557,7 @@ export default function Listings() {
     try {
       await ensureCorrectChain();
 
-      openWalletForRequest && openWalletForRequest();
+      // Narx farqini oldindan tekshirish (Metamask ochilmasdan oldin)
 
       // Narx farqi cheklovi Settings sahifasidan o'qiladi (localStorage)
       const deviationBps = loadDeviationBps();
@@ -634,7 +634,7 @@ export default function Listings() {
     try {
       await ensureCorrectChain();
 
-      openWalletForRequest && openWalletForRequest();
+      // Narx farqini oldindan tekshirish (Metamask ochilmasdan oldin)
 
       const txPromise = contract.connect(signer).cancelListing(listingId);
       const tx = await withProgressToast(
