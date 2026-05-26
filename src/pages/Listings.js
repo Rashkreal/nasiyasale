@@ -127,26 +127,33 @@ function getStatusLabel(status, t) {
   return statusLabels[s] || `Status ${s}`;
 }
 
-function PriceDiffBadge({ pctDiff, isUp, isDown }) {
+function PriceDiffBadge({ pctDiff, isUp, isDown, maxDeviationPct }) {
   if (pctDiff === null || pctDiff === undefined) return null;
 
   return (
-    <span
-      style={{
-        fontSize: '10px',
-        fontWeight: 700,
-        color: isUp ? 'var(--success)' : isDown ? 'var(--danger)' : 'var(--text-muted)',
-        background: isUp
-          ? 'rgba(16,185,129,0.1)'
-          : isDown
-            ? 'rgba(239,68,68,0.1)'
-            : 'transparent',
-        padding: '1px 4px',
-        borderRadius: '3px'
-      }}
-    >
-      {isUp ? '+' : ''}
-      {pctDiff}%
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+      <span
+        style={{
+          fontSize: '10px',
+          fontWeight: 700,
+          color: isUp ? 'var(--success)' : isDown ? 'var(--danger)' : 'var(--text-muted)',
+          background: isUp
+            ? 'rgba(16,185,129,0.1)'
+            : isDown
+              ? 'rgba(239,68,68,0.1)'
+              : 'transparent',
+          padding: '1px 4px',
+          borderRadius: '3px'
+        }}
+      >
+        {isUp ? '+' : ''}
+        {pctDiff}%
+      </span>
+      {maxDeviationPct !== undefined && (
+        <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>
+          chek: {maxDeviationPct}%
+        </span>
+      )}
     </span>
   );
 }
@@ -1164,6 +1171,7 @@ export default function Listings() {
                                 </span>
 
                                 <PriceDiffBadge
+                                  maxDeviationPct={(loadDeviationBps() / 100).toFixed(2)}
                                   pctDiff={priceDiff.pctDiff}
                                   isUp={priceDiff.isUp}
                                   isDown={priceDiff.isDown}
@@ -1228,7 +1236,8 @@ export default function Listings() {
                           {lockedColAmt ? `${lockedColAmt} ` : ''}
                           {lockedTokenName}
 
-                          <PriceDiffBadge
+                          <PriceDiffBadge 
+                            maxDeviationPct={(loadDeviationBps() / 100).toFixed(2)} 
                             pctDiff={buyerPriceDiff.pctDiff}
                             isUp={buyerPriceDiff.isUp}
                             isDown={buyerPriceDiff.isDown}
