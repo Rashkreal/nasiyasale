@@ -115,7 +115,7 @@ export default function Settings() {
   );
   const [deviationBps, setDeviationBps] = useState(loadDeviationBps);
   const [deviationInput, setDeviationInput] = useState(
-    () => (loadDeviationBps() / 100).toFixed(1)
+    () => (loadDeviationBps() / 100).toFixed(2)
   );
   const [savedFlash, setSavedFlash] = useState(false);
   const [devSavedFlash, setDevSavedFlash] = useState(false);
@@ -400,8 +400,8 @@ export default function Settings() {
               value={deviationInput}
               onChange={(e) => handleDeviationChange(e.target.value)}
               onBlur={handleDeviationBlur}
-              min={(DEVIATION_MIN_BPS / 100).toFixed(1)}
-              max={(DEVIATION_MAX_BPS / 100).toFixed(1)}
+              min={(DEVIATION_MIN_BPS / 100).toFixed(2)}
+              max={(DEVIATION_MAX_BPS / 100).toFixed(2)}
               step="0.1"
               style={{
                 width: '90px',
