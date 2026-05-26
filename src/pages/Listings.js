@@ -565,6 +565,7 @@ export default function Listings() {
       await ensureCorrectChain();
 
             if (listing.isCollateral) {
+      openWalletForRequest && openWalletForRequest();
         const deviationBps = loadDeviationBps();
         if (deviationBps > 0) {
           const tokenKey = status === 0 ? chosenTokens[listingId] : COLLATERAL_TOKENS[listing.collateralTokenId];
