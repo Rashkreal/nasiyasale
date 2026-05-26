@@ -562,11 +562,34 @@ export default function Listings() {
     const toastId = toast.loading(t('listingsApproving'));
 
     try {
-      await ensureCorrectChain();
+            await ensureCorrectChain();
 
-  openWalletForRequest && openWalletForRequest();          
-if (listing.isCollateral) {
+      // Narx farqini oldindan tekshirish (Metamask ochilmasdan oldin)
+      if (listing.isCollateral) {
         const deviationBps = loadDeviationBps();
+        if (deviationBps > 0) {
+          const tokenKey = status === 0 ? chosenTokens[listingId] : COLLATERAL_TOKENS[listing.collateralTokenId];
+          if (tokenKey) {
+            const tokenId = TOKEN_IDS[tokenKey];
+            const lockedPrice = listing.lockedPrices?.[tokenId] ? Number(listing.lockedPrices[tokenId]) : 0;
+            const currentPrice = currentPrices[tokenKey] || 0;
+            if (lockedPrice > 0 && currentPrice > 0) {
+              const diffBps = Math.round(Math.abs(currentPrice - lockedPrice) / lockedPrice * 10000);
+              if (diffBps > deviationBps) {
+                toast.error('Narx farqi cheklovdan oshib ketdi. Qayta urining.');
+                setActionLoading(null);
+                toast.dismiss(toastId);
+                return;
+              }
+            }
+          }
+        }
+      }
+
+      openWalletForRequest && openWalletForRequest();
+
+      const deviationBps = loadDeviationBps();
+      const txPromise = contract.connect(signer).approveListing(listingId, chosenTokenId, deviationBps); = contract.connect(signer).approveListing(...)
         if (deviationBps > 0) {
           const tokenKey = status === 0 ? chosenTokens[listingId] : COLLATERAL_TOKENS[listing.collateralTokenId];
           if (tokenKey) {
@@ -661,9 +684,7 @@ if (listing.isCollateral) {
     try {
       await ensureCorrectChain();
 
-      // Narx farqini oldindan tekshirish (Metamask ochilmasdan oldin)
-
-      const txPromise = contract.connect(signer).cancelListing(listingId);
+      // Narx farqini old = contract.connect(signer).cancelListing(listingId);
       const tx = await withProgressToast(
         withWalletTimeout(
           txPromise,
