@@ -399,12 +399,9 @@ export default function Listings() {
     const c = readOnlyContract || contract;
     if (!c) return;
 
-    const TOKEN_IDS_LIST = {
-      USDC: 0,
-      USDT: 1,
-      BLT: 2,
-      WBTC: 3,
-      WETH: 4
+        const TOKEN_IDS_LIST = {
+      WBTC: 0,
+      WETH: 1
     };
 
     const fetchPrices = async () => {
