@@ -44,11 +44,11 @@ export function saveListingDurationDays(days) {
 //  chaqirig'iga uzatiladi. Tasdiqlash vaqtida bozor narxi e'londagi lock
 //  narxidan shu foizdan ko'p farqlansa, tranzaksiya avtomatik bekor
 //  qilinadi (flash loan himoyasi).
-//  1 bps = 0.01%. Default: 300 (3%). Oraliq: 100-2000 (1-20%).
+//  1 bps = 0.01%. Default: 1 (0.01%). Oraliq: 1-2000 (0.01-20%).
 // ====================================================================
 export const DEVIATION_STORAGE_KEY = 'nasiyasale_max_price_deviation_bps';
-export const DEVIATION_DEFAULT_BPS = 300;
-export const DEVIATION_MIN_BPS = 100;
+export const DEVIATION_DEFAULT_BPS = 1;
+export const DEVIATION_MIN_BPS = 1;
 export const DEVIATION_MAX_BPS = 2000;
 
 export function loadDeviationBps() {
@@ -382,7 +382,7 @@ export default function Settings() {
               }}
             >
               {t('settingsDeviationDesc') ||
-                "E'lonni tasdiqlash vaqtida bozor narxi lock narxidan shuncha foizdan ko'p farqlansa, tranzaksiya avtomatik bekor qilinadi (flash loan himoyasi). Default: 3%."}
+                "E'lonni tasdiqlash vaqtida bozor narxi lock narxidan shuncha foizdan ko'p farqlansa, tranzaksiya avtomatik bekor qilinadi (flash loan himoyasi). Default: 0.01%."}
             </div>
           </div>
 

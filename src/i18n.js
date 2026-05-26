@@ -392,7 +392,7 @@ export const translations = {
     settingsDays: "kun",
     settingsSaved: "Saqlandi",
     settingsDeviationLabel: "Narx farqi cheklovi",
-    settingsDeviationDesc: "E'lonni tasdiqlash vaqtida bozor narxi lock narxidan shuncha foizdan ko'p farqlansa, tranzaksiya avtomatik bekor qilinadi (flash loan himoyasi). Default: 3%.",    // CreateListing — info paneli
+    settingsDeviationDesc: "E'lonni tasdiqlash vaqtida bozor narxi lock narxidan shuncha foizdan ko'p farqlansa, tranzaksiya avtomatik bekor qilinadi (flash loan himoyasi). Default: 0.01%.",    // CreateListing — info paneli
 
     settingsApproveMultLabel: "Approve miqdori",
     settingsApproveMultDesc: "Har e'lon uchun qancha token approve qilinsin. Yuqori qiymat = kelgusi e'lonlarda approve qayta so'ralmaydi (gaz tejaydi), lekin kontraktga ko'proq ishonish kerak.",
@@ -838,7 +838,7 @@ export const translations = {
     settingsDays: "кун",
     settingsSaved: "Сақланди",
     settingsDeviationLabel: "Нарх фарқи чеклови",
-    settingsDeviationDesc: "Эълонни тасдиқлаш вақтида бозор нархи лок нархидан шунча фоиздан кўп фарқланса, транзаксия автоматик бекор қилинади (flash loan ҳимояси). Default: 3%.",    clInfoDURFromWallet: "DUR токен (ҳамёндан)",
+    settingsDeviationDesc: "Эълонни тасдиқлаш вақтида бозор нархи лок нархидан шунча фоиздан кўп фарқланса, транзаксия автоматик бекор қилинади (flash loan ҳимояси). Default: 0.01%.",    clInfoDURFromWallet: "DUR токен (ҳамёндан)",
 
     settingsApproveMultLabel: "Approve миқдори",
     settingsApproveMultDesc: "Ҳар эълон учун қанча токен approve қилинсин. Юқори қиймат = келгуси эълонларда approve қайта сўралмайди (газ тежайди), лекин контрактга кўпроқ ишониш керак.",
@@ -1718,7 +1718,7 @@ export const translations = {
     settingsDays: "days",
     settingsSaved: "Saved",
     settingsDeviationLabel: "Price deviation limit",
-    settingsDeviationDesc: "If the market price at approval deviates from the locked price by more than this percent, the transaction is automatically reverted (flash loan protection). Default: 3%.",    clInfoDURFromWallet: "DUR token (from wallet)",
+    settingsDeviationDesc: "If the market price at approval deviates from the locked price by more than this percent, the transaction is automatically reverted (flash loan protection). Default: 0.01%.",    clInfoDURFromWallet: "DUR token (from wallet)",
 
     settingsApproveMultLabel: "Approve amount",
     settingsApproveMultDesc: "How much token to approve per listing. Higher value = approve is not requested again on future listings (saves gas), but requires more trust in the contract.",

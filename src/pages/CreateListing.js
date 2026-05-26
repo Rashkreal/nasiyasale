@@ -88,7 +88,7 @@ export default function CreateListing() {
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState({ durAmount: '', priceUSDC: '', paymentPeriod: '' });
   const [loading, setLoading] = useState(false);
-  const [selectedCollaterals, setSelectedCollaterals] = useState(['USDC']);
+  const [selectedCollaterals, setSelectedCollaterals] = useState(['WBTC']);
   const [collateralBufferPct, setCollateralBufferPct] = useState(0);
 
   const collateralBufferBps = Math.min(
@@ -96,7 +96,7 @@ export default function CreateListing() {
     Math.max(0, Math.round(Number(collateralBufferPct || 0) * 100))
   );
 
-  const [buyChosenToken, setBuyChosenToken] = useState('USDC');
+  const [buyChosenToken, setBuyChosenToken] = useState('WBTC');
   const [collateralPreview, setCollateralPreview] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
