@@ -589,7 +589,11 @@ export default function Listings() {
       openWalletForRequest && openWalletForRequest();
 
       const deviationBps = loadDeviationBps();
-      const txPromise = contract.connect(signer).approveListing(listingId, chosenTokenId, deviationBps); = contract.connect(signer).approveListing(...)
+            await ensureCorrectChain();
+
+      // Narx farqini oldindan tekshirish (Metamask ochilmasdan oldin)
+      if (listing.isCollateral) {
+        const deviationBps = loadDeviationBps();
         if (deviationBps > 0) {
           const tokenKey = status === 0 ? chosenTokens[listingId] : COLLATERAL_TOKENS[listing.collateralTokenId];
           if (tokenKey) {
@@ -609,8 +613,8 @@ export default function Listings() {
         }
       }
 
+      openWalletForRequest && openWalletForRequest();
       // Narx farqi cheklovi Settings sahifasidan o'qiladi (localStorage)
-      const deviationBps = loadDeviationBps();
       const txPromise = contract.connect(signer).approveListing(listingId, chosenTokenId, deviationBps);
       const tx = await withProgressToast(
         withWalletTimeout(
