@@ -386,10 +386,15 @@ export default function Approved() {
         extra: '',
       });
 
-      toast.success(
-        t('approvedClaimDefaultSuccess') || 'Default claim muvaffaqiyatli bajarildi!',
-        { id: tid }
-      );
+       saveLocalTxHistory({
+  type: 'listingDefault',
+  label: 'Default claim',
+  listingId: id !== null ? id.toString() : null,
+  hash: receipt.hash,
+  date: new Date().toISOString()
+});
+
+toast.success(t('approvedClaimDefaultSuccess') || 'Default claim muvaffaqiyatli bajarildi!', { id: toastId });
 
       await refreshAll();
       refreshBalances();
