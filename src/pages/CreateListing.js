@@ -229,7 +229,11 @@ const colAmt = await readOnlyContract.requiredCollateralLocked(priceRaw, tokenId
       return toast.error(t('clSelectOneToken'));
 
     const durRaw = ethers.parseUnits(form.durAmount, 18);
-    const usdcRaw = ethers.parseUnits(form.priceUSDC, 6);
+    const 
+priceRaw
+
+
+ = ethers.parseUnits(form.priceUSDC, 6);
     const period = parseInt(form.paymentPeriod);
 
     // E'lon muddati (expiresAt) — Settings sahifasidagi sozlamadan o'qiladi.
@@ -323,7 +327,11 @@ const colAmt = await readOnlyContract.requiredCollateralLocked(priceRaw, tokenId
         openWalletForRequest();
         tx = await withProgressToast(
           withWalletTimeout(
-            c.postListingCollateralSell(durRaw, usdcRaw, period, maskFromTokens(selectedCollaterals), collateralBufferBps, creatorDevBps, expiresAt),
+            c.postListingCollateralSell(durRaw, 
+priceRaw
+
+
+, period, maskFromTokens(selectedCollaterals), collateralBufferBps, creatorDevBps, expiresAt),
             90000,
             'MetaMask ochilmadi yoki wallet javob bermadi'
           ),
@@ -341,13 +349,21 @@ const colAmt = await readOnlyContract.requiredCollateralLocked(priceRaw, tokenId
         const livePrice = await readOnlyContract.getTokenPriceUSDC(tokenId);
 const colAmt = await readOnlyContract.requiredCollateralLocked(priceRaw, tokenId, livePrice, collateralBufferBps);
 
-(usdcRaw, tokenId, collateralBufferBps);
+(
+priceRaw
+
+
+, tokenId, collateralBufferBps);
         await ensureApproval(buyChosenToken, colAmtRaw);
         const singleMask = 1 << tokenId;
         openWalletForRequest();
         tx = await withProgressToast(
           withWalletTimeout(
-            c.postListingCollateralBuy(durRaw, usdcRaw, period, tokenId, collateralBufferBps, creatorDevBps, expiresAt),
+            c.postListingCollateralBuy(durRaw, 
+priceRaw
+
+
+, period, tokenId, collateralBufferBps, creatorDevBps, expiresAt),
             90000,
             'MetaMask ochilmadi yoki wallet javob bermadi'
           ),
@@ -364,7 +380,11 @@ const colAmt = await readOnlyContract.requiredCollateralLocked(priceRaw, tokenId
         openWalletForRequest();
         tx = await withProgressToast(
           withWalletTimeout(
-            c.postListingNoCollateralSell(durRaw, usdcRaw, period, expiresAt),
+            c.postListingNoCollateralSell(durRaw, 
+priceRaw
+
+
+, period, expiresAt),
             90000,
             'MetaMask ochilmadi yoki wallet javob bermadi'
           ),
@@ -380,7 +400,11 @@ const colAmt = await readOnlyContract.requiredCollateralLocked(priceRaw, tokenId
         openWalletForRequest();
         tx = await withProgressToast(
           withWalletTimeout(
-            c.postListingNoCollateralBuy(durRaw, usdcRaw, period, expiresAt),
+            c.postListingNoCollateralBuy(durRaw, 
+priceRaw
+
+
+, period, expiresAt),
             90000,
             'MetaMask ochilmadi yoki wallet javob bermadi'
           ),
