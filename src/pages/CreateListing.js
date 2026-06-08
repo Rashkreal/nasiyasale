@@ -177,8 +177,8 @@ export default function CreateListing() {
       try {
         const priceRaw = ethers.parseUnits(form.priceUSDC, 6);
         const tokenId = TOKEN_IDS[buyChosenToken];
-        const livePrice = await contract.getTokenPriceUSDC(tokenId);
-const colAmt = await contract.requiredCollateralLocked(priceRaw, tokenId, livePrice, collateralBufferBps);
+const livePrice = await readOnlyContract.getTokenPriceUSDC(tokenId);
+const colAmt = await readOnlyContract.requiredCollateralLocked(priceRaw, tokenId, livePrice, collateralBufferBps);
         const dec = TOKEN_DECIMALS[buyChosenToken];
         setCollateralPreview(formatTokenAmount(ethers.formatUnits(colAmt, dec)));
       } catch (e) {
@@ -204,8 +204,8 @@ const colAmt = await contract.requiredCollateralLocked(priceRaw, tokenId, livePr
         await Promise.all(selectedCollaterals.map(async tk => {
           try {
             const tokenId = TOKEN_IDS[tk];
-            const livePrice = await contract.getTokenPriceUSDC(tokenId);
-const colAmt = await contract.requiredCollateralLocked(priceRaw, tokenId, livePrice, collateralBufferBps);
+const livePrice = await readOnlyContract.getTokenPriceUSDC(tokenId);
+const colAmt = await readOnlyContract.requiredCollateralLocked(priceRaw, tokenId, livePrice, collateralBufferBps);
             const dec = TOKEN_DECIMALS[tk];
             results[tk] = formatTokenAmount(ethers.formatUnits(colAmt, dec));
           } catch { results[tk] = null; }
@@ -338,7 +338,8 @@ const colAmt = await contract.requiredCollateralLocked(priceRaw, tokenId, livePr
       } else if (selected === 'collateral-buy') {
         const tokenId = TOKEN_IDS[buyChosenToken];
         const dec = TOKEN_DECIMALS[buyChosenToken];
-        const colAmtRaw = await readOnlyContract.requiredCollateralLocked
+        const livePrice = await readOnlyContract.getTokenPriceUSDC(tokenId);
+const colAmt = await readOnlyContract.requiredCollateralLocked(priceRaw, tokenId, livePrice, collateralBufferBps);
 
 (usdcRaw, tokenId, collateralBufferBps);
         await ensureApproval(buyChosenToken, colAmtRaw);
