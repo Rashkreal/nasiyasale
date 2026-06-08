@@ -354,7 +354,10 @@ priceRaw
 
 
 , tokenId, collateralBufferBps);
-        await ensureApproval(buyChosenToken, colAmtRaw);
+        await ensureApproval(buyChosenToken, 
+colAmt
+
+);
         const singleMask = 1 << tokenId;
         openWalletForRequest();
         tx = await withProgressToast(
