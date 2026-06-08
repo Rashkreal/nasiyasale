@@ -590,7 +590,7 @@ export default function Listings() {
 
       openWalletForRequest && openWalletForRequest();
       // Narx farqi cheklovi Settings sahifasidan o'qiladi (localStorage)
-      const txPromise = contract.connect(signer).approveListing(listingId, chosenTokenId, Number(listing.creatorMaxDeviationBps) || 300) || 300);
+      const txPromise = contract.connect(signer).approveListing(listingId, chosenTokenId, Number(listing.creatorMaxDeviationBps) || 300);
       const tx = await withProgressToast(
         withWalletTimeout(
           txPromise,
@@ -1428,6 +1428,8 @@ export default function Listings() {
     </div>
   );
 }
+
+
 
 
 
