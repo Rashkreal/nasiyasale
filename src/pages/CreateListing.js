@@ -338,7 +338,9 @@ const colAmt = await contract.requiredCollateralLocked(priceRaw, tokenId, livePr
       } else if (selected === 'collateral-buy') {
         const tokenId = TOKEN_IDS[buyChosenToken];
         const dec = TOKEN_DECIMALS[buyChosenToken];
-        const colAmtRaw = await contract.previewCollateral(usdcRaw, tokenId, collateralBufferBps);
+        const colAmtRaw = await readOnlyContract.requiredCollateralLocked
+
+(usdcRaw, tokenId, collateralBufferBps);
         await ensureApproval(buyChosenToken, colAmtRaw);
         const singleMask = 1 << tokenId;
         openWalletForRequest();
