@@ -192,6 +192,7 @@ export function Web3Provider({ children }) {
         const raw = results[i];
 const dec = TOKEN_DECIMALS[k];
 bals[k] = ethers.formatUnits(raw, dec);
+});
 
       setWalletBalances(bals);
     } catch (e) {
