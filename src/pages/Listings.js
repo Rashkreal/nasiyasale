@@ -590,7 +590,7 @@ export default function Listings() {
 
       openWalletForRequest && openWalletForRequest();
       // Narx farqi cheklovi Settings sahifasidan o'qiladi (localStorage)
-      const txPromise = contract.connect(signer).approveListing(listingId, chosenTokenId, Math.min(approverDeviationBps, Number(listing.creatorMaxDeviationBps) || 300));
+      const txPromise = contract.connect(signer).approveListing(listingId, chosenTokenId, Number(listing.creatorMaxDeviationBps) || 300);
       const tx = await withProgressToast(
         withWalletTimeout(
           txPromise,
@@ -1125,31 +1125,7 @@ export default function Listings() {
                           <Lock size={11} color="var(--warning)" />
                           E'lon paytidagi narx bo'yicha garov miqdorlari:
                         </div>
-                        <div style={{ marginBottom: '12px' }}>
-  <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
-    Narx farqi cheklovi (sizning limit)
-  </div>
-  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-    <input
-      type="number"
-      value={(approverDeviationBps / 100).toFixed(2)}
-      onChange={(e) => {
-        const pct = parseFloat(e.target.value);
-        if (!isNaN(pct) && pct >= 0.01 && pct <= 20) {
-          setApproverDeviationBps(Math.round(pct * 100));
-        }
-      }}
-      min="0.01"
-      max={(Number(listing.creatorMaxDeviationBps) / 100).toFixed(2)}
-      step="0.01"
-      style={{ width: '85px', textAlign: 'center', fontWeight: 600 }}
-    />
-    <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>%</span>
-  </div>
-  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
-    Oraliq: 0.01–20%
-  </div>
-</div>
+                        
                         <div
                           style={{
                             display: 'flex',
@@ -1452,6 +1428,7 @@ export default function Listings() {
     </div>
   );
 }
+
 
 
 
