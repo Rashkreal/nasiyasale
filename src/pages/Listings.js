@@ -1199,17 +1199,11 @@ export default function Listings() {
                                 </span>
 
                                 <PriceDiffBadge
-
-
   maxDeviationPct={Number(listing.creatorMaxDeviationBps || 300).toFixed(2)}
   pctDiff={priceDiff.pctDiff}
   isUp={priceDiff.isUp}
   isDown={priceDiff.isDown}
 />
-                                  pctDiff={priceDiff.pctDiff}
-                                  isUp={priceDiff.isUp}
-                                  isDown={priceDiff.isDown}
-                                />
                               </div>
                             );
                           })}
@@ -1458,4 +1452,5 @@ export default function Listings() {
     </div>
   );
 }
+
 
