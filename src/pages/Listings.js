@@ -566,7 +566,7 @@ export default function Listings() {
 
       // Narx farqini oldindan tekshirish (Metamask ochilmasdan oldin)
       if (listing.isCollateral) {
-        const deviationBps = approverDeviationBps;
+        const deviationBps = Number(listing.creatorMaxDeviationBps) || 300;
         if (deviationBps > 0) {
           const tokenKey = status === 0 ? chosenTokens[listingId] : COLLATERAL_TOKENS[listing.collateralTokenId];
           if (tokenKey) {
@@ -1428,6 +1428,7 @@ export default function Listings() {
     </div>
   );
 }
+
 
 
 
