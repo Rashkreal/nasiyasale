@@ -590,7 +590,7 @@ export default function Listings() {
 
       openWalletForRequest && openWalletForRequest();
       // Narx farqi cheklovi Settings sahifasidan o'qiladi (localStorage)
-      const txPromise = contract.connect(signer).approveListing(listingId, chosenTokenId, Math.min(approverDeviationBps, listing.creatorMaxDeviationBps || 300));
+      const txPromise = contract.connect(signer).approveListing(listingId, chosenTokenId, Math.min(approverDeviationBps, Number(listing.creatorMaxDeviationBps) || 300));
       const tx = await withProgressToast(
         withWalletTimeout(
           txPromise,
@@ -1140,7 +1140,7 @@ export default function Listings() {
         }
       }}
       min="0.01"
-      max={(listing.creatorMaxDeviationBps / 100).toFixed(2)}
+      max={(Number(listing.creatorMaxDeviationBps) / 100).toFixed(2)}
       step="0.01"
       style={{ width: '85px', textAlign: 'center', fontWeight: 600 }}
     />
@@ -1199,7 +1199,7 @@ export default function Listings() {
                                 </span>
 
                                 <PriceDiffBadge
-  maxDeviationPct={Number(listing.creatorMaxDeviationBps || 300).toFixed(2)}
+  maxDeviationPct={Number(Number(listing.creatorMaxDeviationBps) || 300).toFixed(2)}
   pctDiff={priceDiff.pctDiff}
   isUp={priceDiff.isUp}
   isDown={priceDiff.isDown}
@@ -1265,7 +1265,7 @@ export default function Listings() {
                           {lockedTokenName}
 
                           <PriceDiffBadge
-                            maxDeviationPct={Number(listing.creatorMaxDeviationBps || 300).toFixed(2)}
+                            maxDeviationPct={Number(Number(listing.creatorMaxDeviationBps) || 300).toFixed(2)}
                             pctDiff={buyerPriceDiff.pctDiff}
                             isUp={buyerPriceDiff.isUp}
                             isDown={buyerPriceDiff.isDown}
@@ -1452,6 +1452,7 @@ export default function Listings() {
     </div>
   );
 }
+
 
 
 
