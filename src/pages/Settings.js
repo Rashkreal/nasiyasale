@@ -331,101 +331,6 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Narx farqi cheklovi sozlamasi */}
-      <div className="card" style={{ padding: '20px', marginTop: '16px' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            flexWrap: 'wrap',
-            justifyContent: 'space-between',
-          }}
-        >
-          <div style={{ flex: '1 1 auto', minWidth: '220px' }}>
-            <div
-              style={{
-                fontSize: '15px',
-                fontWeight: 600,
-                color: 'var(--text-primary)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                marginBottom: '6px',
-              }}
-            >
-              <Lock size={16} color="var(--accent-bright)" />
-              {t('settingsDeviationLabel') || 'Narx farqi cheklovi'}
-
-              {devSavedFlash && (
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    fontSize: '12px',
-                    color: 'var(--success)',
-                    fontWeight: 600,
-                  }}
-                >
-                  <Check size={14} />
-                  {t('settingsSaved') || 'Saqlandi'}
-                </span>
-              )}
-            </div>
-
-            <div
-              style={{
-                fontSize: '12px',
-                color: 'var(--text-muted)',
-                lineHeight: 1.5,
-              }}
-            >
-              {t('settingsDeviationDesc') ||
-                "E'lonni tasdiqlash vaqtida bozor narxi lock narxidan shuncha foizdan ko'p farqlansa, tranzaksiya avtomatik bekor qilinadi (flash loan himoyasi). Default: 0.01%."}
-            </div>
-          </div>
-
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              flexShrink: 0,
-            }}
-          >
-            <input
-              type="number"
-              className="input"
-              value={deviationInput}
-              onChange={(e) => handleDeviationChange(e.target.value)}
-              onBlur={handleDeviationBlur}
-              min={(DEVIATION_MIN_BPS / 100).toFixed(2)}
-              max={(DEVIATION_MAX_BPS / 100).toFixed(2)}
-              step="0.1"
-              style={{
-                width: '90px',
-                textAlign: 'center',
-                fontSize: '15px',
-                fontWeight: 600,
-                padding: '8px 10px',
-              }}
-            />
-            <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-secondary)' }}>%</span>
-          </div>
-        </div>
-
-        <div
-          style={{
-            marginTop: '12px',
-            fontSize: '11px',
-            color: 'var(--text-muted)',
-          }}
-        >
-          {t('settingsDurationRange') || 'Oraliq'}: {DEVIATION_MIN_BPS / 100}–{DEVIATION_MAX_BPS / 100}%
-        </div>
-      </div>
-
       {/* Approve ko'paytirgich sozlamasi */}
       <div className="card" style={{ padding: '20px', marginTop: '16px' }}>
         <div
@@ -617,7 +522,7 @@ export default function Settings() {
             {t('connectPrompt') || 'Avval walletni ulang'}
           </div>
         )}
-      </div>
+      </div>        {/* ← mana shu qator qo‘shildi */}
     </div>
   );
-}
+};
