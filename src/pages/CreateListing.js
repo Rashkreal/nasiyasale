@@ -597,7 +597,36 @@ priceRaw
             </div>
           )}
 
-
+{isCollateralType && (
+  <div className="card" style={{ marginBottom: '16px', padding: '20px' }}>
+    <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '8px' }}>
+      Narx farqi cheklovi (sizning cheklovingiz)
+    </div>
+    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+      Tasdiqlash vaqtida narx shu foizdan ko'p farqlansa, tranzaksiya bekor qilinadi.
+    </div>
+    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+      {[0.01, 0.05, 0.1, 0.5, 1, 3, 5, 10, 20].map(pct => (
+        <button
+          key={pct}
+          type="button"
+          onClick={() => setCreatorDeviationPct(pct)}
+          style={{
+            padding: '6px 12px',
+            borderRadius: '6px',
+            border: '1px solid var(--border)',
+            background: creatorDeviationPct === pct ? 'var(--accent)' : 'var(--bg-secondary)',
+            color: creatorDeviationPct === pct ? '#fff' : 'var(--text-primary)',
+            cursor: 'pointer',
+            fontSize: '12px'
+          }}
+        >
+          {pct}%
+        </button>
+      ))}
+    </div>
+  </div>
+)}
           {/* Qo'shimcha garov buffer */}
           {isCollateralType && (
             <div className="card" style={{ marginBottom: '16px', padding: '20px' }}>

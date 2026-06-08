@@ -566,7 +566,7 @@ export default function Listings() {
 
       // Narx farqini oldindan tekshirish (Metamask ochilmasdan oldin)
       if (listing.isCollateral) {
-        const deviationBps = loadDeviationBps();
+        const deviationBps = listing.creatorMaxDeviationBps || 300;
         if (deviationBps > 0) {
           const tokenKey = status === 0 ? chosenTokens[listingId] : COLLATERAL_TOKENS[listing.collateralTokenId];
           if (tokenKey) {
@@ -588,12 +588,12 @@ export default function Listings() {
 
       openWalletForRequest && openWalletForRequest();
 
-      const deviationBps = loadDeviationBps();
+      const deviationBps = listing.creatorMaxDeviationBps || 300;
             await ensureCorrectChain();
 
       // Narx farqini oldindan tekshirish (Metamask ochilmasdan oldin)
       if (listing.isCollateral) {
-        const deviationBps = loadDeviationBps();
+        const deviationBps = listing.creatorMaxDeviationBps || 300;
         if (deviationBps > 0) {
           const tokenKey = status === 0 ? chosenTokens[listingId] : COLLATERAL_TOKENS[listing.collateralTokenId];
           if (tokenKey) {
@@ -1200,7 +1200,7 @@ export default function Listings() {
                                 </span>
 
                                 <PriceDiffBadge
-                                  maxDeviationPct={(loadDeviationBps() / 100).toFixed(2)}
+                                  maxDeviationPct={(listing.creatorMaxDeviationBps || 300 / 100).toFixed(2)}
                                   pctDiff={priceDiff.pctDiff}
                                   isUp={priceDiff.isUp}
                                   isDown={priceDiff.isDown}
@@ -1266,7 +1266,7 @@ export default function Listings() {
                           {lockedTokenName}
 
                           <PriceDiffBadge 
-                            maxDeviationPct={(loadDeviationBps() / 100).toFixed(2)} 
+                            maxDeviationPct={(listing.creatorMaxDeviationBps || 300 / 100).toFixed(2)} 
                             pctDiff={buyerPriceDiff.pctDiff}
                             isUp={buyerPriceDiff.isUp}
                             isDown={buyerPriceDiff.isDown}
