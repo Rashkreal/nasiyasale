@@ -1200,7 +1200,13 @@ export default function Listings() {
                                 </span>
 
                                 <PriceDiffBadge
-                                  maxDeviationPct={(listing.creatorMaxDeviationBps || 300 / 100).toFixed(2)}
+
+
+  maxDeviationPct={Number(listing.creatorMaxDeviationBps || 300).toFixed(2)}
+  pctDiff={priceDiff.pctDiff}
+  isUp={priceDiff.isUp}
+  isDown={priceDiff.isDown}
+/>
                                   pctDiff={priceDiff.pctDiff}
                                   isUp={priceDiff.isUp}
                                   isDown={priceDiff.isDown}
@@ -1265,8 +1271,14 @@ export default function Listings() {
                           {lockedColAmt ? `${lockedColAmt} ` : ''}
                           {lockedTokenName}
 
-                          <PriceDiffBadge 
-                            maxDeviationPct={(listing.creatorMaxDeviationBps || 300 / 100).toFixed(2)} 
+                          <PriceDiffBadge
+
+
+  maxDeviationPct={Number(listing.creatorMaxDeviationBps || 300).toFixed(2)}
+  pctDiff={priceDiff.pctDiff}
+  isUp={priceDiff.isUp}
+  isDown={priceDiff.isDown}
+/>
                             pctDiff={buyerPriceDiff.pctDiff}
                             isUp={buyerPriceDiff.isUp}
                             isDown={buyerPriceDiff.isDown}
