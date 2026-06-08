@@ -1268,17 +1268,11 @@ export default function Listings() {
                             gap: '6px'
                           }}
                         >
-                          {lockedColAmt ? `${lockedColAmt} ` : ''}
+                                                    {lockedColAmt ? `${lockedColAmt} ` : ''}
                           {lockedTokenName}
 
                           <PriceDiffBadge
-
-
-  maxDeviationPct={Number(listing.creatorMaxDeviationBps || 300).toFixed(2)}
-  pctDiff={priceDiff.pctDiff}
-  isUp={priceDiff.isUp}
-  isDown={priceDiff.isDown}
-/>
+                            maxDeviationPct={Number(listing.creatorMaxDeviationBps || 300).toFixed(2)}
                             pctDiff={buyerPriceDiff.pctDiff}
                             isUp={buyerPriceDiff.isUp}
                             isDown={buyerPriceDiff.isDown}
