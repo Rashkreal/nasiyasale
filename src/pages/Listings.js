@@ -114,7 +114,9 @@ function getStatusLabel(status, t) {
   const s = Number(status);
 
   const statusLabels = {
-    0: t('statusPendingSellerC'),
+    0: t('statusPendingSellerC')
+
+,
     1: t('statusPendingBuyerC'),
     2: t('statusPendingSellerN'),
     3: t('statusPendingBuyerN'),
@@ -1126,31 +1128,6 @@ export default function Listings() {
                           E'lon paytidagi narx bo'yicha garov miqdorlari:
                         </div>
                         <div style={{ marginBottom: '12px' }}>
-  <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
-    Narx farqi cheklovi (sizning limit)
-  </div>
-  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-    <input
-      type="number"
-      value={(approverDeviationBps / 100).toFixed(2)}
-      onChange={(e) => {
-        const pct = parseFloat(e.target.value);
-        if (!isNaN(pct) && pct >= 0.01 && pct <= 20) {
-          setApproverDeviationBps(Math.round(pct * 100));
-        }
-      }}
-      min="0.01"
-      max="20"
-      step="0.01"
-      style={{ width: '85px', textAlign: 'center', fontWeight: 600 }}
-    />
-    <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>%</span>
-  </div>
-  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
-    Oraliq: 0.01–20%
-  </div>
-</div>
-<div style={{ marginBottom: '12px' }}>
   <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
     Narx farqi cheklovi (sizning limit)
   </div>
