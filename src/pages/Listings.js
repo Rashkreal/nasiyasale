@@ -336,7 +336,7 @@ export default function Listings() {
   const [actionLoading, setActionLoading] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all');
-  const [approverDeviationBps, setApproverDeviationBps] = useState(300); // 3% default
+  
   const [chosenTokens, setChosenTokens] = useState({});
   const [collateralPreviews, setCollateralPreviews] = useState({});
   const [previewLoading, setPreviewLoading] = useState({});
@@ -590,7 +590,7 @@ export default function Listings() {
 
       openWalletForRequest && openWalletForRequest();
       // Narx farqi cheklovi Settings sahifasidan o'qiladi (localStorage)
-      const txPromise = contract.connect(signer).approveListing(listingId, chosenTokenId, Number(listing.creatorMaxDeviationBps) || 300);
+      const txPromise = contract.connect(signer).approveListing(listingId, chosenTokenId, Number(listing.creatorMaxDeviationBps) || 300) || 300);
       const tx = await withProgressToast(
         withWalletTimeout(
           txPromise,
@@ -1428,6 +1428,7 @@ export default function Listings() {
     </div>
   );
 }
+
 
 
 
