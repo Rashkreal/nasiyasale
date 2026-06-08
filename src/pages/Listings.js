@@ -336,7 +336,7 @@ export default function Listings() {
   const [actionLoading, setActionLoading] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all');
-
+  const [approverDeviationBps, setApproverDeviationBps] = useState(300); // 3% default
   const [chosenTokens, setChosenTokens] = useState({});
   const [collateralPreviews, setCollateralPreviews] = useState({});
   const [previewLoading, setPreviewLoading] = useState({});
@@ -566,7 +566,7 @@ export default function Listings() {
 
       // Narx farqini oldindan tekshirish (Metamask ochilmasdan oldin)
       if (listing.isCollateral) {
-        const deviationBps = listing.creatorMaxDeviationBps || 300;
+        const deviationBps = approverDeviationBps;
         if (deviationBps > 0) {
           const tokenKey = status === 0 ? chosenTokens[listingId] : COLLATERAL_TOKENS[listing.collateralTokenId];
           if (tokenKey) {
@@ -587,31 +587,6 @@ export default function Listings() {
       }
 
       openWalletForRequest && openWalletForRequest();
-
-      const deviationBps = listing.creatorMaxDeviationBps || 300;
-            await ensureCorrectChain();
-
-      // Narx farqini oldindan tekshirish (Metamask ochilmasdan oldin)
-      if (listing.isCollateral) {
-        const deviationBps = listing.creatorMaxDeviationBps || 300;
-        if (deviationBps > 0) {
-          const tokenKey = status === 0 ? chosenTokens[listingId] : COLLATERAL_TOKENS[listing.collateralTokenId];
-          if (tokenKey) {
-            const tokenId = TOKEN_IDS[tokenKey];
-            const lockedPrice = listing.lockedPrices?.[tokenId] ? Number(listing.lockedPrices[tokenId]) : 0;
-            const currentPrice = currentPrices[tokenKey] || 0;
-            if (lockedPrice > 0 && currentPrice > 0) {
-              const diffBps = Math.round(Math.abs(currentPrice - lockedPrice) / lockedPrice * 10000);
-              if (diffBps > deviationBps) {
-                toast.error('Narx farqi cheklovdan oshib ketdi. Qayta urining.');
-                setActionLoading(null);
-                toast.dismiss(toastId);
-                return;
-              }
-            }
-          }
-        }
-      }
 
       openWalletForRequest && openWalletForRequest();
       // Narx farqi cheklovi Settings sahifasidan o'qiladi (localStorage)
@@ -1150,7 +1125,56 @@ export default function Listings() {
                           <Lock size={11} color="var(--warning)" />
                           E'lon paytidagi narx bo'yicha garov miqdorlari:
                         </div>
-
+                        <div style={{ marginBottom: '12px' }}>
+  <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
+    Narx farqi cheklovi (sizning limit)
+  </div>
+  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+    <input
+      type="number"
+      value={(approverDeviationBps / 100).toFixed(2)}
+      onChange={(e) => {
+        const pct = parseFloat(e.target.value);
+        if (!isNaN(pct) && pct >= 0.01 && pct <= 20) {
+          setApproverDeviationBps(Math.round(pct * 100));
+        }
+      }}
+      min="0.01"
+      max="20"
+      step="0.01"
+      style={{ width: '85px', textAlign: 'center', fontWeight: 600 }}
+    />
+    <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>%</span>
+  </div>
+  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+    Oraliq: 0.01–20%
+  </div>
+</div>
+<div style={{ marginBottom: '12px' }}>
+  <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
+    Narx farqi cheklovi (sizning limit)
+  </div>
+  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+    <input
+      type="number"
+      value={(approverDeviationBps / 100).toFixed(2)}
+      onChange={(e) => {
+        const pct = parseFloat(e.target.value);
+        if (!isNaN(pct) && pct >= 0.01 && pct <= 20) {
+          setApproverDeviationBps(Math.round(pct * 100));
+        }
+      }}
+      min="0.01"
+      max="20"
+      step="0.01"
+      style={{ width: '85px', textAlign: 'center', fontWeight: 600 }}
+    />
+    <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>%</span>
+  </div>
+  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+    Oraliq: 0.01–20%
+  </div>
+</div>
                         <div
                           style={{
                             display: 'flex',
