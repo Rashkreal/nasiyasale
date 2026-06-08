@@ -189,7 +189,15 @@ export function Web3Provider({ children }) {
 
       const bals = {};
       ALL_TOKENS.forEach((k, i) => {
-        bals[k] = ethers.formatUnits(results[i], TOKEN_DECIMALS[k]);
+        const raw = results[i];
+const dec = TOKEN_DECIMALS[k];
+const formatted = ethers.formatUnits(raw, dec);
+// Agar qiymat 0.0000 dan kichik bo'lsa, to'liq ko'rsatish
+if (raw > 0n && Number(formatted) < 0.0001) {
+  bals[k] = ethers.formatUnits(raw, dec); // to'liq
+} else {
+  bals[k] = Number(formatted).toFixed(4);
+}
       });
 
       setWalletBalances(bals);
