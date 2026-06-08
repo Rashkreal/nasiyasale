@@ -114,9 +114,7 @@ function getStatusLabel(status, t) {
   const s = Number(status);
 
   const statusLabels = {
-    0: t('statusPendingSellerC')
-
-,
+    0: t('statusPendingSellerC'),
     1: t('statusPendingBuyerC'),
     2: t('statusPendingSellerN'),
     3: t('statusPendingBuyerN'),
@@ -1460,3 +1458,4 @@ export default function Listings() {
     </div>
   );
 }
+
