@@ -177,7 +177,8 @@ export default function CreateListing() {
       try {
         const priceRaw = ethers.parseUnits(form.priceUSDC, 6);
         const tokenId = TOKEN_IDS[buyChosenToken];
-        const colAmt = await contract.previewCollateral(priceRaw, tokenId, collateralBufferBps);
+        const livePrice = await contract.getTokenPriceUSDC(tokenId);
+const colAmt = await contract.requiredCollateralLocked(priceRaw, tokenId, livePrice, collateralBufferBps);
         const dec = TOKEN_DECIMALS[buyChosenToken];
         setCollateralPreview(formatTokenAmount(ethers.formatUnits(colAmt, dec)));
       } catch (e) {
@@ -203,7 +204,8 @@ export default function CreateListing() {
         await Promise.all(selectedCollaterals.map(async tk => {
           try {
             const tokenId = TOKEN_IDS[tk];
-            const colAmt = await contract.previewCollateral(priceRaw, tokenId, collateralBufferBps);
+            const livePrice = await contract.getTokenPriceUSDC(tokenId);
+const colAmt = await contract.requiredCollateralLocked(priceRaw, tokenId, livePrice, collateralBufferBps);
             const dec = TOKEN_DECIMALS[tk];
             results[tk] = formatTokenAmount(ethers.formatUnits(colAmt, dec));
           } catch { results[tk] = null; }

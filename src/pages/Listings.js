@@ -688,7 +688,10 @@ export default function Listings() {
     try {
       await ensureCorrectChain();
 
-      // Narx farqini old = contract.connect(signer).cancelListing(listingId);
+            // Narx farqini oldindan tekshirish
+      openWalletForRequest && openWalletForRequest();
+
+      const txPromise = contract.connect(signer).cancelListing(listingId);
       const tx = await withProgressToast(
         withWalletTimeout(
           txPromise,
