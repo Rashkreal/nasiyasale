@@ -1376,7 +1376,7 @@ export default function Listings() {
                                 marginTop: '2px'
                               }}
                             >
-                              Hamyonda: {parseFloat(walletBalances?.[chosenKey] || '0').toFixed(4)} {chosenKey}
+                              Hamyonda: {parseFloat(walletBalances?.[chosenKey] || '0')} {chosenKey}
                             </div>
                           </div>
                         )}

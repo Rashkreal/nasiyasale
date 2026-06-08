@@ -245,14 +245,16 @@ priceRaw
     if (needsDUR) {
       const durBal = parseFloat(walletBalances.DUR || '0');
       if (durBal < parseFloat(form.durAmount))
-        return toast.error(`${t('clDURInsufficient')} ${durBal.toFixed(4)} DUR`);
+        return toast.error(`${t('clDURInsufficient')} ${durBal} DUR
+`);
     }
 
     if (selected === 'collateral-buy') {
       const tokenBal = parseFloat(walletBalances[buyChosenToken] || '0');
       const needed = parseFloat(collateralPreview || '0');
       if (needed > 0 && tokenBal < needed)
-        return toast.error(`${buyChosenToken} ${t('clTokenInsufficient')} ${tokenBal.toFixed(4)}, ${t('clTokenNeeded')} ${needed}`);
+        return toast.error(`${buyChosenToken} ${t('clTokenInsufficient')} ${tokenBal}
+, ${t('clTokenNeeded')} ${needed}`);
     }
 
     setLoading(true);
@@ -581,7 +583,7 @@ priceRaw
           {(selected === 'collateral-sell' || selected === 'nocollateral-sell') && (
             <div className="alert alert-info" style={{ marginBottom: '16px' }}>
               <AlertCircle size={14} style={{ flexShrink: 0 }} />
-              <span>{t('clDURFromWalletAlert')} <strong className="mono">{parseFloat(walletBalances.DUR || '0').toFixed(4)} DUR</strong></span>
+              <span>{t('clDURFromWalletAlert')} <strong className="mono">{parseFloat(walletBalances.DUR || '0')} DUR</strong></span>
             </div>
           )}
 
@@ -745,7 +747,7 @@ priceRaw
                       color: ok ? 'var(--success)' : 'var(--danger)',
                       display: 'flex', alignItems: 'center', gap: '6px',
                     }}>
-                      {ok ? '\u2713' : '\u2717'} {t('clWalletBalance')} {bal.toFixed(4)} {buyChosenToken}
+                      {ok ? '\u2713' : '\u2717'} {t('clWalletBalance')} {bal} {buyChosenToken}
                       {!ok && <span> {t('clInsufficientToken')}</span>}
                     </div>
                   );
