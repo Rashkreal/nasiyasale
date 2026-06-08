@@ -96,6 +96,11 @@ export default function CreateListing() {
     Math.max(0, Math.round(Number(collateralBufferPct || 0) * 100))
   );
 
+  const [creatorDeviationPct, setCreatorDeviationPct] = useState(0.01);
+  const creatorDevBps = Math.min(
+    2000,
+    Math.max(1, Math.round(Number(creatorDeviationPct || 0.01) * 100))
+  );
   const [buyChosenToken, setBuyChosenToken] = useState('WBTC');
   const [collateralPreview, setCollateralPreview] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -316,7 +321,7 @@ export default function CreateListing() {
         openWalletForRequest();
         tx = await withProgressToast(
           withWalletTimeout(
-            c.postListingCollateralSell(durRaw, usdcRaw, period, maskFromTokens(selectedCollaterals), collateralBufferBps, expiresAt),
+            c.postListingCollateralSell(durRaw, usdcRaw, period, maskFromTokens(selectedCollaterals), collateralBufferBps, creatorDevBps, expiresAt),
             90000,
             'MetaMask ochilmadi yoki wallet javob bermadi'
           ),
@@ -337,7 +342,7 @@ export default function CreateListing() {
         openWalletForRequest();
         tx = await withProgressToast(
           withWalletTimeout(
-            c.postListingCollateralBuy(durRaw, usdcRaw, period, singleMask, tokenId, collateralBufferBps, expiresAt),
+            c.postListingCollateralBuy(durRaw, usdcRaw, period, tokenId, collateralBufferBps, creatorDevBps, expiresAt),
             90000,
             'MetaMask ochilmadi yoki wallet javob bermadi'
           ),
