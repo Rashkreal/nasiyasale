@@ -564,7 +564,7 @@ export default function Listings() {
     try {
             await ensureCorrectChain();
 
-      // Narx farqini oldindan tekshirish (Metamask ochilmasdan oldin)
+            // Narx farqini oldindan tekshirish (Metamask ochilmasdan oldin)
       if (listing.isCollateral) {
         const deviationBps = Number(listing.creatorMaxDeviationBps) || 300;
         if (deviationBps > 0) {
@@ -576,7 +576,9 @@ export default function Listings() {
             if (lockedPrice > 0 && currentPrice > 0) {
               const diffBps = Math.round(Math.abs(currentPrice - lockedPrice) / lockedPrice * 10000);
               if (diffBps > deviationBps) {
-                toast.error('Narx farqi cheklovdan oshib ketdi. Qayta urining.');
+                const pctDiff = (diffBps / 100).toFixed(2);
+                const maxPct = (deviationBps / 100).toFixed(2);
+                toast.error(`Narx farqi ${pctDiff}% — cheklov ${maxPct}% dan oshib ketdi. Qayta urining.`);
                 setActionLoading(null);
                 toast.dismiss(toastId);
                 return;
@@ -1428,6 +1430,7 @@ export default function Listings() {
     </div>
   );
 }
+
 
 
 
