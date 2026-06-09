@@ -821,3 +821,4 @@ priceRaw
     </div>
   );
 }
+
