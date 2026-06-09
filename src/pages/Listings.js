@@ -568,8 +568,8 @@ export default function Listings() {
 
       openWalletForRequest && openWalletForRequest();
       // Narx farqi cheklovi Settings sahifasidan o'qiladi (localStorage)
-      console.log("approveListing - listingId:", listingId, "chosenTokenId:", chosenTokenId, "creatorMaxDeviationBps:", listing.creatorMaxDeviationBps, "Number:", Number(listing.creatorMaxDeviationBps));
-const txPromise = contract.connect(signer).approveListing(listingId, chosenTokenId, Number(listing.creatorMaxDeviationBps) || 300).catch((e) => {
+      console.log("approveListing - listingId:", listingId, "chosenTokenId:", chosenTokenId, "creatorMaxDeviationBps:", listing.creatorMaxDeviationBps, "Number:", Number(listing.creatorMaxDeviationBps) * 100);
+const txPromise = contract.connect(signer).approveListing(listingId, chosenTokenId, Number(listing.creatorMaxDeviationBps) * 100 || 300).catch((e) => {
   if (e?.data === '0x718b863f') { // ApproverDeviationExceeded
     toast.error('Narx farqi listing egasi ruxsatidan oshib ketdi. Iltimos, elon beruvchi bilan bog‘laning.');
   }
@@ -1159,7 +1159,7 @@ const txPromise = contract.connect(signer).approveListing(listingId, chosenToken
                                 </span>
 
                                 <PriceDiffBadge
-  maxDeviationPct={Number(Number(listing.creatorMaxDeviationBps) || 300).toFixed(2)}
+  maxDeviationPct={Number(Number(listing.creatorMaxDeviationBps) * 100 || 300).toFixed(2)}
   pctDiff={priceDiff.pctDiff}
   isUp={priceDiff.isUp}
   isDown={priceDiff.isDown}
@@ -1225,7 +1225,7 @@ const txPromise = contract.connect(signer).approveListing(listingId, chosenToken
                           {lockedTokenName}
 
                           <PriceDiffBadge
-                            maxDeviationPct={Number(Number(listing.creatorMaxDeviationBps) || 300).toFixed(2)}
+                            maxDeviationPct={Number(Number(listing.creatorMaxDeviationBps) * 100 || 300).toFixed(2)}
                             pctDiff={buyerPriceDiff.pctDiff}
                             isUp={buyerPriceDiff.isUp}
                             isDown={buyerPriceDiff.isDown}
@@ -1412,6 +1412,7 @@ const txPromise = contract.connect(signer).approveListing(listingId, chosenToken
     </div>
   );
 }
+
 
 
 
