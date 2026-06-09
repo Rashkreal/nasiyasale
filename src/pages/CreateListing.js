@@ -96,8 +96,8 @@ export default function CreateListing() {
     Math.max(0, Math.round(Number(collateralBufferPct || 0) * 100))
   );
 
-  const [creatorDeviationPct, setCreatorDeviationPct] = useState(0.01);
-  const creatorDevBps = Math.min(
+  const [creatorDeviationPct, setcreatorDeviationPct] = useState(0.01);
+  const Math.round(Number(creatorDeviationPct || 0.01) * 100) = Math.min(
     2000,
     Math.max(1, Math.round(Number(creatorDeviationPct || 0.01) * 100))
   );
@@ -333,7 +333,7 @@ priceRaw
 priceRaw
 
 
-, period, maskFromTokens(selectedCollaterals), collateralBufferBps, creatorDevBps, expiresAt),
+, period, maskFromTokens(selectedCollaterals), collateralBufferBps, Math.round(Number(creatorDeviationPct || 0.01) * 100), expiresAt),
             90000,
             'MetaMask ochilmadi yoki wallet javob bermadi'
           ),
@@ -368,7 +368,7 @@ colAmt
 priceRaw
 
 
-, period, tokenId, collateralBufferBps, creatorDevBps, expiresAt),
+, period, tokenId, collateralBufferBps, Math.round(Number(creatorDeviationPct || 0.01) * 100), expiresAt),
             90000,
             'MetaMask ochilmadi yoki wallet javob bermadi'
           ),
@@ -610,7 +610,7 @@ priceRaw
         <button
           key={pct}
           type="button"
-          onClick={() => setCreatorDeviationPct(pct)}
+          onClick={() => setcreatorDeviationPct(pct)}
           style={{
             padding: '6px 12px',
             borderRadius: '6px',
@@ -821,4 +821,5 @@ priceRaw
     </div>
   );
 }
+
 
