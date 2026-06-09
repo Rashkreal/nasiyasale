@@ -564,35 +564,16 @@ export default function Listings() {
     try {
             await ensureCorrectChain();
 
-            // Narx farqini oldindan tekshirish (Metamask ochilmasdan oldin)
-      if (listing.isCollateral) {
-        const deviationBps = Number(listing.creatorMaxDeviationBps) || 300;
-        if (deviationBps > 0) {
-          const tokenKey = status === 0 ? chosenTokens[listingId] : COLLATERAL_TOKENS[listing.collateralTokenId];
-          if (tokenKey) {
-            const tokenId = TOKEN_IDS[tokenKey];
-            const lockedPrice = listing.lockedPrices?.[tokenId] ? Number(listing.lockedPrices[tokenId]) : 0;
-            const currentPrice = currentPrices[tokenKey] || 0;
-            if (lockedPrice > 0 && currentPrice > 0) {
-              const diffBps = Math.round(Math.abs(currentPrice - lockedPrice) / lockedPrice * 10000);
-              if (diffBps > deviationBps) {
-                const pctDiff = (diffBps / 100).toFixed(2);
-                const maxPct = (deviationBps / 100).toFixed(2);
-                toast.error(`Narx farqi ${pctDiff}% — cheklov ${maxPct}% dan oshib ketdi. Qayta urining.`);
-                setActionLoading(null);
-                toast.dismiss(toastId);
-                return;
-              }
-            }
-          }
-        }
-      }
-
-      openWalletForRequest && openWalletForRequest();
+            
 
       openWalletForRequest && openWalletForRequest();
       // Narx farqi cheklovi Settings sahifasidan o'qiladi (localStorage)
-      const txPromise = contract.connect(signer).approveListing(listingId, chosenTokenId, Number(listing.creatorMaxDeviationBps) || 300);
+      const txPromise = contract.connect(signer).approveListing(listingId, chosenTokenId, Number(listing.creatorMaxDeviationBps) || 300).catch((e) => {
+  if (e?.data === '0x718b863f') { // ApproverDeviationExceeded
+    toast.error('Narx farqi listing egasi ruxsatidan oshib ketdi. Iltimos, elon beruvchi bilan bog‘laning.');
+  }
+  throw e;
+});
       const tx = await withProgressToast(
         withWalletTimeout(
           txPromise,
@@ -1430,6 +1411,7 @@ export default function Listings() {
     </div>
   );
 }
+
 
 
 
