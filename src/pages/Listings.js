@@ -569,7 +569,7 @@ export default function Listings() {
       openWalletForRequest && openWalletForRequest();
       // Narx farqi cheklovi Settings sahifasidan o'qiladi (localStorage)
       console.log("approveListing - listingId:", listingId, "chosenTokenId:", chosenTokenId, "creatorMaxDeviationBps:", listing.creatorMaxDeviationBps, "Number:", Number(listing.creatorMaxDeviationBps));
-const txPromise = contract.connect(signer).approveListing(listingId, chosenTokenId, Number(listing.creatorMaxDeviationBps) || 300).catch((e) => {
+const txPromise = contract.connect(signer).approveListing(listingId, chosenTokenId, (Number(listing.creatorMaxDeviationBps) || 300) * 100).catch((e) => {
   if (e?.data === '0x718b863f') { // ApproverDeviationExceeded
     toast.error('Narx farqi listing egasi ruxsatidan oshib ketdi. Iltimos, elon beruvchi bilan bog‘laning.');
   }
@@ -1411,6 +1411,7 @@ const txPromise = contract.connect(signer).approveListing(listingId, chosenToken
     </div>
   );
 }
+
 
 
 
