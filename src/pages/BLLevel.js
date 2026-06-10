@@ -69,7 +69,7 @@ export default function BLLevel() {
         totalBLLevel: ethers.formatUnits(totalLevelRaw, 18),
         totalBL: ethers.formatUnits(totalRaw, 18),
         freeTotalBL: ethers.formatUnits(freeRaw, 18),
-        activeExposure: ethers.formatUnits(activeExposureRaw, 18),
+        activeExposure: (Number(ethers.formatUnits(activeExposureRaw, 18)) / 10).toFixed(4),
         blacklisted,
         unpaidNoCollateralDefaultCount: String(unpaidNoCollateralRaw),
         unpaidDefaultCount: String(unpaidDefaultRaw),
