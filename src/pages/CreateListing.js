@@ -96,11 +96,11 @@ export default function CreateListing() {
     Math.max(0, Math.round(Number(collateralBufferPct || 0) * 100))
   );
 
-  const [creatorDeviationPct, setcreatorDeviationPct] = useState(0.01);
-  const Math.round(Number(creatorDeviationPct || 0.01) * 100) = Math.min(
-    2000,
-    Math.max(1, Math.round(Number(creatorDeviationPct || 0.01) * 100))
-  );
+  const [creatorDeviationPct, setCreatorDeviationPct] = useState(0.01);
+const creatorDevBps = Math.min(
+  2000,
+  Math.max(1, Math.round(Number(creatorDeviationPct || 0.01) * 100))
+);
   const [buyChosenToken, setBuyChosenToken] = useState('WBTC');
   const [collateralPreview, setCollateralPreview] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -610,7 +610,7 @@ priceRaw
         <button
           key={pct}
           type="button"
-          onClick={() => setcreatorDeviationPct(pct)}
+          onClick={() => setCreatorDeviationPct(pct)}
           style={{
             padding: '6px 12px',
             borderRadius: '6px',
