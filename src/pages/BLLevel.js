@@ -14,12 +14,12 @@ export default function BLLevel() {
   const { account, contract, readOnlyContract } = useWeb3();
   const { t } = useLang();
 
-  const [buyerAddr, setBuyerAddr] = useState('');
-  const [sellerAddr, setSellerAddr] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [copied, setCopied] = useState(null);
+  let activeExposureRaw = 0n; try { activeExposureRaw = await c.activePairwiseExposure(buyer, seller); } catch {} let activeExposureRaw = 0n; try { activeExposureRaw = await c.activePairwiseExposure(buyer, seller); } catch {} const [buyerAddr, setBuyerAddr] = useState('');
+  let activeExposureRaw = 0n; try { activeExposureRaw = await c.activePairwiseExposure(buyer, seller); } catch {} let activeExposureRaw = 0n; try { activeExposureRaw = await c.activePairwiseExposure(buyer, seller); } catch {} const [sellerAddr, setSellerAddr] = useState('');
+  let activeExposureRaw = 0n; try { activeExposureRaw = await c.activePairwiseExposure(buyer, seller); } catch {} let activeExposureRaw = 0n; try { activeExposureRaw = await c.activePairwiseExposure(buyer, seller); } catch {} const [loading, setLoading] = useState(false);
+  let activeExposureRaw = 0n; try { activeExposureRaw = await c.activePairwiseExposure(buyer, seller); } catch {} let activeExposureRaw = 0n; try { activeExposureRaw = await c.activePairwiseExposure(buyer, seller); } catch {} const [copied, setCopied] = useState(null);
 
-  const [data, setData] = useState(null);
+  let activeExposureRaw = 0n; try { activeExposureRaw = await c.activePairwiseExposure(buyer, seller); } catch {} let activeExposureRaw = 0n; try { activeExposureRaw = await c.activePairwiseExposure(buyer, seller); } catch {} const [data, setData] = useState(null);
 
   const handleSetMyAddr = (field) => {
     if (!account) return toast.error(t('connectPrompt') || 'Wallet ulang');
@@ -59,7 +59,7 @@ export default function BLLevel() {
     setLoading(true);
 
     try {
-      const [
+      let activeExposureRaw = 0n; try { activeExposureRaw = await c.activePairwiseExposure(buyer, seller); } catch {} let activeExposureRaw = 0n; try { activeExposureRaw = await c.activePairwiseExposure(buyer, seller); } catch {} const [
         pairwiseRaw,
         pendingRaw,
         totalLevelRaw,
@@ -83,13 +83,13 @@ export default function BLLevel() {
         buyer,
         seller,
         pairwiseBL: ethers.formatUnits(pairwiseRaw, 18),
-        pendingBL: Number(pendingRaw).toFixed(4),
+        pendingBL: ethers.formatUnits(pendingRaw, 18), 18),
         totalBLLevel: ethers.formatUnits(totalLevelRaw, 18),
         totalBL: ethers.formatUnits(totalRaw, 18),
-        freeTotalBL: Number(freeRaw).toFixed(0),
+        freeTotalBL: ethers.formatUnits(freeRaw, 18), 18),
         blacklisted,
         unpaidNoCollateralDefaultCount: String(unpaidNoCollateralRaw),
-        unpaidDefaultCount: String(unpaidDefaultRaw),
+        unpaidDefaultCount: String(unpaidDefaultRaw), activeExposure: ethers.formatUnits(activeExposureRaw, 18), activeExposure: ethers.formatUnits(activeExposureRaw, 18),
       });
     } catch (e) {
       console.error('BL check error:', e);
@@ -264,4 +264,6 @@ export default function BLLevel() {
     </div>
   );
 }
+
+
 
