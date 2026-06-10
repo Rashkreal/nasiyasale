@@ -112,6 +112,14 @@ export default function BLLevel() {
               value={buyerAddr}
               onChange={(e) => setBuyerAddr(e.target.value)}
             />
+                    <button
+          type="button"
+          className="btn btn-sm btn-outline"
+          onClick={() => setBuyerAddr(account)}
+          style={{ fontSize: '11px', padding: '2px 8px', marginTop: '4px' }}
+        >
+          👤 Mening manzilim
+        </button>
           </div>
           <div className="input-group" style={{ flex: '1 1 200px' }}>
             <label className="input-label">{t('blSellerAddress') || 'Sotuvchi manzili (ixtiyoriy)'}</label>
@@ -122,6 +130,14 @@ export default function BLLevel() {
               value={sellerAddr}
               onChange={(e) => setSellerAddr(e.target.value)}
             />
+                    <button
+          type="button"
+          className="btn btn-sm btn-outline"
+          onClick={() => setSellerAddr(account)}
+          style={{ fontSize: '11px', padding: '2px 8px', marginTop: '4px' }}
+        >
+          👤 Mening manzilim
+        </button>
           </div>
           <button
             className="btn btn-primary"
