@@ -83,10 +83,10 @@ export default function BLLevel() {
         buyer,
         seller,
         pairwiseBL: ethers.formatUnits(pairwiseRaw, 18),
-        pendingBL: ethers.formatUnits(pendingRaw, 18),
+        pendingBL: (Number(pendingRaw) / 10).toFixed(4),
         totalBLLevel: ethers.formatUnits(totalLevelRaw, 18),
         totalBL: ethers.formatUnits(totalRaw, 18),
-        freeTotalBL: ethers.formatUnits(freeRaw, 18),
+        freeTotalBL: (Number(freeRaw) / 10).toFixed(4),
         blacklisted,
         unpaidNoCollateralDefaultCount: String(unpaidNoCollateralRaw),
         unpaidDefaultCount: String(unpaidDefaultRaw),
@@ -264,3 +264,4 @@ export default function BLLevel() {
     </div>
   );
 }
+
