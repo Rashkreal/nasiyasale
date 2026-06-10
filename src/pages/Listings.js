@@ -570,7 +570,10 @@ export default function Listings() {
       // Narx farqi cheklovi Settings sahifasidan o'qiladi (localStorage)
 const txPromise = contract.connect(signer).approveListing(listingId, chosenTokenId, Number(listing.creatorMaxDeviationBps) || 300).catch((e) => {
   if (e?.data === '0x718b863f') { // ApproverDeviationExceeded
-    toast.error('Narx farqi listing egasi ruxsatidan oshib ketdi. Iltimos, elon beruvchi bilan bog‘laning.');
+    toast.error('Narx farqi ruxsat etilgan cheklovdan oshib ketdi.');
+  }
+    if (e?.data === '0x206c1a42') {
+    toast.error('BL zaxirangiz yetarli emas. Mavjud qarzingizni toʻlang yoki kichikroq miqdorda listing yarating.');
   }
   throw e;
 });
