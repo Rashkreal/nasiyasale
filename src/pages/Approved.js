@@ -171,7 +171,8 @@ export default function Approved() {
 
           // V5 status 7 = Defaulted
           // Buyer uchun keyin to'lash, seller uchun default tarixini ko'rish
-          if (status === 7 && !item.isCollateral && (buyerIsMe || sellerIsMe)) {
+          const isExpired = Number(item.dueDate) * 1000 < Date.now();
+if ((status === 7 || (status === 4 && isExpired)) && !item.isCollateral && (buyerIsMe || sellerIsMe)) {
             arr.push(item);
           }
         } catch (innerErr) {
