@@ -691,7 +691,7 @@ toast.success(t('approvedClaimDefaultSuccess') || 'Default claim muvaffaqiyatli 
               alignItems: 'flex-end'
             }}
           >
-            {isBuyer && !time.expired && (
+            {isBuyer  && (
               <button
                 className="btn btn-success"
                 disabled={actionLoading === `pay-${id}`}
@@ -705,6 +705,16 @@ toast.success(t('approvedClaimDefaultSuccess') || 'Default claim muvaffaqiyatli 
                 {t('approvedPay')}
               </button>
             )}
+            {isBuyer && time.expired && listing.isCollateral && (
+  <button
+    className="btn btn-warning"
+    disabled={actionLoading === `claim-${id}`}
+    onClick={() => doClaimDefault(listing)}
+    style={{ marginTop: '8px' }}
+  >
+    Ortiqcha garovni qaytarish (Claim)
+  </button>
+)}
 
                         {isSeller && time.expired && (
               <button
@@ -714,44 +724,6 @@ toast.success(t('approvedClaimDefaultSuccess') || 'Default claim muvaffaqiyatli 
               >
                 {t('approvedClaimDefault') || 'Default claim qilish'}
               </button>
-            )}
-
-            {/* Xaridor uchun to‘lov tugmasi (muddatdan qat’iy nazar) */}
-            {listing.status === 4 && account === listing.buyer && (
-              <button
-                onClick={() => handleMakePayment(listing)}
-                style={{ background: 'var(--success)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', marginTop: '10px' }}
-              >
-                To‘lov qilish
-              </button>
-            )}
-
-            {/* Muddati o‘tgan bo‘lsa, ikkala tomon uchun claim tugmalari */}
-            {listing.status === 4 && listing.isCollateral && (
-              (() => {
-                const isExpired = Math.floor(Date.now() / 1000) > Number(listing.dueDate);
-                if (!isExpired) return null;
-                return (
-                  <>
-                    {account === listing.seller && (
-                      <button
-                        onClick={() => doClaimDefault(listing)}
-                        style={{ background: 'var(--warning)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', marginTop: '10px' }}
-                      >
-                        Garovni olish (Claim)
-                      </button>
-                    )}
-                    {account === listing.buyer && (
-                      <button
-                        onClick={() => doClaimDefault(listing)}
-                        style={{ background: 'var(--warning)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', marginTop: '10px' }}
-                      >
-                        Ortiqcha garovni qaytarish (Claim)
-                      </button>
-                    )}
-                  </>
-                );
-              })()
             )}
 
             {isSeller && time.expired && listing.isCollateral && (
