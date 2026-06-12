@@ -13,7 +13,7 @@ export default function About() {
           NasiyaSale haqida
         </h1>
         <p className="page-subtitle">
-          DUR tokeni uchun markazlashmagan, ownersiz kredit bozori
+          DUR tokeni uchun markazlashmagan, ownersiz nasiya bozori
         </p>
       </div>
 
@@ -24,7 +24,7 @@ export default function About() {
           Umumiy tamoyillar
         </h2>
         <ul style={{ lineHeight: 1.8, paddingLeft: '20px', color: 'var(--text-secondary)' }}>
-          <li><strong>Ownersiz va o‘zgarmas:</strong> Kontraktda admin, owner yoki upgrade yo‘q. Bir marta deploy qilingach, hech kim o‘zgartira olmaydi. Noto‘g‘ri yuborilgan tokenlar qaytarib bo‘lmaydi.</li>
+          <li><strong>Ownersiz va o‘zgarmas:</strong> Kontraktda admin, owner yoki upgrade yo‘q. OP mainnet tarmog'ida deploy qilingan, hech kim hech qachon o‘zgartira olmaydi. Noto‘g‘ri yuborilgan tokenlarni qaytarib bo‘lmaydi.</li>
           <li><strong>Hammasi ochiq:</strong> Barcha listinglar, narxlar va holatlar zanjirda shaffof. Hech qanday yashirin imtiyoz yo‘q.</li>
           <li><strong>Islomiy tamoyillar:</strong> Garovli savdoda faqat qarz miqdoricha garov olinadi, ortiqchasi xaridorga qaytariladi (rahn). Foiz (ribo) yo‘q, jarima yo‘q.</li>
         </ul>
@@ -37,8 +37,8 @@ export default function About() {
           Garovli savdo
         </h2>
         <ul style={{ lineHeight: 1.8, paddingLeft: '20px', color: 'var(--text-secondary)' }}>
-          <li><strong>Garov tokenlari:</strong> Faqat WBTC va WETH qabul qilinadi. Boshqa tokenlar (USDC, USDT, BLT) garov sifatida ishlatilmaydi.</li>
-          <li><strong>Kim e'lon bera oladi?</strong> Sotuvchi ham, xaridor ham garovli e'lon yaratishi mumkin. Xaridor e'lon vaqtida garovni kontraktga o‘tkazadi.</li>
+          <li><strong>Garov tokenlari:</strong> Faqat WBTC va WETH qabul qilinadi. </li>
+          <li><strong>Kim e'lon bera oladi?</strong> Sotuvchi ham, xaridor ham garovli e'lon yaratishi mumkin. Xaridor e'lon vaqtida garovni kontraktga o‘tkazadi.Sotuvchi e'lon vaqtida DUR tokenini kontraktga o'tkazadi.</li>
           <li><strong>Narxlar:</strong> Garov narxi e'lon vaqtida Chainlink orqali olinadi va butun savdo davomida o‘zgarmaydi. So‘nggi 48 soat ichida narx yangilanmagan bo‘lsa, zaxira mexanizmi ishga tushadi.</li>
           <li><strong>To‘lov:</strong> Xaridor USDC bilan istalgan vaqtda to‘lov qilishi mumkin — muddatidan oldin ham, kechikib ham. To‘lov amalga oshgach, garov qaytariladi va xaridor BL ball oladi.</li>
           <li><strong>Default (to‘lov qilinmasa):</strong> Muddati o‘tgan garovli listing uchun <strong>sotuvchi yoki xaridor</strong> “claim” (da'vo) qilishi mumkin. Sotuvchi faqat qarz miqdoricha garov oladi, qolgani xaridorga qaytariladi.</li>
@@ -60,8 +60,8 @@ export default function About() {
               <li>Garovsiz savdoda: DUR miqdorining 100% i BL sifatida qo‘shiladi (yuqori xavf uchun mukofot).</li>
             </ul>
           </li>
-          <li><strong>Qanday ishlaydi?</strong> Xaridor garovsiz listing yaratadi va BL band qilinadi. Sotuvchi tasdiqlagach, DUR xaridorga o‘tkaziladi. Xaridor muddatida to‘lov qilsa, BL yana oshadi.</li>
-          <li><strong>To‘lov qilinmasa:</strong> Xaridorning sotuvchi bilan bo‘lgan BL nolga tushadi, qora ro‘yxatga kiradi va yangi garovsiz e'lon bera olmaydi. Qora ro‘yxatdan chiqish uchun <strong>Pay After Default</strong> orqali qarzni USDC da to‘lash kerak (BL qayta tiklanmaydi, lekin obro‘ qaytadi).</li>
+          <li><strong>Qanday ishlaydi?</strong> Xaridor garovsiz listing joylaydi va BL band qilinadi. Sotuvchi tasdiqlagach, DUR xaridorga o‘tkaziladi. Xaridor muddatida to‘lov qilsa, BL yana oshadi.</li>
+          <li><strong>To‘lov qilinmasa:</strong> Xaridorning sotuvchi bilan bo‘lgan BL nolga tushadi, qora ro‘yxatga kiradi va yangi garovsiz e'lon bera olmaydi. Qora ro‘yxatdan chiqish uchun <strong>Pay After Default</strong> orqali qarzni USDC da to‘lash kerak (BL qayta tiklanmaydi, lekin garovsiz amalyot kilish imkoniyati qayta tiklanadi qaytadi).</li>
           <li><strong>BL cheklovi:</strong> Bitta sotuvchiga nisbatan umumiy faol garovsiz qarz BL ning 10% idan oshmasligi kerak. Bu xavfni cheklaydi.</li>
         </ul>
       </section>
@@ -126,6 +126,34 @@ export default function About() {
               <td style={{ padding: '8px', fontWeight: 600 }}>WETH</td>
               <td style={{ padding: '8px' }}>Garov</td>
               <td style={{ padding: '8px', fontFamily: 'monospace', fontSize: '0.8rem' }}>0x4200000000000000000000000000000000000006</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      {/* 7. Kontraktlar */}
+      <section className="card" style={{ padding: '24px', marginBottom: '20px' }}>
+        <h2 style={{ fontSize: '1.3rem', marginBottom: '16px' }}>
+          Kontrakt manzillari (Optimism)
+        </h2>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid var(--border)' }}>
+              <th style={{ textAlign: 'left', padding: '8px' }}>Kontrakt</th>
+              <th style={{ textAlign: 'left', padding: '8px' }}>Maqsadi</th>
+              <th style={{ textAlign: 'left', padding: '8px' }}>Manzil</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style={{ borderBottom: '1px solid var(--border)' }}>
+              <td style={{ padding: '8px', fontWeight: 600 }}>CreditSale</td>
+              <td style={{ padding: '8px' }}>Asosiy kredit savdo kontrakti</td>
+              <td style={{ padding: '8px', fontFamily: 'monospace', fontSize: '0.8rem' }}>0x0DB46B238f6d63cbDA691fb39179816E36750524</td>
+            </tr>
+            <tr style={{ borderBottom: '1px solid var(--border)' }}>
+              <td style={{ padding: '8px', fontWeight: 600 }}>Vault</td>
+              <td style={{ padding: '8px' }}>DUR token vaqtli qulflash (lock) kontrakti</td>
+              <td style={{ padding: '8px', fontFamily: 'monospace', fontSize: '0.8rem' }}>0xaB7B9E2d539Bbcd6a8Bde434ab481D192DDC2Ba5</td>
             </tr>
           </tbody>
         </table>
