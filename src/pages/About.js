@@ -1,138 +1,135 @@
 import React from 'react';
+import { Shield, Zap, TrendingUp, Lock, Users, Info } from 'lucide-react';
 import { useLang } from '../hooks/useLang';
-import { CONTRACT_ADDRESS } from '../abi/contract';
-import { Shield, Zap, Users, Lock, ExternalLink, Code, AlertTriangle, Download } from 'lucide-react';
 
 export default function About() {
   const { t } = useLang();
 
   return (
-    <div style={{ maxWidth: '750px' }}>
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <h1 className="page-title">{t('aboutPageTitle')}</h1>
-          <p className="page-subtitle">{t('aboutPageSubtitle')}</p>
-        </div>
-        <a
-          href="https://nasiyasale.vercel.app/nasiyasale.txt"
-          download="nasiyasale.txt"
-          className="btn btn-outline btn-sm"
-          style={{ display: 'flex', alignItems: 'center', gap: 6, textDecoration: 'none', flexShrink: 0 }}
-        >
-          <Download size={14} />
-          {t("aboutDoc")}
-        </a>
+    <div style={{ maxWidth: '850px', margin: '0 auto' }}>
+      <div className="page-header">
+        <h1 className="page-title">
+          <Info size={24} style={{ marginRight: '10px' }} />
+          NasiyaSale haqida
+        </h1>
+        <p className="page-subtitle">
+          DUR tokeni uchun markazlashmagan, ownersiz kredit bozori
+        </p>
       </div>
 
-      {/* Asosiy tushuntirish */}
-      <div className="card" style={{ marginBottom: '16px', padding: '24px' }}>
-        <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px', color: 'var(--accent-bright)' }}>
-          {t('aboutWhatIs')}
+      {/* 1. Umumiy tamoyillar */}
+      <section className="card" style={{ padding: '24px', marginBottom: '20px' }}>
+        <h2 style={{ fontSize: '1.3rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Shield size={22} color="var(--accent-bright)" />
+          Umumiy tamoyillar
         </h2>
-        <p style={{ color: 'var(--text-secondary)', lineHeight: '1.7', marginBottom: '12px' }}>
-          {t('aboutWhatIsDesc1')}
-        </p>
-        <p style={{ color: 'var(--text-secondary)', lineHeight: '1.7' }}>
-          {t('aboutWhatIsDesc2')}
-        </p>
-      </div>
+        <ul style={{ lineHeight: 1.8, paddingLeft: '20px', color: 'var(--text-secondary)' }}>
+          <li><strong>Ownersiz va o‘zgarmas:</strong> Kontraktda admin, owner yoki upgrade yo‘q. Bir marta deploy qilingach, hech kim o‘zgartira olmaydi. Noto‘g‘ri yuborilgan tokenlar qaytarib bo‘lmaydi.</li>
+          <li><strong>Hammasi ochiq:</strong> Barcha listinglar, narxlar va holatlar zanjirda shaffof. Hech qanday yashirin imtiyoz yo‘q.</li>
+          <li><strong>Islomiy tamoyillar:</strong> Garovli savdoda faqat qarz miqdoricha garov olinadi, ortiqchasi xaridorga qaytariladi (rahn). Foiz (ribo) yo‘q, jarima yo‘q.</li>
+        </ul>
+      </section>
 
-      {/* Smart kontrakt haqida */}
-      <div className="card" style={{ marginBottom: '16px', padding: '24px', border: '1px solid var(--success)', background: 'rgba(16,185,129,0.05)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-          <Lock size={20} color="var(--success)" />
-          <h2 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--success)' }}>
-            {t('aboutSmartTitle')}
-          </h2>
-        </div>
-        <p style={{ color: 'var(--text-secondary)', lineHeight: '1.7', marginBottom: '12px' }}>
-          {t('aboutSmartDesc1')}
-        </p>
-        <p style={{ color: 'var(--text-secondary)', lineHeight: '1.7', marginBottom: '12px' }}>
-          {t('aboutSmartDesc2')}
-        </p>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
-          <Code size={14} color="var(--text-muted)" />
-          <span className="mono" style={{ fontSize: '12px', color: 'var(--text-muted)', wordBreak: 'break-all' }}>
-            {CONTRACT_ADDRESS}
-          </span>
-          <a href={`https://optimistic.etherscan.io/address/${CONTRACT_ADDRESS}`} target="_blank" rel="noopener noreferrer"
-            style={{ color: 'var(--accent-bright)', flexShrink: 0 }}>
-            <ExternalLink size={14} />
-          </a>
-        </div>
-      </div>
+      {/* 2. Garovli savdo */}
+      <section className="card" style={{ padding: '24px', marginBottom: '20px' }}>
+        <h2 style={{ fontSize: '1.3rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Lock size={22} color="var(--warning)" />
+          Garovli savdo
+        </h2>
+        <ul style={{ lineHeight: 1.8, paddingLeft: '20px', color: 'var(--text-secondary)' }}>
+          <li><strong>Garov tokenlari:</strong> Faqat WBTC va WETH qabul qilinadi. Boshqa tokenlar (USDC, USDT, BLT) garov sifatida ishlatilmaydi.</li>
+          <li><strong>Kim e'lon bera oladi?</strong> Sotuvchi ham, xaridor ham garovli e'lon yaratishi mumkin. Xaridor e'lon vaqtida garovni kontraktga o‘tkazadi.</li>
+          <li><strong>Narxlar:</strong> Garov narxi e'lon vaqtida Chainlink orqali olinadi va butun savdo davomida o‘zgarmaydi. So‘nggi 48 soat ichida narx yangilanmagan bo‘lsa, zaxira mexanizmi ishga tushadi.</li>
+          <li><strong>To‘lov:</strong> Xaridor USDC bilan istalgan vaqtda to‘lov qilishi mumkin — muddatidan oldin ham, kechikib ham. To‘lov amalga oshgach, garov qaytariladi va xaridor BL ball oladi.</li>
+          <li><strong>Default (to‘lov qilinmasa):</strong> Muddati o‘tgan garovli listing uchun <strong>sotuvchi yoki xaridor</strong> “claim” (da'vo) qilishi mumkin. Sotuvchi faqat qarz miqdoricha garov oladi, qolgani xaridorga qaytariladi.</li>
+          <li><strong>Qo‘shimcha garov buferi:</strong> E'lon beruvchi garov qiymatini 0–20% gacha oshirib qo‘yishi mumkin, bu narx o‘zgarishidan himoyalaydi.</li>
+        </ul>
+      </section>
 
-      {/* Qanday ishlaydi */}
-      <div className="card" style={{ marginBottom: '16px', padding: '24px' }}>
-        <h2 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '16px' }}>{t('aboutHowTitle')}</h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {[
-            { icon: Zap, color: 'var(--accent-bright)', title: t('aboutStep1Title'), desc: t('aboutStep1Desc') },
-            { icon: Users, color: 'var(--success)', title: t('aboutStep2Title'), desc: t('aboutStep2Desc') },
-            { icon: Shield, color: 'var(--warning)', title: t('aboutStep3Title'), desc: t('aboutStep3Desc') },
-            { icon: AlertTriangle, color: 'var(--danger)', title: t('aboutStep4Title'), desc: t('aboutStep4Desc') },
-          ].map(({ icon: Icon, color, title, desc }) => (
-            <div key={title} style={{ display: 'flex', gap: '14px' }}>
-              <div style={{
-                width: 36, height: 36, borderRadius: '10px', flexShrink: 0,
-                background: `${color}20`, border: `1px solid ${color}40`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <Icon size={16} color={color} />
-              </div>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>{title}</div>
-                <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>{desc}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* 3. Garovsiz savdo */}
+      <section className="card" style={{ padding: '24px', marginBottom: '20px' }}>
+        <h2 style={{ fontSize: '1.3rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Users size={22} color="var(--success)" />
+          Garovsiz savdo (BL asosida)
+        </h2>
+        <ul style={{ lineHeight: 1.8, paddingLeft: '20px', color: 'var(--text-secondary)' }}>
+          <li><strong>Business Level (BL):</strong> Garovsiz savdo faqat yetarli BL ballga ega xaridorlar uchun. BL ball vaqt o‘tishi bilan muvaffaqiyatli to‘lovlar orqali yig‘iladi.</li>
+          <li><strong>BL hisobi:</strong>
+            <ul>
+              <li>Garovli savdoda: DUR miqdorining 10% i BL sifatida qo‘shiladi.</li>
+              <li>Garovsiz savdoda: DUR miqdorining 100% i BL sifatida qo‘shiladi (yuqori xavf uchun mukofot).</li>
+            </ul>
+          </li>
+          <li><strong>Qanday ishlaydi?</strong> Xaridor garovsiz listing yaratadi va BL band qilinadi. Sotuvchi tasdiqlagach, DUR xaridorga o‘tkaziladi. Xaridor muddatida to‘lov qilsa, BL yana oshadi.</li>
+          <li><strong>To‘lov qilinmasa:</strong> Xaridorning sotuvchi bilan bo‘lgan BL nolga tushadi, qora ro‘yxatga kiradi va yangi garovsiz e'lon bera olmaydi. Qora ro‘yxatdan chiqish uchun <strong>Pay After Default</strong> orqali qarzni USDC da to‘lash kerak (BL qayta tiklanmaydi, lekin obro‘ qaytadi).</li>
+          <li><strong>BL cheklovi:</strong> Bitta sotuvchiga nisbatan umumiy faol garovsiz qarz BL ning 10% idan oshmasligi kerak. Bu xavfni cheklaydi.</li>
+        </ul>
+      </section>
 
-      {/* BL tizimi */}
-      <div className="card" style={{ marginBottom: '16px', padding: '24px' }}>
-        <h2 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '12px' }}>{t('aboutBLTitle')}</h2>
-        <p style={{ color: 'var(--text-secondary)', lineHeight: '1.7', marginBottom: '12px' }}>
-          {t('aboutBLDesc')}
-        </p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {[
-            { label: t('aboutBLRow1Label'), value: t('aboutBLRow1Value') },
-            { label: t('aboutBLRow2Label'), value: t('aboutBLRow2Value') },
-            { label: t('aboutBLRow3Label'), value: t('aboutBLRow3Value') },
-            { label: t('aboutBLRow4Label'), value: t('aboutBLRow4Value') },
-          ].map(({ label, value }) => (
-            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
-              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{label}</span>
-              <span className="mono" style={{ fontSize: '12px', fontWeight: 600 }}>{value}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* 4. Narx farqi himoyasi */}
+      <section className="card" style={{ padding: '24px', marginBottom: '20px' }}>
+        <h2 style={{ fontSize: '1.3rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <TrendingUp size={22} color="var(--info)" />
+          Narx farqi himoyasi (anti-flash-loan)
+        </h2>
+        <ul style={{ lineHeight: 1.8, paddingLeft: '20px', color: 'var(--text-secondary)' }}>
+          <li><strong>E'lon beruvchi cheklovi:</strong> Har bir garovli listingda e'lon beruvchi maksimal narx og‘ish foizini belgilaydi (0.01% – 20%). Bu qiymat listing kartasida “chek: X.XX%” ko‘rinishida aks etadi.</li>
+          <li><strong>Avtomatik himoya:</strong> Tasdiqlash vaqtida Chainlink'dan olingan jonli narx, e'lon paytidagi narx bilan solishtiriladi. Agar farq belgilangan foizdan oshsa, kontrakt tranzaksiyani avtomatik rad etadi.</li>
+          <li><strong>Default chegara:</strong> Agar tomonlardan biri aniq foiz kiritmasa, kontrakt avtomatik 2% cheklovni qo‘llaydi.</li>
+          <li><strong>Ikki tomonlama:</strong> Tasdiqlovchi ham o‘z limitini belgilashi mumkin. Ikkala limitdan qaysi biri qattiqroq bo‘lsa, o‘sha amal qiladi.</li>
+        </ul>
+      </section>
 
-      {/* Garov tokenlari */}
-      <div className="card" style={{ padding: '24px' }}>
-        <h2 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '12px' }}>{t('aboutTokensTitle')}</h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {[
-            { token: 'DUR', desc: t('aboutTokenDUR'), role: t('aboutRoleTrade') },
-            { token: 'USDC', desc: t('aboutTokenUSDC'), role: t('aboutRolePayCol') },
-            { token: 'USDT', desc: t('aboutTokenUSDT'), role: t('aboutRoleCol') },
-            { token: 'BLT', desc: t('aboutTokenBLT'), role: t('aboutRoleCol') },
-            { token: 'WBTC', desc: t('aboutTokenWBTC'), role: t('aboutRoleCol') },
-            { token: 'WETH', desc: t('aboutTokenWETH'), role: t('aboutRoleCol') },
-          ].map(({ token, desc, role }) => (
-            <div key={token} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-primary)' }}>{token}</span>
-                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{desc}</span>
-              </div>
-              <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'var(--accent-glow)', color: 'var(--accent-bright)', fontWeight: 600 }}>{role}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* 5. Oracle */}
+      <section className="card" style={{ padding: '24px', marginBottom: '20px' }}>
+        <h2 style={{ fontSize: '1.3rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Zap size={22} color="var(--accent-bright)" />
+          Narx manbasi (Oracle)
+        </h2>
+        <ul style={{ lineHeight: 1.8, paddingLeft: '20px', color: 'var(--text-secondary)' }}>
+          <li><strong>Chainlink:</strong> Barcha narxlar Optimism tarmog‘idagi Chainlink WBTC/USD va ETH/USD feed'laridan olinadi.</li>
+          <li><strong>L2 Sequencer himoyasi:</strong> Agar Optimism sequencer'i ishlamay qolsa, barcha narxga bog‘liq amallar to‘xtatiladi. Sequencer tiklangach, 1 soatlik kutish davri mavjud.</li>
+          <li><strong>Zaxira narx:</strong> Agar Chainlink uzoq muddat ishlamasa (48 soatdan ko‘proq), listingda saqlangan zaxira narxdan foydalaniladi. Bu narxni har kim yangilab turishi mumkin (refreshSnapshot).</li>
+        </ul>
+      </section>
+
+      {/* 6. Tokenlar */}
+      <section className="card" style={{ padding: '24px', marginBottom: '20px' }}>
+        <h2 style={{ fontSize: '1.3rem', marginBottom: '16px' }}>
+          Tokenlar va manzillar (Optimism)
+        </h2>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid var(--border)' }}>
+              <th style={{ textAlign: 'left', padding: '8px' }}>Token</th>
+              <th style={{ textAlign: 'left', padding: '8px' }}>Roli</th>
+              <th style={{ textAlign: 'left', padding: '8px' }}>Manzil</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style={{ borderBottom: '1px solid var(--border)' }}>
+              <td style={{ padding: '8px', fontWeight: 600 }}>DUR</td>
+              <td style={{ padding: '8px' }}>Savdo qilinadigan aktiv</td>
+              <td style={{ padding: '8px', fontFamily: 'monospace', fontSize: '0.8rem' }}>0xf2f471dd1fBD278e54a81af7D5a22E3a38eA43Ff</td>
+            </tr>
+            <tr style={{ borderBottom: '1px solid var(--border)' }}>
+              <td style={{ padding: '8px', fontWeight: 600 }}>USDC</td>
+              <td style={{ padding: '8px' }}>To‘lov vositasi</td>
+              <td style={{ padding: '8px', fontFamily: 'monospace', fontSize: '0.8rem' }}>0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85</td>
+            </tr>
+            <tr style={{ borderBottom: '1px solid var(--border)' }}>
+              <td style={{ padding: '8px', fontWeight: 600 }}>WBTC</td>
+              <td style={{ padding: '8px' }}>Garov</td>
+              <td style={{ padding: '8px', fontFamily: 'monospace', fontSize: '0.8rem' }}>0x68f180fcCe6836688e9084f035309E29Bf0A2095</td>
+            </tr>
+            <tr style={{ borderBottom: '1px solid var(--border)' }}>
+              <td style={{ padding: '8px', fontWeight: 600 }}>WETH</td>
+              <td style={{ padding: '8px' }}>Garov</td>
+              <td style={{ padding: '8px', fontFamily: 'monospace', fontSize: '0.8rem' }}>0x4200000000000000000000000000000000000006</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
     </div>
   );
 }
