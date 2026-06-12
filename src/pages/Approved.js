@@ -112,6 +112,20 @@ function withProgressToast(promise, toastId, stages) {
 
 
 export default function Approved() {
+  const handleMakePayment = async (listing) => {
+  const id = listing.id;
+  if (!contract || !signer) return toast.error('Wallet ulanmagan');
+  const toastId = toast.loading('To‘lov amalga oshirilmoqda...');
+  try {
+    const tx = await contract.connect(signer).makePayment(id);
+    await tx.wait();
+    toast.success('To‘lov muvaffaqiyatli!', { id: toastId });
+    refreshAll();
+  } catch (e) {
+    console.error('makePayment error:', e);
+    toast.error('To‘lov amalga oshmadi', { id: toastId });
+  }
+};
   const {
     account,
     contract,
@@ -590,6 +604,43 @@ toast.success(t('approvedClaimDefaultSuccess') || 'Default claim muvaffaqiyatli 
                   {t('approvedYouSeller')}
                 </span>
               )}
+              {/* Xaridor uchun to‘lov tugmasi (muddatdan qat’iy nazar) */}
+{listing.status === 4 && account === listing.buyer && (
+  <button
+    onClick={() => handleMakePayment(listing)}
+    style={{ background: 'var(--success)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', marginTop: '10px' }}
+  >
+    To‘lov qilish
+  </button>
+)}
+
+{/* Muddati o‘tgan bo‘lsa, ikkala tomon uchun claim tugmalari */}
+{listing.status === 4 && listing.isCollateral && (
+  (() => {
+    const isExpired = Math.floor(Date.now() / 1000) > Number(listing.dueDate);
+    if (!isExpired) return null;
+    return (
+      <>
+        {account === listing.seller && (
+          <button
+            onClick={() => doClaimDefault(listing)}
+            style={{ background: 'var(--warning)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', marginTop: '10px' }}
+          >
+            Garovni olish (Claim)
+          </button>
+        )}
+        {account === listing.buyer && (
+          <button
+            onClick={() => doClaimDefault(listing)}
+            style={{ background: 'var(--warning)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', marginTop: '10px' }}
+          >
+            Ortiqcha garovni qaytarish (Claim)
+          </button>
+        )}
+      </>
+    );
+  })()
+)}
             </div>
 
             <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
