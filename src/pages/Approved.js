@@ -604,43 +604,6 @@ toast.success(t('approvedClaimDefaultSuccess') || 'Default claim muvaffaqiyatli 
                   {t('approvedYouSeller')}
                 </span>
               )}
-              {/* Xaridor uchun to‘lov tugmasi (muddatdan qat’iy nazar) */}
-{listing.status === 4 && account === listing.buyer && (
-  <button
-    onClick={() => handleMakePayment(listing)}
-    style={{ background: 'var(--success)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', marginTop: '10px' }}
-  >
-    To‘lov qilish
-  </button>
-)}
-
-{/* Muddati o‘tgan bo‘lsa, ikkala tomon uchun claim tugmalari */}
-{listing.status === 4 && listing.isCollateral && (
-  (() => {
-    const isExpired = Math.floor(Date.now() / 1000) > Number(listing.dueDate);
-    if (!isExpired) return null;
-    return (
-      <>
-        {account === listing.seller && (
-          <button
-            onClick={() => doClaimDefault(listing)}
-            style={{ background: 'var(--warning)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', marginTop: '10px' }}
-          >
-            Garovni olish (Claim)
-          </button>
-        )}
-        {account === listing.buyer && (
-          <button
-            onClick={() => doClaimDefault(listing)}
-            style={{ background: 'var(--warning)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', marginTop: '10px' }}
-          >
-            Ortiqcha garovni qaytarish (Claim)
-          </button>
-        )}
-      </>
-    );
-  })()
-)}
             </div>
 
             <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
@@ -743,19 +706,52 @@ toast.success(t('approvedClaimDefaultSuccess') || 'Default claim muvaffaqiyatli 
               </button>
             )}
 
-            {isSeller && time.expired && (
+                        {isSeller && time.expired && (
               <button
                 className="btn btn-danger"
                 disabled={actionLoading === `claim-${id}`}
                 onClick={() => doClaimDefault(listing)}
               >
-                {actionLoading === `claim-${id}` ? (
-                  <div className="spinner" />
-                ) : (
-                  <Shield size={15} />
-                )}
                 {t('approvedClaimDefault') || 'Default claim qilish'}
               </button>
+            )}
+
+            {/* Xaridor uchun to‘lov tugmasi (muddatdan qat’iy nazar) */}
+            {listing.status === 4 && account === listing.buyer && (
+              <button
+                onClick={() => handleMakePayment(listing)}
+                style={{ background: 'var(--success)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', marginTop: '10px' }}
+              >
+                To‘lov qilish
+              </button>
+            )}
+
+            {/* Muddati o‘tgan bo‘lsa, ikkala tomon uchun claim tugmalari */}
+            {listing.status === 4 && listing.isCollateral && (
+              (() => {
+                const isExpired = Math.floor(Date.now() / 1000) > Number(listing.dueDate);
+                if (!isExpired) return null;
+                return (
+                  <>
+                    {account === listing.seller && (
+                      <button
+                        onClick={() => doClaimDefault(listing)}
+                        style={{ background: 'var(--warning)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', marginTop: '10px' }}
+                      >
+                        Garovni olish (Claim)
+                      </button>
+                    )}
+                    {account === listing.buyer && (
+                      <button
+                        onClick={() => doClaimDefault(listing)}
+                        style={{ background: 'var(--warning)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', marginTop: '10px' }}
+                      >
+                        Ortiqcha garovni qaytarish (Claim)
+                      </button>
+                    )}
+                  </>
+                );
+              })()
             )}
 
             {isSeller && time.expired && listing.isCollateral && (
