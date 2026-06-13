@@ -15,7 +15,6 @@ const Web3Context = createContext(null);
 const ALL_TOKENS = ['DUR', 'USDC', 'WBTC', 'WETH'];
 const emptyBals = () => Object.fromEntries(ALL_TOKENS.map((k) => [k, '0']));
 
-// WalletConnect Project ID
 const WC_PROJECT_ID = '931c40a15bee2387d84ff99b93520df7';
 
 export function useWeb3() {
@@ -24,11 +23,6 @@ export function useWeb3() {
 
 function isMobile() {
   return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-}
-
-function isSameAddress(a, b) {
-  if (!a || !b) return false;
-  return a.toLowerCase() === b.toLowerCase();
 }
 
 export function Web3Provider({ children }) {
@@ -45,6 +39,8 @@ export function Web3Provider({ children }) {
   const wcProviderRef = useRef(null);
   const disconnectingRef = useRef(false);
   const walletTypeRef = useRef(null);
+  const actionAbortRef = useRef(false);
+  const activeToastRef = useRef(null);
 
   const isCorrectNetwork = chainId === OP_MAINNET.chainId;
 
@@ -71,9 +67,12 @@ export function Web3Provider({ children }) {
   }, []);
 
   const initContracts = useCallback((signerOrProvider) => {
+    if (!signerOrProvider) {
+      setContract(null);
+      return { c: null, tokenContracts: {} };
+    }
     const c = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signerOrProvider);
     setContract(c);
-
     const tc = {};
     for (const key of ALL_TOKENS) {
       tc[key] = new ethers.Contract(TOKEN_ADDRESSES[key], ERC20_ABI, signerOrProvider);
@@ -82,7 +81,7 @@ export function Web3Provider({ children }) {
   }, []);
 
   const fetchBalances = useCallback(async (addr, tokenContracts) => {
-    if (!addr || !tokenContracts) return;
+    if (!addr || !tokenContracts || Object.keys(tokenContracts).length === 0) return;
     try {
       const results = await Promise.all(
         ALL_TOKENS.map((k) => tokenContracts[k].balanceOf(addr))
@@ -166,14 +165,10 @@ export function Web3Provider({ children }) {
     if (!provider) throw new Error('Provider topilmadi');
     const currentChainId = await provider.request({ method: 'eth_chainId' });
     if (parseInt(currentChainId, 16) === OP_MAINNET.chainId) {
-      if (chainId !== OP_MAINNET.chainId) {
-        setChainId(OP_MAINNET.chainId);
-      }
+      if (chainId !== OP_MAINNET.chainId) setChainId(OP_MAINNET.chainId);
       return true;
     }
-    const tid = toast.loading(
-      `Wallet ${currentChainId} tarmog'ida. Optimism'ga o'tkazilmoqda...`
-    );
+    const tid = toast.loading(`Wallet ${currentChainId} tarmog'ida. Optimism'ga o'tkazilmoqda...`);
     openWalletForRequest();
     const switched = await requestSwitchToOptimism(provider);
     if (!switched) {
@@ -197,7 +192,7 @@ export function Web3Provider({ children }) {
     const tid = toast.loading('MetaMask ulanmoqda...');
     try {
       if (!window.ethereum) {
-        toast.error('MetaMask topilmadi. Iltimos, MetaMask o‘rnating.', { id: tid });
+        toast.error('MetaMask topilmadi.', { id: tid });
         return;
       }
       const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
@@ -340,8 +335,6 @@ export function Web3Provider({ children }) {
         wcProviderRef.current = null;
       }
       await clearWalletSessionStorage();
-    } catch (e) {
-      console.error('disconnect error:', e);
     } finally {
       setProvider(null);
       setSigner(null);
@@ -353,12 +346,8 @@ export function Web3Provider({ children }) {
       setWalletBalances(emptyBals());
       walletTypeRef.current = null;
       disconnectingRef.current = false;
-      if (!silent) {
-        toast.success('Wallet uzildi');
-      }
-      if (reload) {
-        window.location.reload();
-      }
+      if (!silent) toast.success('Wallet uzildi');
+      if (reload) window.location.reload();
     }
   }, [clearWalletSessionStorage]);
 
@@ -415,35 +404,23 @@ export function Web3Provider({ children }) {
     };
   }, [walletType, disconnect, initContracts, fetchBalances, account]);
 
-  // ====== Approve / Revoke ======
-  const activeToastRef = useRef(null);
-  const actionAbortRef = useRef(false);
-
-  const withTimeout = (promise, ms, message) => {
-    return Promise.race([
+  const withTimeout = (promise, ms, message) =>
+    Promise.race([
       promise,
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error(message)), ms)
-      ),
+      new Promise((_, reject) => setTimeout(() => reject(new Error(message)), ms)),
     ]);
-  };
 
   const ensureApproval = useCallback(async (tokenKey, amountRaw) => {
     if (!account || !signer) return true;
     const tokenWithSigner = tokens[tokenKey];
     if (!tokenWithSigner) return true;
-
     const tokenReadOnly = new ethers.Contract(
       await tokenWithSigner.getAddress(),
-      [
-        'function allowance(address,address) view returns (uint256)',
-      ],
+      ['function allowance(address,address) view returns (uint256)'],
       signer.provider
     );
-
     const initialAllowance = await tokenReadOnly.allowance(account, CONTRACT_ADDRESS);
     if (initialAllowance >= amountRaw) return true;
-
     const tid = toast.loading(`${tokenKey} uchun ruxsat so‘ralmoqda...`);
     activeToastRef.current = tid;
     try {
@@ -472,39 +449,30 @@ export function Web3Provider({ children }) {
 
   const revokeAllApprovals = useCallback(async (onProgress) => {
     if (!account || !signer) throw new Error('Avval walletni ulang');
-    const tokenAddresses = {};
-    for (const key of ALL_TOKENS) {
-      tokenAddresses[key] = TOKEN_ADDRESSES[key];
-    }
     const roProvider = signer.provider;
     const toRevoke = [];
     for (const tokenKey of ALL_TOKENS) {
       try {
-        const tokenAddr = tokenAddresses[tokenKey];
+        const tokenAddr = TOKEN_ADDRESSES[tokenKey];
         const roToken = new ethers.Contract(
           tokenAddr,
           ['function allowance(address,address) view returns (uint256)'],
           roProvider
         );
         const allowance = await roToken.allowance(account, CONTRACT_ADDRESS);
-        if (allowance > 0n) {
-          toRevoke.push(tokenKey);
-        }
+        if (allowance > 0n) toRevoke.push(tokenKey);
       } catch (_) {}
     }
     if (toRevoke.length === 0) {
       return { total: 0, revoked: 0, message: 'no_approvals' };
     }
     const total = toRevoke.length;
-    let done = 0;
-    let revoked = 0;
+    let done = 0, revoked = 0;
     const failed = [];
     for (const tokenKey of toRevoke) {
       if (actionAbortRef.current) break;
       try {
-        if (typeof onProgress === 'function') {
-          onProgress(done, total, tokenKey);
-        }
+        if (typeof onProgress === 'function') onProgress(done, total, tokenKey);
         const tokenWithSigner = tokens[tokenKey];
         openWalletForRequest();
         const tx = await withTimeout(
@@ -541,12 +509,10 @@ export function Web3Provider({ children }) {
         isCorrectNetwork,
         walletBalances,
         walletType,
-
         connectMetaMask,
         connectWalletConnect,
         connectByAddress,
         disconnect,
-
         refreshBalances,
         ensureApproval,
         revokeAllApprovals,
@@ -554,7 +520,6 @@ export function Web3Provider({ children }) {
         switchToOptimism: requestSwitchToOptimism,
         openWalletForRequest,
         resetWalletConnection,
-
         isReadOnly: walletType === 'readonly',
       }}
     >
