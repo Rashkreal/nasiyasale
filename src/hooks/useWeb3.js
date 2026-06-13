@@ -365,7 +365,7 @@ export function Web3Provider({ children }) {
     fetchBalances(account, tokens);
   }, [account, tokens, fetchBalances]);
 
-  useEffect(() => {
+  useEffect(() => { if (!contract && !signer) return;
     if (!window.ethereum || walletType !== 'metamask') return undefined;
     const onAccountsChanged = async (accounts) => {
       try {
