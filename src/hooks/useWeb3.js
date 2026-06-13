@@ -15,50 +15,20 @@ const Web3Context = createContext(null);
 const ALL_TOKENS = ['DUR', 'USDC', 'WBTC', 'WETH'];
 const emptyBals = () => Object.fromEntries(ALL_TOKENS.map((k) => [k, '0']));
 
-// WalletConnect Project ID — https://cloud.walletconnect.com
+// WalletConnect Project ID
 const WC_PROJECT_ID = '931c40a15bee2387d84ff99b93520df7';
 
-// Read-only provider — wallet ulanmagan holda ham ishlaydi
+export function useWeb3() {
+  return useContext(Web3Context);
+}
 
-// Optimism Mainnet params
-const OP_CHAIN_HEX = '0xA';
+function isMobile() {
+  return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
 
-const OP_CHAIN_PARAMS = {
-  chainId: OP_CHAIN_HEX,
-  chainName: 'Optimism',
-  nativeCurrency: {
-    name: 'Ether',
-    symbol: 'ETH',
-    decimals: 18,
-  },
-  rpcUrls: ['https://optimism.publicnode.com', 'https://mainnet.optimism.io'],
-  blockExplorerUrls: ['https://optimistic.etherscan.io'],
-};
-
-const isMobile = () => {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-    navigator.userAgent
-  );
-};
-
-// ════════════════════════════════════════════════════════════════════
-//  Approve ko'paytirgichi — Settings sahifasidan o'qiladi.
-//  Qiymatlar: '1' (kerakli/exact), '10', '100', 'max' (cheksiz).
-//  Default: '1' (eng xavfsiz — har e'lon uchun aniq miqdor).
-// ════════════════════════════════════════════════════════════════════
-const APPROVE_MULT_STORAGE_KEY = 'nasiyasale_approve_multiplier';
-
-function loadApproveMultiplier() {
-  try {
-    const raw = localStorage.getItem(APPROVE_MULT_STORAGE_KEY);
-    if (raw === null) return '1';
-    if (raw === 'max' || raw === '1' || raw === '10' || raw === '100') {
-      return raw;
-    }
-    return '1';
-  } catch {
-    return '1';
-  }
+function isSameAddress(a, b) {
+  if (!a || !b) return false;
+  return a.toLowerCase() === b.toLowerCase();
 }
 
 export function Web3Provider({ children }) {
@@ -67,7 +37,6 @@ export function Web3Provider({ children }) {
   const [account, setAccount] = useState(null);
   const [chainId, setChainId] = useState(null);
   const [contract, setContract] = useState(null);
-  const [contract, setReadOnlyContract] = useState(null);
   const [tokens, setTokens] = useState({});
   const [connecting, setConnecting] = useState(false);
   const [walletType, setWalletType] = useState(null);
@@ -75,93 +44,30 @@ export function Web3Provider({ children }) {
 
   const wcProviderRef = useRef(null);
   const disconnectingRef = useRef(false);
-
-  // Approval/request osilib qolsa boshqarish uchun
-  const actionAbortRef = useRef(false);
-  const activeToastRef = useRef(null);
-
-  // walletType state'idan tashqari ref ham — callback'larda eng yangi qiymat uchun
   const walletTypeRef = useRef(null);
-
-  useEffect(() => {
-    walletTypeRef.current = walletType;
-  }, [walletType]);
 
   const isCorrectNetwork = chainId === OP_MAINNET.chainId;
 
   const clearWalletSessionStorage = useCallback(async () => {
     try {
-      const shouldRemove = (key) => {
-        const k = String(key || '').toLowerCase();
-
-        return (
-          k.includes('walletconnect') ||
-          k.includes('wc@') ||
-          k.includes('wagmi') ||
-          k.includes('web3modal') ||
-          k.includes('coinbasewallet') ||
-          k.includes('metamask') ||
-          k.includes('recentwallet') ||
-          k.includes('connectedwallet') ||
-          k.includes('wcm') ||
-          k.includes('walletlink') ||
-          k.includes('@walletconnect') ||
-          k.includes('wc_')
-        );
-      };
-
-      const localKeys = [];
-      for (let i = 0; i < localStorage.length; i += 1) {
-        const key = localStorage.key(i);
-        if (shouldRemove(key)) localKeys.push(key);
-      }
-      localKeys.forEach((key) => localStorage.removeItem(key));
-
-      const sessionKeys = [];
-      for (let i = 0; i < sessionStorage.length; i += 1) {
-        const key = sessionStorage.key(i);
-        if (shouldRemove(key)) sessionKeys.push(key);
-      }
-      sessionKeys.forEach((key) => sessionStorage.removeItem(key));
-
-      if (window.indexedDB && indexedDB.databases) {
-        try {
-          const dbs = await indexedDB.databases();
-
-          await Promise.all(
-            dbs
-              .filter((db) => shouldRemove(db.name))
-              .map(
-                (db) =>
-                  new Promise((resolve) => {
-                    const req = indexedDB.deleteDatabase(db.name);
-                    req.onsuccess = () => resolve(true);
-                    req.onerror = () => resolve(false);
-                    req.onblocked = () => resolve(false);
-                  })
-              )
-          );
-        } catch (e) {
-          console.warn('IndexedDB cleanup failed:', e);
+      if (walletTypeRef.current === 'walletconnect') {
+        const wc = wcProviderRef.current;
+        if (wc && typeof wc.disconnect === 'function') {
+          await wc.disconnect().catch(() => {});
         }
+        wcProviderRef.current = null;
       }
-
-      console.log('Wallet session storage cleared:', {
-        local: localKeys,
-        session: sessionKeys,
+      Object.keys(window.sessionStorage).forEach((k) => {
+        if (k.startsWith('walletlink') || k.startsWith('WALLETCONNECT') || k.startsWith('wc@')) {
+          window.sessionStorage.removeItem(k);
+        }
       });
-    } catch (e) {
-      console.warn('clearWalletSessionStorage failed:', e);
-    }
-  }, []);
-
-  useEffect(() => {
-    try {
-      const roContract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, roProvider);
-      setReadOnlyContract(roContract);
-    } catch (e) {
-      console.error('read-only contract init:', e);
-    }
+      Object.keys(window.localStorage).forEach((k) => {
+        if (k.startsWith('walletlink') || k.startsWith('WALLETCONNECT') || k.startsWith('wc@')) {
+          window.localStorage.removeItem(k);
+        }
+      });
+    } catch (_) {}
   }, []);
 
   const initContracts = useCallback((signerOrProvider) => {
@@ -172,26 +78,19 @@ export function Web3Provider({ children }) {
     for (const key of ALL_TOKENS) {
       tc[key] = new ethers.Contract(TOKEN_ADDRESSES[key], ERC20_ABI, signerOrProvider);
     }
-
-    setTokens(tc);
     return { c, tokenContracts: tc };
   }, []);
 
   const fetchBalances = useCallback(async (addr, tokenContracts) => {
     if (!addr || !tokenContracts) return;
-
     try {
       const results = await Promise.all(
         ALL_TOKENS.map((k) => tokenContracts[k].balanceOf(addr))
       );
-
       const bals = {};
       ALL_TOKENS.forEach((k, i) => {
-        const raw = results[i];
-const dec = TOKEN_DECIMALS[k];
-bals[k] = ethers.formatUnits(raw, dec);
-});
-
+        bals[k] = ethers.formatUnits(results[i], TOKEN_DECIMALS[k]);
+      });
       setWalletBalances(bals);
     } catch (e) {
       console.error('fetchBalances:', e);
@@ -199,116 +98,57 @@ bals[k] = ethers.formatUnits(raw, dec);
   }, []);
 
   const requestSwitchToOptimism = useCallback(async (walletProvider) => {
-    if (!walletProvider?.request) {
-      toast.error('Wallet provider topilmadi');
-      return false;
-    }
-
     try {
       await walletProvider.request({
         method: 'wallet_switchEthereumChain',
-        params: [{ chainId: OP_CHAIN_HEX }],
+        params: [{ chainId: '0xa' }],
       });
-
       return true;
-    } catch (err) {
-      const code = err?.code;
-      const msg = String(err?.message || '').toLowerCase();
-
-      if (
-        code === 4902 ||
-        msg.includes('unrecognized chain') ||
-        msg.includes('not added') ||
-        msg.includes('unknown chain')
-      ) {
+    } catch (switchError) {
+      if (switchError.code === 4902) {
         try {
           await walletProvider.request({
             method: 'wallet_addEthereumChain',
-            params: [OP_CHAIN_PARAMS],
+            params: [{
+              chainId: '0xa',
+              chainName: 'OP Mainnet',
+              nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+              rpcUrls: ['https://mainnet.optimism.io'],
+              blockExplorerUrls: ['https://optimistic.etherscan.io'],
+            }],
           });
-
-          await walletProvider.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: OP_CHAIN_HEX }],
-          });
-
           return true;
-        } catch (addErr) {
-          console.error('add/switch Optimism error:', addErr);
-          toast.error('Optimism Mainnet qo‘shish yoki ulash rad etildi');
+        } catch (addError) {
+          toast.error("Optimism tarmog'ini qo'shish rad etildi");
           return false;
         }
       }
-
-      if (code === 4001 || msg.includes('rejected') || msg.includes('denied')) {
-        toast.error('Optimism Mainnetga o‘tish rad etildi');
-        return false;
-      }
-
-      console.error('switch Optimism error:', err);
-      toast.error('Optimism Mainnetga avtomatik o‘tib bo‘lmadi');
+      toast.error("Optimism tarmog'iga o'tish rad etildi");
       return false;
     }
   }, []);
 
-  const switchToOptimism = useCallback(async () => {
-    if (!window.ethereum) {
-      toast.error('MetaMask topilmadi');
-      return false;
-    }
-
-    return requestSwitchToOptimism(window.ethereum);
-  }, [requestSwitchToOptimism]);
-
-  // ════════════════════════════════════════════════════════════════════
-  //  openWalletForRequest — mobil walletni oldinga chiqarish
-  //
-  //  Mobil brauzerda WalletConnect sessiyasi bo'lsa, har bir
-  //  eth_sendTransaction / eth_signTypedData / wallet_switchEthereumChain
-  //  chaqiruvidan oldin foydalanuvchini wallet ilovasiga olib o'tish kerak.
-  //  Aks holda popup wallet ichida ko'rinmaydi va foydalanuvchi
-  //  "hech narsa bo'lmadi" deb o'ylaydi.
-  //
-  //  WalletConnect v2 sessiyasi peer (wallet) metadata'sida
-  //  redirect.native deep-link sxemasini qaytaradi
-  //  (masalan "metamask://", "trust://", "rainbow://").
-  //  Universal link mavjud bo'lsa (redirect.universal) — undan foydalanamiz.
-  // ════════════════════════════════════════════════════════════════════
   const openWalletForRequest = useCallback(() => {
     if (!isMobile()) return;
     if (walletTypeRef.current !== 'walletconnect') return;
-
     const wc = wcProviderRef.current;
     if (!wc) return;
-
     try {
       const peerMeta =
         wc.session?.peer?.metadata ||
         wc.signer?.session?.peer?.metadata ||
-        null;
-
-      const redirect = peerMeta?.redirect || {};
-      const native = redirect.native;     // "metamask://", "trust://", ...
-      const universal = redirect.universal; // "https://metamask.app.link", ...
-
-      // Universal linkni afzal ko'ramiz — iOS/Android'da ishonchli ishlaydi.
-      // Native sxemasi (metamask://) iOS Safari'da ba'zan bloklanadi.
+        {};
+      const { native, universal } = peerMeta.redirect || {};
       let target = null;
-
       if (universal) {
         target = universal.endsWith('/') ? universal : universal + '/';
       } else if (native) {
         target = native;
       }
-
       if (!target) {
         console.warn('openWalletForRequest: peer redirect topilmadi', peerMeta);
         return;
       }
-
-      // window.location.href sahifani buzadi — buning o'rniga
-      // a[target=_self] click'ini simulyatsiya qilamiz; mobile OS uni
-      // wallet deep-link sifatida tushunadi va sahifa state'i saqlanib qoladi.
       const a = document.createElement('a');
       a.href = target;
       a.target = '_self';
@@ -322,266 +162,82 @@ bals[k] = ethers.formatUnits(raw, dec);
     }
   }, []);
 
-
-  // ════════════════════════════════════════════════════════════════════
-  //  ensureCorrectChain — TRANSAKSIYA YUBORISHDAN OLDIN HAR DOIM CHAQIRING
-  //
-  //  Muammo: WalletConnect mobile session'larda MetaMask/Trust ba'zan UI'da
-  //  Optimism'ni ko'rsatadi, lekin ichki provider chainId'si Ethereum
-  //  (1) bo'lib qoladi. React state'dagi `chainId` `chainChanged` event'siz
-  //  yangilanmaydi va biz transaksiyani jo'natganda wallet o'zining hozirgi
-  //  (noto'g'ri) tarmog'ida tasdiq so'raydi.
-  //
-  //  Yechim: har transaksiyadan oldin wallet'dan to'g'ridan-to'g'ri
-  //  `eth_chainId` so'rab, kerak bo'lsa avval switch qilamiz, kutamiz,
-  //  va provider/signer'ni qaytadan yaratamiz.
-  // ════════════════════════════════════════════════════════════════════
   const ensureCorrectChain = useCallback(async () => {
-    const wt = walletTypeRef.current;
-
-    if (wt === 'readonly' || !wt) {
-      return false;
-    }
-
-    let walletProvider = null;
-
-    if (wt === 'walletconnect' && wcProviderRef.current) {
-      walletProvider = wcProviderRef.current;
-    } else if (wt === 'metamask' && window.ethereum) {
-      walletProvider = window.ethereum;
-    } else {
-      throw new Error('Wallet provider topilmadi. Qayta ulang.');
-    }
-
-    // Wallet'dan to'g'ridan-to'g'ri chainId so'rash (state cache emas)
-    let currentChainId;
-    try {
-      const currentChainHex = await walletProvider.request({ method: 'eth_chainId' });
-      currentChainId =
-        typeof currentChainHex === 'string'
-          ? parseInt(currentChainHex, 16)
-          : Number(currentChainHex);
-    } catch (e) {
-      console.error("eth_chainId so'rab bo'lmadi:", e);
-      throw new Error("Wallet bilan aloqa yo'q. Qayta ulang.");
-    }
-
-    // Allaqachon Optimism'da
-    if (currentChainId === OP_MAINNET.chainId) {
+    if (!provider) throw new Error('Provider topilmadi');
+    const currentChainId = await provider.request({ method: 'eth_chainId' });
+    if (parseInt(currentChainId, 16) === OP_MAINNET.chainId) {
       if (chainId !== OP_MAINNET.chainId) {
         setChainId(OP_MAINNET.chainId);
       }
       return true;
     }
-
-    // Boshqa tarmoqda — switch qilish kerak
     const tid = toast.loading(
       `Wallet ${currentChainId} tarmog'ida. Optimism'ga o'tkazilmoqda...`
     );
-
-    // Mobile WalletConnect bo'lsa, switch popup'i wallet ichida ko'rinishi uchun
     openWalletForRequest();
-
-    const switched = await requestSwitchToOptimism(walletProvider);
-
+    const switched = await requestSwitchToOptimism(provider);
     if (!switched) {
       toast.error("Optimism Mainnet'ga o'ting", { id: tid });
       throw new Error("Optimism Mainnet'ga o'ting");
     }
-
-    // Switch'dan keyin wallet'ga vaqt beramiz (ayniqsa mobile'da)
     await new Promise((r) => setTimeout(r, 800));
-
-    // Yangi chainId'ni tasdiqlash
-    let newChainId;
-    try {
-      const newChainHex = await walletProvider.request({ method: 'eth_chainId' });
-      newChainId =
-        typeof newChainHex === 'string'
-          ? parseInt(newChainHex, 16)
-          : Number(newChainHex);
-    } catch (e) {
-      toast.error("Tarmoqni tekshirib bo'lmadi", { id: tid });
-      throw new Error("Tarmoqni tekshirib bo'lmadi");
-    }
-
-    if (newChainId !== OP_MAINNET.chainId) {
+    const newChainId = await provider.request({ method: 'eth_chainId' });
+    const newCid = parseInt(newChainId, 16);
+    setChainId(newCid);
+    if (newCid !== OP_MAINNET.chainId) {
       toast.error("Wallet hali ham Optimism'da emas. Qo'lda o'ting.", { id: tid });
       throw new Error("Wallet hali ham Optimism'da emas");
     }
-
-    // Provider va signer'ni yangi tarmoq uchun qayta yaratamiz
-    try {
-      const newP = new ethers.BrowserProvider(walletProvider);
-      const newS = await newP.getSigner();
-      const newAddr = await newS.getAddress();
-
-      setProvider(newP);
-      setSigner(newS);
-      setAccount(newAddr);
-      setChainId(OP_MAINNET.chainId);
-
-      const { tokenContracts } = initContracts(newS);
-      await fetchBalances(newAddr, tokenContracts);
-    } catch (e) {
-      console.error('Provider qayta yaratishda xato:', e);
-      toast.error("Wallet'ni qayta ulang", { id: tid });
-      throw new Error("Wallet'ni qayta ulang");
-    }
-
     toast.success("Optimism'ga o'tildi", { id: tid });
     return true;
-  }, [chainId, requestSwitchToOptimism, initContracts, fetchBalances]);
-
-  const disconnect = useCallback(
-    async (options = {}) => {
-      const { reload = false, silent = false } = options;
-
-      if (disconnectingRef.current) return;
-      disconnectingRef.current = true;
-
-      try {
-        actionAbortRef.current = true;
-
-        if (activeToastRef.current) {
-          toast.dismiss(activeToastRef.current);
-          activeToastRef.current = null;
-        }
-
-        toast.dismiss();
-
-        if (window.ethereum && walletType === 'metamask') {
-          try {
-            await window.ethereum.request({
-              method: 'wallet_revokePermissions',
-              params: [{ eth_accounts: {} }],
-            });
-          } catch (e) {
-            // Ba'zi mobile walletlar revokePermissions qo'llamaydi
-          }
-        }
-
-        if (wcProviderRef.current) {
-          try {
-            wcProviderRef.current.removeAllListeners?.();
-          } catch (e) {}
-
-          try {
-            await wcProviderRef.current.disconnect?.();
-          } catch (e) {}
-
-          try {
-            await wcProviderRef.current.close?.();
-          } catch (e) {}
-
-          wcProviderRef.current = null;
-        }
-
-        await clearWalletSessionStorage();
-
-        setProvider(null);
-        setSigner(null);
-        setAccount(null);
-        setChainId(null);
-        setContract(null);
-        setTokens({});
-        setWalletType(null);
-        setWalletBalances(emptyBals());
-
-        if (!silent) {
-          toast.success('Wallet uzildi');
-        }
-
-        if (reload) {
-          setTimeout(() => {
-            window.location.reload();
-          }, 300);
-        }
-      } finally {
-        disconnectingRef.current = false;
-      }
-    },
-    [walletType, clearWalletSessionStorage]
-  );
-
-  // ====================================================================
-  //  resetWalletConnection — muzlagan WC sessiyani toza disconnect qilish
-  //
-  //  Foydalanuvchi tugmasi orqali chaqiriladi. Hozirgi WC sessiyani
-  //  to'liq tozalaydi va sahifani yangilaydi. Sekin internet yoki
-  //  qotgan sessiyada foydali.
-  // ====================================================================
-  const resetWalletConnection = useCallback(async () => {
-    toast.loading("Wallet sessiyasi tozalanmoqda...", { duration: 1500 });
-    await disconnect({ reload: true, silent: true });
-  }, [disconnect]);
+  }, [provider, chainId, requestSwitchToOptimism, openWalletForRequest]);
 
   const connectMetaMask = useCallback(async () => {
-    if (!window.ethereum) {
-      toast.error('MetaMask topilmadi!');
-      return false;
-    }
-
     setConnecting(true);
-
+    const tid = toast.loading('MetaMask ulanmoqda...');
     try {
-      actionAbortRef.current = false;
-
-      const p = new ethers.BrowserProvider(window.ethereum);
-
-      await p.send('eth_requestAccounts', []);
-
-      const s = await p.getSigner();
-      const addr = await s.getAddress();
-      const net = await p.getNetwork();
-      const cid = Number(net.chainId);
-
-      setProvider(p);
+      if (!window.ethereum) {
+        toast.error('MetaMask topilmadi. Iltimos, MetaMask o‘rnating.', { id: tid });
+        return;
+      }
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      const addr = ethers.getAddress(accounts[0]);
+      const s = new ethers.BrowserProvider(window.ethereum).getSigner();
       setSigner(s);
       setAccount(addr);
-      setChainId(cid);
+      setProvider(window.ethereum);
       setWalletType('metamask');
+      walletTypeRef.current = 'metamask';
+
+      const cid = await window.ethereum.request({ method: 'eth_chainId' });
+      const numCid = parseInt(cid, 16);
+      setChainId(numCid);
 
       const { tokenContracts } = initContracts(s);
+      setTokens(tokenContracts);
 
-      if (cid !== OP_MAINNET.chainId) {
+      if (numCid !== OP_MAINNET.chainId) {
         const switched = await requestSwitchToOptimism(window.ethereum);
-
         if (switched) {
-          // Switch'dan keyin wallet'ga vaqt beramiz
           await new Promise((r) => setTimeout(r, 500));
-
-          const newP = new ethers.BrowserProvider(window.ethereum);
-          const newS = await newP.getSigner();
-          const newNet = await newP.getNetwork();
-          const newCid = Number(newNet.chainId);
-
-          setProvider(newP);
+          const newS = new ethers.BrowserProvider(window.ethereum).getSigner();
           setSigner(newS);
-          setChainId(newCid);
-
-          if (newCid === OP_MAINNET.chainId) {
+          const newCid = await window.ethereum.request({ method: 'eth_chainId' });
+          const nc = parseInt(newCid, 16);
+          setChainId(nc);
+          if (nc === OP_MAINNET.chainId) {
             const { tokenContracts: tc } = initContracts(newS);
+            setTokens(tc);
             await fetchBalances(addr, tc);
-            toast.success('Optimism Mainnetga ulandi');
-          } else {
-            toast.error('Optimism Mainnetga o‘ting');
           }
         }
       } else {
         await fetchBalances(addr, tokenContracts);
       }
-
-      toast.success('Wallet ulandi!');
-      return true;
+      toast.success('Wallet ulandi!', { id: tid });
     } catch (e) {
-      console.error('MetaMask connect error:', e);
-
-      if (!String(e?.message || '').toLowerCase().includes('rejected')) {
-        toast.error('Ulanishda xato');
-      }
-
-      return false;
+      console.error('MetaMask ulanish xatosi:', e);
+      toast.error(e?.shortMessage || e?.message || 'Ulanishda xato', { id: tid });
     } finally {
       setConnecting(false);
     }
@@ -589,340 +245,122 @@ bals[k] = ethers.formatUnits(raw, dec);
 
   const connectWalletConnect = useCallback(async () => {
     setConnecting(true);
-
     try {
-      actionAbortRef.current = false;
-
-      await clearWalletSessionStorage();
-
-      if (wcProviderRef.current) {
-        try {
-          wcProviderRef.current.removeAllListeners?.();
-        } catch (e) {}
-
-        try {
-          await wcProviderRef.current.disconnect?.();
-        } catch (e) {}
-
-        try {
-          await wcProviderRef.current.close?.();
-        } catch (e) {}
-
-        wcProviderRef.current = null;
-      }
-
-      const { EthereumProvider } = await import('@walletconnect/ethereum-provider');
-
-      // ⚠️ MUHIM: faqat Optimism (chainId=10) so'raymiz.
-      // Ethereum mainnet'ni optionalChains'dan olib tashladik —
-      // shunda wallet o'zicha Ethereum'ga qaytib qolmaydi.
-      const wcProvider = await EthereumProvider.init({
+      const WalletConnectProvider = (await import('@walletconnect/ethereum-provider')).default;
+      const wc = await WalletConnectProvider.init({
         projectId: WC_PROJECT_ID,
         chains: [10],
-        optionalChains: [10],
+        optionalChains: [],
         showQrModal: true,
-
-        methods: [
-          'eth_sendTransaction',
-          'eth_signTransaction',
-          'personal_sign',
-          'eth_sign',
-          'eth_signTypedData',
-          'eth_signTypedData_v4',
-          'wallet_switchEthereumChain',
-          'wallet_addEthereumChain',
-        ],
-
-        optionalMethods: [
-          'eth_signTypedData_v3',
-          'wallet_getPermissions',
-          'wallet_requestPermissions',
-        ],
-
-        events: ['chainChanged', 'accountsChanged'],
-        optionalEvents: ['connect', 'disconnect', 'session_update', 'session_delete'],
-
-        qrModalOptions: {
-          themeMode: 'dark',
-          themeVariables: {
-            '--wcm-z-index': '99999',
-          },
-          explorerRecommendedWalletIds: [
-            '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0',
-            'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96',
-            'fd20dc426fb37566d803205b19bbc1d4096b248ac04548e18e50c9403f29e418',
-          ],
-        },
-
-        metadata: {
-          name: 'NasiyaSale',
-          description: 'DUR token credit trading platform',
-          url: window.location.origin,
-          icons: [`${window.location.origin}/favicon.ico`],
-        },
-
         rpcMap: {
-          10: 'https://optimism.publicnode.com',
+          10: 'https://mainnet.optimism.io',
         },
       });
-
-      wcProvider.on('display_uri', (uri) => {
-        console.log('WC URI generated:', uri ? 'yes' : 'no');
-        // Mobil deep-link WalletConnect modal'i tomonidan boshqariladi.
-        // Bu yerda qo'lda window.location.href qilmaymiz — chunki bu
-        // sahifani boshqa joyga yo'naltirib, WC session muloqotini buzadi.
-      });
-
-      const enableTimeout = isMobile() ? 120000 : 60000;
-
-      const enablePromise = wcProvider.enable();
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('WalletConnect timeout')), enableTimeout);
-      });
-
-      await Promise.race([enablePromise, timeoutPromise]);
-
-      wcProviderRef.current = wcProvider;
-
-      let p = new ethers.BrowserProvider(wcProvider);
-      let s = await p.getSigner();
-      let addr = await s.getAddress();
-      let net = await p.getNetwork();
-      let cid = Number(net.chainId);
-
-      setProvider(p);
+      wcProviderRef.current = wc;
+      walletTypeRef.current = 'walletconnect';
+      await wc.enable();
+      const accounts = wc.accounts;
+      if (!accounts || accounts.length === 0) {
+        toast.error('WalletConnect hisob topilmadi');
+        return;
+      }
+      const addr = ethers.getAddress(accounts[0]);
+      const s = new ethers.BrowserProvider(wc).getSigner();
       setSigner(s);
       setAccount(addr);
-      setChainId(cid);
+      setProvider(wc);
       setWalletType('walletconnect');
-      walletTypeRef.current = 'walletconnect';
 
-      let { tokenContracts } = initContracts(s);
+      const cid = await wc.request({ method: 'eth_chainId' });
+      const numCid = parseInt(cid, 16);
+      setChainId(numCid);
 
-      if (cid !== OP_MAINNET.chainId) {
-        const switched = await requestSwitchToOptimism(wcProvider);
+      const { tokenContracts } = initContracts(s);
+      setTokens(tokenContracts);
 
+      if (numCid !== OP_MAINNET.chainId) {
+        const switched = await requestSwitchToOptimism(wc);
         if (switched) {
-          // Switch'dan keyin vaqt beramiz
-          await new Promise((r) => setTimeout(r, 800));
-
-          p = new ethers.BrowserProvider(wcProvider);
-          s = await p.getSigner();
-          addr = await s.getAddress();
-          net = await p.getNetwork();
-          cid = Number(net.chainId);
-
-          setProvider(p);
-          setSigner(s);
-          setAccount(addr);
-          setChainId(cid);
-
-          const next = initContracts(s);
-          tokenContracts = next.tokenContracts;
-
-          if (cid === OP_MAINNET.chainId) {
-            await fetchBalances(addr, tokenContracts);
-            toast.success('Optimism Mainnetga ulandi');
-          } else {
-            toast.error('Optimism Mainnetga o‘ting');
+          await new Promise((r) => setTimeout(r, 500));
+          const newS = new ethers.BrowserProvider(wc).getSigner();
+          setSigner(newS);
+          const newCid = await wc.request({ method: 'eth_chainId' });
+          const nc = parseInt(newCid, 16);
+          setChainId(nc);
+          if (nc === OP_MAINNET.chainId) {
+            const { tokenContracts: tc } = initContracts(newS);
+            setTokens(tc);
+            await fetchBalances(addr, tc);
           }
-        } else {
-          toast.error('Optimism Mainnetga o‘tmasdan savdo qilib bo‘lmaydi');
         }
       } else {
         await fetchBalances(addr, tokenContracts);
       }
+      toast.success('WalletConnect ulandi!');
+    } catch (e) {
+      console.error('WalletConnect ulanish xatosi:', e);
+      toast.error(e?.shortMessage || e?.message || 'Ulanishda xato');
+    } finally {
+      setConnecting(false);
+    }
+  }, [initContracts, fetchBalances, requestSwitchToOptimism]);
 
-      wcProvider.on('accountsChanged', async (accounts) => {
-        if (!accounts || accounts.length === 0) {
-          disconnect({ reload: true, silent: true });
-          return;
-        }
-
-        try {
-          const newP = new ethers.BrowserProvider(wcProvider);
-          const newS = await newP.getSigner();
-          const newAddr = await newS.getAddress();
-          const newNet = await newP.getNetwork();
-          const newCid = Number(newNet.chainId);
-
-          setProvider(newP);
-          setSigner(newS);
-          setAccount(newAddr);
-          setChainId(newCid);
-
-          const { tokenContracts: tc } = initContracts(newS);
-
-          if (newCid !== OP_MAINNET.chainId) {
-            await requestSwitchToOptimism(wcProvider);
-          } else {
-            await fetchBalances(newAddr, tc);
-          }
-        } catch (e) {
-          console.error('WC accountsChanged error:', e);
-          disconnect({ reload: true, silent: true });
-        }
-      });
-
-      wcProvider.on('chainChanged', async (chainIdHex) => {
-        const newCid =
-          typeof chainIdHex === 'string' ? parseInt(chainIdHex, 16) : Number(chainIdHex);
-
-        setChainId(newCid);
-
-        if (newCid !== OP_MAINNET.chainId) {
-          toast.error('Optimism Mainnetga o‘ting');
-          return;
-        }
-
-        try {
-          const newP = new ethers.BrowserProvider(wcProvider);
-          const newS = await newP.getSigner();
-          const newAddr = await newS.getAddress();
-
-          setProvider(newP);
-          setSigner(newS);
-          setAccount(newAddr);
-
-          const { tokenContracts: tc } = initContracts(newS);
-          await fetchBalances(newAddr, tc);
-        } catch (e) {
-          console.error('WC chainChanged refresh error:', e);
-        }
-      });
-
-      wcProvider.on('disconnect', (error) => {
-        console.log('WC disconnected:', error?.message || 'user initiated');
-        disconnect({ reload: true, silent: true });
-      });
-
-      wcProvider.on('session_delete', () => {
-        console.log('WC session deleted');
-        disconnect({ reload: true, silent: true });
-      });
-
-      // ====================================================================
-      // Session ping — WC sessiyani har 30 soniyada tekshirib turish.
-      // Internet o'chgan yoki wallet ilovasini yopgan paytlarda sessiya
-      // muzlab qoladi va keyingi transaction so'rovlari javob bermaydi.
-      // Ping muvaffaqiyatsiz bo'lsa, foydalanuvchini ogohlantirib, sahifani
-      // tiklash kerakligini bildiramiz.
-      // ====================================================================
-      let pingFailCount = 0;
-      const pingInterval = setInterval(async () => {
-        if (!wcProviderRef.current || wcProviderRef.current !== wcProvider) {
-          clearInterval(pingInterval);
-          return;
-        }
-        try {
-          // eth_chainId — eng yengil RPC chaqiruvi, faqat session aktivligini
-          // tekshiradi (wallet ilovasini ochmaydi).
-          await Promise.race([
-            wcProvider.request({ method: 'eth_chainId' }),
-            new Promise((_, rej) => setTimeout(() => rej(new Error('ping timeout')), 8000)),
-          ]);
-          pingFailCount = 0;
-        } catch (e) {
-          pingFailCount += 1;
-          console.warn(`WC ping fail #${pingFailCount}:`, e?.message || e);
-          if (pingFailCount >= 3) {
-            clearInterval(pingInterval);
-            toast.error(
-              "Wallet sessiyasi muzlagan. \"Wallet\" tugmasi orqali qayta ulang.",
-              { duration: 6000 }
-            );
-            try {
-              await disconnect({ reload: false, silent: true });
-            } catch (_) {}
-          }
-        }
-      }, 30000);
-
-      // Sessiyani yopilganda intervalni tozalash
-      wcProvider.on('disconnect', () => clearInterval(pingInterval));
-      wcProvider.on('session_delete', () => clearInterval(pingInterval));
-
-      toast.success('Wallet ulandi!');
+  const connectByAddress = useCallback(async (address) => {
+    setConnecting(true);
+    try {
+      const p = new ethers.JsonRpcProvider('https://mainnet.optimism.io');
+      setProvider(p);
+      setSigner(null);
+      setAccount(ethers.getAddress(address));
+      setChainId(OP_MAINNET.chainId);
+      setWalletType('readonly');
+      const { tokenContracts } = initContracts(p);
+      setTokens(tokenContracts);
+      await fetchBalances(address, tokenContracts);
       return true;
     } catch (e) {
-      console.error('WalletConnect error:', e);
-
-      if (wcProviderRef.current) {
-        try {
-          wcProviderRef.current.removeAllListeners?.();
-        } catch (_) {}
-
-        try {
-          await wcProviderRef.current.disconnect?.();
-        } catch (_) {}
-
-        try {
-          await wcProviderRef.current.close?.();
-        } catch (_) {}
-
-        wcProviderRef.current = null;
-      }
-
-      await clearWalletSessionStorage();
-
-      const msg = String(e?.message || '');
-
-      if (
-        msg.includes('rejected') ||
-        msg.includes('dismissed') ||
-        msg.includes('User closed') ||
-        msg.includes('Connection request reset')
-      ) {
-        // Foydalanuvchi o'zi yopdi — xato ko'rsatmaslik
-      } else if (msg.includes('timeout')) {
-        toast.error("Ulanish vaqti tugadi. Qaytadan urinib ko'ring.");
-      } else {
-        toast.error("WalletConnect ulanishda xato. Qaytadan urinib ko'ring.");
-      }
-
+      console.error('Read-only ulanish xatosi:', e);
+      toast.error('Manzil orqali ulanishda xato');
       return false;
     } finally {
       setConnecting(false);
     }
-  }, [
-    initContracts,
-    fetchBalances,
-    disconnect,
-    clearWalletSessionStorage,
-    requestSwitchToOptimism,
-  ]);
+  }, [initContracts, fetchBalances]);
 
-  const connectByAddress = useCallback(
-    async (address) => {
-      if (!ethers.isAddress(address)) {
-        toast.error("Noto'g'ri manzil!");
-        return false;
+  const disconnect = useCallback(async (options = {}) => {
+    if (disconnectingRef.current) return;
+    disconnectingRef.current = true;
+    const { silent = false, reload = false } = options;
+    try {
+      if (walletTypeRef.current === 'walletconnect') {
+        const wc = wcProviderRef.current;
+        if (wc && typeof wc.disconnect === 'function') {
+          try { await wc.disconnect(); } catch (_) {}
+        }
+        wcProviderRef.current = null;
       }
-
-      setConnecting(true);
-
-      try {
-
-        setProvider(p);
-        setSigner(null);
-        setAccount(address);
-        setChainId(10);
-        setWalletType('readonly');
-
-        const { tokenContracts } = initContracts(p);
-        await fetchBalances(address, tokenContracts);
-
-        return true;
-      } catch (e) {
-        console.error('connectByAddress:', e);
-        toast.error('Ulanishda xato');
-        return false;
-      } finally {
-        setConnecting(false);
+      await clearWalletSessionStorage();
+    } catch (e) {
+      console.error('disconnect error:', e);
+    } finally {
+      setProvider(null);
+      setSigner(null);
+      setAccount(null);
+      setChainId(null);
+      setContract(null);
+      setTokens({});
+      setWalletType(null);
+      setWalletBalances(emptyBals());
+      walletTypeRef.current = null;
+      disconnectingRef.current = false;
+      if (!silent) {
+        toast.success('Wallet uzildi');
       }
-    },
-    [initContracts, fetchBalances]
-  );
+      if (reload) {
+        window.location.reload();
+      }
+    }
+  }, [clearWalletSessionStorage]);
 
   const refreshBalances = useCallback(() => {
     fetchBalances(account, tokens);
@@ -930,337 +368,119 @@ bals[k] = ethers.formatUnits(raw, dec);
 
   useEffect(() => {
     if (!window.ethereum || walletType !== 'metamask') return undefined;
-
-    const onAccounts = async (accs) => {
-      if (!accs || accs.length === 0) {
-        disconnect({ reload: true, silent: true });
-        return;
-      }
-
+    const onAccountsChanged = async (accounts) => {
       try {
-        const p = new ethers.BrowserProvider(window.ethereum);
-        const s = await p.getSigner();
-        const addr = await s.getAddress();
-        const net = await p.getNetwork();
-        const cid = Number(net.chainId);
-
-        setProvider(p);
-        setSigner(s);
+        if (!accounts || accounts.length === 0) {
+          disconnect({ silent: true, reload: true });
+          return;
+        }
+        const addr = ethers.getAddress(accounts[0]);
         setAccount(addr);
-        setChainId(cid);
-
+        const s = new ethers.BrowserProvider(window.ethereum).getSigner();
+        setSigner(s);
         const { tokenContracts } = initContracts(s);
-
-        if (cid !== OP_MAINNET.chainId) {
-          await requestSwitchToOptimism(window.ethereum);
-        } else {
+        setTokens(tokenContracts);
+        const cid = await window.ethereum.request({ method: 'eth_chainId' });
+        const nc = parseInt(cid, 16);
+        setChainId(nc);
+        if (nc === OP_MAINNET.chainId) {
           await fetchBalances(addr, tokenContracts);
         }
       } catch (e) {
         console.error('accountsChanged error:', e);
-        disconnect({ reload: true, silent: true });
       }
     };
-
-    const onChain = async (chainIdHex) => {
-      const cid =
-        typeof chainIdHex === 'string' ? parseInt(chainIdHex, 16) : Number(chainIdHex);
-
-      setChainId(cid);
-
-      if (cid !== OP_MAINNET.chainId) {
-        toast.error('Optimism Mainnetga o‘ting');
-        return;
-      }
-
+    const onChainChanged = async (chainIdHex) => {
       try {
-        const p = new ethers.BrowserProvider(window.ethereum);
-        const s = await p.getSigner();
-        const addr = await s.getAddress();
-
-        setProvider(p);
+        const nc = parseInt(chainIdHex, 16);
+        setChainId(nc);
+        const addr = account;
+        if (!addr) return;
+        const s = new ethers.BrowserProvider(window.ethereum).getSigner();
         setSigner(s);
-        setAccount(addr);
-
         const { tokenContracts } = initContracts(s);
-        await fetchBalances(addr, tokenContracts);
+        setTokens(tokenContracts);
+        if (nc === OP_MAINNET.chainId) {
+          await fetchBalances(addr, tokenContracts);
+        }
       } catch (e) {
         console.error('chainChanged refresh error:', e);
       }
     };
-
-    window.ethereum.on('accountsChanged', onAccounts);
-    window.ethereum.on('chainChanged', onChain);
-
+    window.ethereum.on('accountsChanged', onAccountsChanged);
+    window.ethereum.on('chainChanged', onChainChanged);
     return () => {
-      window.ethereum.removeListener('accountsChanged', onAccounts);
-      window.ethereum.removeListener('chainChanged', onChain);
+      window.ethereum.removeListener('accountsChanged', onAccountsChanged);
+      window.ethereum.removeListener('chainChanged', onChainChanged);
     };
-  }, [walletType, disconnect, initContracts, fetchBalances, requestSwitchToOptimism]);
+  }, [walletType, disconnect, initContracts, fetchBalances, account]);
 
-  useEffect(() => {
-    return () => {
-      if (wcProviderRef.current) {
-        try {
-          wcProviderRef.current.removeAllListeners?.();
-        } catch (e) {}
-      }
-    };
-  }, []);
+  // ====== Approve / Revoke ======
+  const activeToastRef = useRef(null);
+  const actionAbortRef = useRef(false);
 
   const withTimeout = (promise, ms, message) => {
     return Promise.race([
       promise,
-      new Promise((_, reject) => {
-        setTimeout(() => reject(new Error(message || 'Request timeout')), ms);
-      }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error(message)), ms)
+      ),
     ]);
   };
 
-  // ════════════════════════════════════════════════════════════════════
-  //  ensureApproval — token approve qilish.
-  //
-  //  Mobile WalletConnect sessiyada ba'zan tx.wait() javob bermay turadi
-  //  (WC bridge transaction'ni frontend'ga yetkazmaydi), garchi blockchain'da
-  //  approve allaqachon tasdiqlangan bo'lsa ham. Buni hal qilish uchun
-  //  tx.wait() bilan parallel ravishda har 3 soniyada allowance'ni qayta
-  //  o'qib turamiz. Qaysi birinchi muvaffaqiyatli bo'lsa — shu bilan davom
-  //  etamiz.
-  // ════════════════════════════════════════════════════════════════════
-  const ensureApproval = async (tokenKey, amountRaw) => {
-    const token = tokens[tokenKey];
-
-    if (!token || !account) {
-      throw new Error('Token topilmadi');
-    }
-
-    if (!signer) {
-      throw new Error('Wallet signer topilmadi. Qayta ulang.');
-    }
-
-    if (walletType === 'readonly') {
-      throw new Error("Faqat ko'rish rejimi");
-    }
-
-    if (disconnectingRef.current) {
-      throw new Error('Wallet uzilmoqda');
-    }
-
-    // Tarmoqni tasdiqlash
-    await ensureCorrectChain();
-
-    actionAbortRef.current = false;
-
-    // Signer yangilangan bo'lishi mumkin — qayta olamiz
+  const ensureApproval = useCallback(async (tokenKey, amountRaw) => {
+    if (!account || !signer) return true;
     const tokenWithSigner = tokens[tokenKey];
+    if (!tokenWithSigner) return true;
 
-    // MUHIM: allowance() faqat o'qish (view) chaqirig'i — uni signer'siz
-    // read-only RPC orqali bajaramiz. Aks holda ba'zi mobile walletlar
-    // (MetaMask Mobile, Trust Wallet) wallet popup'ini ochishi mumkin va
-    // foydalanuvchi bir necha marta approve tugmasini bosadi (har birida
-    // gaz to'lab).
-    const tokenContractAddress = await tokenWithSigner.getAddress();
     const tokenReadOnly = new ethers.Contract(
-      tokenContractAddress,
-      ['function allowance(address,address) view returns (uint256)'],
-      roProvider
+      await tokenWithSigner.getAddress(),
+      [
+        'function allowance(address,address) view returns (uint256)',
+      ],
+      signer.provider
     );
 
-    // Joriy allowance — agar yetarli bo'lsa, approve shart emas
     const initialAllowance = await tokenReadOnly.allowance(account, CONTRACT_ADDRESS);
+    if (initialAllowance >= amountRaw) return true;
 
-    if (initialAllowance >= amountRaw) {
-      return true;
-    }
-
-    // ====================================================================
-    //  Approve ko'paytirgichi (Settings sahifasidan)
-    //
-    //  Foydalanuvchi Settings'da tanlaydi: 1x (kerakli), 10x, 100x, Cheksiz.
-    //  approveAmount = amountRaw * multiplier. Cheksiz = MaxUint256.
-    //  Yuqori ko'paytirgich -> kelgusi e'lonlar uchun approve qayta
-    //  so'ralmaydi (gaz tejaydi), lekin kontraktga ko'proq ishonish kerak.
-    // ====================================================================
-    let approveAmount = amountRaw;
-    try {
-      const mult = loadApproveMultiplier(); // 1, 10, 100, yoki 'max'
-      if (mult === 'max') {
-        approveAmount = ethers.MaxUint256;
-      } else {
-        const m = BigInt(mult);
-        if (m > 1n) {
-          approveAmount = amountRaw * m;
-        }
-      }
-    } catch (_) {
-      approveAmount = amountRaw;
-    }
-
-    const tid = toast.loading(
-      `${tokenKey} uchun ruxsat so'ralmoqda... Wallet ilovasini tekshiring.`
-    );
+    const tid = toast.loading(`${tokenKey} uchun ruxsat so‘ralmoqda...`);
     activeToastRef.current = tid;
-
-    // Polling: har 3 soniyada allowance'ni qayta o'qib, yetarli bo'lsa
-    // muvaffaqiyat deb tan olamiz (tx.wait() WC bridge bilan muammoda
-    // bo'lsa ham, blockchain holatiga ishonamiz).
-    const pollAllowance = () => {
-      return new Promise((resolve, reject) => {
-        let cancelled = false;
-        const tick = async () => {
-          if (cancelled) return;
-          if (actionAbortRef.current || disconnectingRef.current) {
-            cancelled = true;
-            reject(new Error('Approval bekor qilindi'));
-            return;
-          }
-          try {
-            const current = await tokenReadOnly.allowance(account, CONTRACT_ADDRESS);
-            if (current >= amountRaw) {
-              cancelled = true;
-              resolve('polling');
-              return;
-            }
-          } catch (_) {
-            // RPC vaqtincha xato — keyingi tick'ga o'tamiz
-          }
-          if (!cancelled) {
-            setTimeout(tick, 3000);
-          }
-        };
-        // Birinchi tick'ni 3 soniyadan keyin boshlaymiz
-        // (approve hali yangi yuborilgan, darrov tekshirish ortiqcha)
-        setTimeout(tick, 3000);
-      });
-    };
-
     try {
-      // Mobile uchun wallet'ni oldinga chiqaramiz
+      const approveAmount = ethers.MaxUint256;
       openWalletForRequest();
-
-      // Approve tx yuborish — bu yer wallet popupini ko'rsatadi
-      // va foydalanuvchi imzolagandan keyin tx obyektini qaytaradi.
-      // Mobile WC'da bu 30-60 soniya olishi mumkin.
       const tx = await withTimeout(
         tokenWithSigner.connect(signer).approve(CONTRACT_ADDRESS, approveAmount),
         90000,
         `${tokenKey} approval oynasi chiqmadi yoki wallet javob bermadi`
       );
-
-      if (actionAbortRef.current || disconnectingRef.current) {
-        throw new Error('Approval bekor qilindi');
-      }
-
-      toast.loading(`${tokenKey} approval tasdiqlandi, blockchain kutilyapti...`, {
-        id: tid,
-      });
-
-      // tx.wait() va allowance polling parallel — qaysi birinchi tugasa
-      // shu bilan davom etamiz. 120 soniya umumiy timeout.
-      await withTimeout(
-        Promise.race([
-          tx.wait().catch((e) => {
-            // tx.wait() xato bersa polling davom etsin
-            console.warn(`${tokenKey} tx.wait failed, polling continues:`, e?.message || e);
-            return new Promise(() => {}); // hech qachon resolve qilmaydi
-          }),
-          pollAllowance(),
-        ]),
-        120000,
-        `${tokenKey} approval blockchain'da tasdiqlanmadi`
-      );
-
-      if (actionAbortRef.current || disconnectingRef.current) {
-        throw new Error('Approval bekor qilindi');
-      }
-
+      await withTimeout(tx.wait(), 90000, `${tokenKey} approval tasdiqlanmadi`);
       toast.success(`${tokenKey} ruxsat berildi`, { id: tid });
       activeToastRef.current = null;
       return true;
     } catch (e) {
-      // Xato bo'lganda ham allowance'ni yana bir bor tekshirib ko'ramiz —
-      // ehtimol blockchain'da approve o'tib ketgan, lekin frontend o'tkazib
-      // yuborgan.
-      try {
-        const finalCheck = await tokenReadOnly.allowance(account, CONTRACT_ADDRESS);
-        if (finalCheck >= amountRaw) {
-          toast.success(`${tokenKey} ruxsat berildi`, { id: tid });
-          activeToastRef.current = null;
-          return true;
-        }
-      } catch (_) {}
-
-      const msg = String(e?.reason || e?.message || e || '').toLowerCase();
-
-      if (
-        msg.includes('user rejected') ||
-        msg.includes('rejected') ||
-        msg.includes('denied')
-      ) {
-        toast.error(`${tokenKey} approval rad etildi`, { id: tid });
-      } else if (
-        msg.includes('approval bekor qilindi') ||
-        msg.includes('wallet uzilmoqda')
-      ) {
-        toast.dismiss(tid);
-      } else if (
-        msg.includes('approval oynasi chiqmadi') ||
-        msg.includes('wallet javob bermadi') ||
-        msg.includes('timeout')
-      ) {
-        toast.error(
-          `${tokenKey} approval oynasi chiqmadi. Walletni qayta ulang.`,
-          { id: tid }
-        );
-      } else if (msg.includes("blockchain'da tasdiqlanmadi")) {
-        toast.error(
-          `${tokenKey} approval blockchain'da tasdiqlanmadi. Wallet sessiyasini yangilang.`,
-          { id: tid }
-        );
+      const msg = (e?.message || '').toLowerCase();
+      if (msg.includes('rejected') || msg.includes('denied')) {
+        toast.error('Ruxsat rad etildi', { id: tid });
       } else {
-        toast.error(`${tokenKey} approval xato bo\u2018ldi`, { id: tid });
+        toast.error('Ruxsat olishda xato', { id: tid });
       }
-
       activeToastRef.current = null;
       throw e;
     }
-  };
+  }, [account, signer, tokens, openWalletForRequest]);
 
-  // ════════════════════════════════════════════════════════════════════
-  //  revokeAllApprovals — barcha tokenlar uchun kontraktga berilgan
-  //  approve'larni 0 ga tushiradi (bekor qiladi).
-  //
-  //  Smart: faqat allowance > 0 bo'lgan tokenlarni bekor qiladi (gaz
-  //  tejaydi). Allowance read-only RPC orqali tekshiriladi (popup ochmaydi).
-  //  Har token uchun approve(CONTRACT, 0) ketma-ket yuboriladi.
-  //  onProgress(done, total, tokenKey) — UI progress uchun chaqiriladi.
-  // ════════════════════════════════════════════════════════════════════
-  const revokeAllApprovals = async (onProgress) => {
-    if (!account) {
-      throw new Error('Wallet ulanmagan');
+  const revokeAllApprovals = useCallback(async (onProgress) => {
+    if (!account || !signer) throw new Error('Avval walletni ulang');
+    const tokenAddresses = {};
+    for (const key of ALL_TOKENS) {
+      tokenAddresses[key] = TOKEN_ADDRESSES[key];
     }
-    if (!signer) {
-      throw new Error('Wallet signer topilmadi. Qayta ulang.');
-    }
-    if (walletType === 'readonly') {
-      throw new Error("Faqat ko'rish rejimi");
-    }
-    if (disconnectingRef.current) {
-      throw new Error('Wallet uzilmoqda');
-    }
-
-    // Tarmoqni tasdiqlash
-    await ensureCorrectChain();
-
-    actionAbortRef.current = false;
-
-    // Read-only RPC orqali har token uchun allowance tekshiramiz
-
-    // 1-bosqich: qaysi tokenlarda allowance > 0 ekanini aniqlaymiz
+    const roProvider = signer.provider;
     const toRevoke = [];
     for (const tokenKey of ALL_TOKENS) {
       try {
-        const tokenAddr = TOKEN_ADDRESSES[tokenKey];
+        const tokenAddr = tokenAddresses[tokenKey];
         const roToken = new ethers.Contract(
           tokenAddr,
           ['function allowance(address,address) view returns (uint256)'],
@@ -1270,75 +490,42 @@ bals[k] = ethers.formatUnits(raw, dec);
         if (allowance > 0n) {
           toRevoke.push(tokenKey);
         }
-      } catch (e) {
-        console.warn(`${tokenKey} allowance tekshirishda xato:`, e?.message || e);
-      }
+      } catch (_) {}
     }
-
     if (toRevoke.length === 0) {
-      return { revoked: 0, total: 0, message: 'no_approvals' };
+      return { total: 0, revoked: 0, message: 'no_approvals' };
     }
-
-    // 2-bosqich: har birini ketma-ket bekor qilamiz (approve 0)
-    let done = 0;
     const total = toRevoke.length;
+    let done = 0;
+    let revoked = 0;
     const failed = [];
-
     for (const tokenKey of toRevoke) {
-      if (actionAbortRef.current || disconnectingRef.current) {
-        throw new Error('Bekor qilish to\'xtatildi');
-      }
-
+      if (actionAbortRef.current) break;
       try {
         if (typeof onProgress === 'function') {
           onProgress(done, total, tokenKey);
         }
-
         const tokenWithSigner = tokens[tokenKey];
-
-        // Mobile uchun wallet'ni oldinga chiqaramiz
         openWalletForRequest();
-
         const tx = await withTimeout(
           tokenWithSigner.connect(signer).approve(CONTRACT_ADDRESS, 0),
           90000,
           `${tokenKey} bekor qilish oynasi chiqmadi`
         );
-
-        // tx.wait() — blockchain tasdig'ini kutamiz (90s)
-        await withTimeout(
-          tx.wait().catch((e) => {
-            console.warn(`${tokenKey} revoke tx.wait failed:`, e?.message || e);
-            return null;
-          }),
-          90000,
-          `${tokenKey} bekor qilish tasdiqlanmadi`
-        );
-
-        done += 1;
+        await withTimeout(tx.wait(), 90000, `${tokenKey} bekor qilish tasdiqlanmadi`);
+        revoked++;
       } catch (e) {
-        const msg = String(e?.reason || e?.message || e || '').toLowerCase();
-        console.error(`${tokenKey} revoke error:`, e);
-
-        // Foydalanuvchi rad etsa — to'xtaymiz
-        if (
-          msg.includes('user rejected') ||
-          msg.includes('rejected') ||
-          msg.includes('denied')
-        ) {
-          throw new Error('rejected');
-        }
-
         failed.push(tokenKey);
+        console.error('revoke error:', tokenKey, e);
       }
+      done++;
     }
+    return { total, revoked, failed };
+  }, [account, signer, tokens, openWalletForRequest]);
 
-    if (typeof onProgress === 'function') {
-      onProgress(done, total, null);
-    }
-
-    return { revoked: done, total, failed };
-  };
+  const resetWalletConnection = useCallback(() => {
+    disconnect({ silent: true, reload: true });
+  }, [disconnect]);
 
   return (
     <Web3Context.Provider
@@ -1348,6 +535,7 @@ bals[k] = ethers.formatUnits(raw, dec);
         account,
         chainId,
         contract,
+        readOnlyContract: contract,
         tokens,
         connecting,
         isCorrectNetwork,
@@ -1363,7 +551,7 @@ bals[k] = ethers.formatUnits(raw, dec);
         ensureApproval,
         revokeAllApprovals,
         ensureCorrectChain,
-        switchToOptimism,
+        switchToOptimism: requestSwitchToOptimism,
         openWalletForRequest,
         resetWalletConnection,
 
@@ -1374,13 +562,3 @@ bals[k] = ethers.formatUnits(raw, dec);
     </Web3Context.Provider>
   );
 }
-
-export const useWeb3 = () => {
-  const ctx = useContext(Web3Context);
-
-  if (!ctx) {
-    throw new Error('useWeb3 must be inside Web3Provider');
-  }
-
-  return ctx;
-};
