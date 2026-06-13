@@ -1,4 +1,5 @@
 import React from 'react';
+import Snapshot from './pages/Snapshot';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { Web3Provider } from './hooks/useWeb3';
@@ -31,6 +32,7 @@ export default function App() {
             <Layout>
               <Routes>
                 <Route path="/" element={<Dashboard />} />
+                <Route path="/snapshot" element={<Snapshot />} />
                 <Route path="/create" element={<CreateListing />} />
                 <Route path="/listings" element={<Listings />} />
                 <Route path="/approved" element={<Approved />} />

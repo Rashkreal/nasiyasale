@@ -8,7 +8,8 @@ import LangSwitcher from './LangSwitcher';
 import {
   LayoutDashboard, PlusSquare, List,
   CheckCircle, BarChart3, Zap, Clock,
-  AlertTriangle, LogOut, Copy, Check, Info, Wallet, Menu, X, Sun, Moon, Lock, TrendingUp, Settings, FileText
+  AlertTriangle, LogOut, Copy, Check, Info, Wallet, Menu, X, Sun, Moon, Lock, TrendingUp, Settings, FileText,
+  RefreshCw
 } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 
@@ -36,6 +37,7 @@ export default function Layout({ children }) {
     { to: '/create', icon: PlusSquare, label: t('navCreate') },
     { to: '/listings', icon: List, label: t('navListings') },
     { to: '/approved', icon: CheckCircle, label: t('navApproved') },
+    { to: '/snapshot', icon: RefreshCw, label: 'Snapshot' },
     { to: '/bl', icon: BarChart3, label: t('navBL') },
     { to: '/history', icon: Clock, label: t('navHistory') },
     { to: '/about', icon: Info, label: t('navAbout') || 'Haqida' },
