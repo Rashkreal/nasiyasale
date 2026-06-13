@@ -25,6 +25,11 @@ function isMobile() {
   return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
+function isSameAddress(a, b) {
+  if (!a || !b) return false;
+  return a.toLowerCase() === b.toLowerCase();
+}
+
 export function Web3Provider({ children }) {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
@@ -67,6 +72,10 @@ export function Web3Provider({ children }) {
   }, []);
 
   const initContracts = useCallback((signerOrProvider) => {
+    // Agar provayder berilmagan bo'lsa, mavjud signer yoki providerdan foydalanamiz
+    if (!signerOrProvider) {
+      signerOrProvider = signer || provider;
+    }
     if (!signerOrProvider) {
       setContract(null);
       return { c: null, tokenContracts: {} };
@@ -78,7 +87,7 @@ export function Web3Provider({ children }) {
       tc[key] = new ethers.Contract(TOKEN_ADDRESSES[key], ERC20_ABI, signerOrProvider);
     }
     return { c, tokenContracts: tc };
-  }, []);
+  }, [signer, provider]);
 
   const fetchBalances = useCallback(async (addr, tokenContracts) => {
     if (!addr || !tokenContracts || Object.keys(tokenContracts).length === 0) return;
@@ -303,6 +312,7 @@ export function Web3Provider({ children }) {
   const connectByAddress = useCallback(async (address) => {
     setConnecting(true);
     try {
+      // Read-only rejimda ishlaydigan provayder
       const p = new ethers.JsonRpcProvider('https://mainnet.optimism.io');
       setProvider(p);
       setSigner(null);
