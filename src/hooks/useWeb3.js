@@ -19,7 +19,7 @@ const emptyBals = () => Object.fromEntries(ALL_TOKENS.map((k) => [k, '0']));
 const WC_PROJECT_ID = '931c40a15bee2387d84ff99b93520df7';
 
 // Read-only provider — wallet ulanmagan holda ham ishlaydi
-const READ_ONLY_RPC = 'https://optimism.publicnode.com';
+const READ_ONLY_RPC = 'https://mainnet.optimism.io';
 
 // Optimism Mainnet params
 const OP_CHAIN_HEX = '0xA';
@@ -32,7 +32,7 @@ const OP_CHAIN_PARAMS = {
     symbol: 'ETH',
     decimals: 18,
   },
-  rpcUrls: ['https://optimism.publicnode.com', 'https://mainnet.optimism.io'],
+  rpcUrls: ['https://mainnet.optimism.io', 'https://mainnet.optimism.io'],
   blockExplorerUrls: ['https://optimistic.etherscan.io'],
 };
 
@@ -664,7 +664,7 @@ bals[k] = ethers.formatUnits(raw, dec);
         },
 
         rpcMap: {
-          10: 'https://optimism.publicnode.com',
+          10: 'https://mainnet.optimism.io',
         },
       });
 
