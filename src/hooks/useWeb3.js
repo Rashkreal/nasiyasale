@@ -19,7 +19,6 @@ const emptyBals = () => Object.fromEntries(ALL_TOKENS.map((k) => [k, '0']));
 const WC_PROJECT_ID = '931c40a15bee2387d84ff99b93520df7';
 
 // Read-only provider — wallet ulanmagan holda ham ishlaydi
-const READ_ONLY_RPC = 'https://mainnet.optimism.io';
 
 // Optimism Mainnet params
 const OP_CHAIN_HEX = '0xA';
@@ -32,7 +31,7 @@ const OP_CHAIN_PARAMS = {
     symbol: 'ETH',
     decimals: 18,
   },
-  rpcUrls: ['https://mainnet.optimism.io', 'https://mainnet.optimism.io'],
+  rpcUrls: ['https://optimism.publicnode.com', 'https://mainnet.optimism.io'],
   blockExplorerUrls: ['https://optimistic.etherscan.io'],
 };
 
@@ -68,7 +67,7 @@ export function Web3Provider({ children }) {
   const [account, setAccount] = useState(null);
   const [chainId, setChainId] = useState(null);
   const [contract, setContract] = useState(null);
-  const [readOnlyContract, setReadOnlyContract] = useState(null);
+  const [contract, setReadOnlyContract] = useState(null);
   const [tokens, setTokens] = useState({});
   const [connecting, setConnecting] = useState(false);
   const [walletType, setWalletType] = useState(null);
@@ -158,7 +157,6 @@ export function Web3Provider({ children }) {
 
   useEffect(() => {
     try {
-      const roProvider = new ethers.JsonRpcProvider(READ_ONLY_RPC);
       const roContract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, roProvider);
       setReadOnlyContract(roContract);
     } catch (e) {
@@ -664,7 +662,7 @@ bals[k] = ethers.formatUnits(raw, dec);
         },
 
         rpcMap: {
-          10: 'https://mainnet.optimism.io',
+          10: 'https://optimism.publicnode.com',
         },
       });
 
@@ -904,7 +902,6 @@ bals[k] = ethers.formatUnits(raw, dec);
       setConnecting(true);
 
       try {
-        const p = new ethers.JsonRpcProvider(READ_ONLY_RPC);
 
         setProvider(p);
         setSigner(null);
@@ -1062,7 +1059,6 @@ bals[k] = ethers.formatUnits(raw, dec);
     // (MetaMask Mobile, Trust Wallet) wallet popup'ini ochishi mumkin va
     // foydalanuvchi bir necha marta approve tugmasini bosadi (har birida
     // gaz to'lab).
-    const roProvider = new ethers.JsonRpcProvider(READ_ONLY_RPC);
     const tokenContractAddress = await tokenWithSigner.getAddress();
     const tokenReadOnly = new ethers.Contract(
       tokenContractAddress,
@@ -1259,7 +1255,6 @@ bals[k] = ethers.formatUnits(raw, dec);
     actionAbortRef.current = false;
 
     // Read-only RPC orqali har token uchun allowance tekshiramiz
-    const roProvider = new ethers.JsonRpcProvider(READ_ONLY_RPC);
 
     // 1-bosqich: qaysi tokenlarda allowance > 0 ekanini aniqlaymiz
     const toRevoke = [];
@@ -1353,7 +1348,6 @@ bals[k] = ethers.formatUnits(raw, dec);
         account,
         chainId,
         contract,
-        readOnlyContract,
         tokens,
         connecting,
         isCorrectNetwork,
