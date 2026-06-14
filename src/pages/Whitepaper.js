@@ -3,7 +3,7 @@ import { FileText, Lock, Coins, Shield, Map, AlertTriangle, ExternalLink, BarCha
 
 // ─── Ma'lumotlar ─────────────────────────────────────────────────────────────
 const DUR_ADDRESS    = "0xf2f471dd1fBD278e54a81af7D5a22E3a38eA43Ff";
-const CREDITSALE_ADDR = "0xc96A9D80E03BC97EDb7DB189c0bE233aD151F232";
+const CREDITSALE_ADDR = "0x0DB46B238f6d63cbDA691fb39179816E36750524";
 const VAULT_ADDR     = "0xaB7B9E2d539Bbcd6a8Bde434ab481D192DDC2Ba5";
 
 const streamLocks = [
