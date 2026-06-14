@@ -610,6 +610,7 @@ export default function Vault() {
           } catch { if (_try < 2) await new Promise(r => setTimeout(r, 500)); }
         }
       }
+console.log('Tarixiy locklar:', lockArr.filter(l => Number(l.status) !== 0).length);
       setLocks(lockArr);
 
       const nftArr = [];
@@ -1260,29 +1261,42 @@ const countdown = (unlockTs, status) => {
       </div>
     </div>
   );
-
   const renderTarix = () => {
-    const HISTORY_STATUS = { 1: "Yechildi", 2: "Emergency" };
-    const NFT_HISTORY_STATUS = { 1: "Yechildi", 2: "Rebalanced", 3: "Emergency" };
+  const finishedStreams = streams.filter(s => Number(s.status) !== 0);
+
+  if (historyLocks.length === 0 && historyNFTLocks.length === 0 && finishedStreams.length === 0) {
     return (
-      <>
-        {/* Token tarix */}
-        <h2 style={{fontSize:16,fontWeight:700,marginBottom:16}}>
-          {t("vaultTokenHistory")}
-          <span style={{marginLeft:8,fontSize:12,color:"var(--text-muted)",fontFamily:"var(--font-mono)",fontWeight:400}}>
-            {historyLocks.length}{t("vaultCount")}
-          </span>
-        </h2>
-        {historyLocks.length === 0 ? (
-          <div className="empty-state" style={{padding:32}}><p style={{color:"var(--text-muted)",fontSize:13}}>{t("vaultNoHistory")}</p></div>
-        ) : (
+      <div className="empty-state" style={{padding: 48}}>
+        <Search size={40} />
+        <p style={{color: "var(--text-muted)", marginTop: 16}}>
+          Tarixda hozircha yozuvlar yo'q.
+        </p>
+        <p style={{color: "var(--text-secondary)", fontSize: 13, marginTop: 8, textAlign: 'center', lineHeight: 1.6}}>
+          Token lock, NFT lock yoki Stream muddati tugagach<br/>
+          (yoki emergency qilinganda) tarixga tushadi.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* Token tarix */}
+      {historyLocks.length > 0 && (
+        <>
+          <h2 style={{fontSize:16,fontWeight:700,marginBottom:16}}>
+            {t("vaultTokenHistory")}
+            <span style={{marginLeft:8,fontSize:12,color:"var(--text-muted)",fontFamily:"var(--font-mono)",fontWeight:400}}>
+              {historyLocks.length}{t("vaultCount")}
+            </span>
+          </h2>
           <div className="lock-list" style={{marginBottom:32}}>
             {historyLocks.map(lock => {
               const token = TOKEN_BY_ADDR[lock.token?.toLowerCase()];
               const sym = token?.symbol || "???";
               const dec = token?.decimals || 18;
               const st = Number(lock.status);
-              const statusLabel = HISTORY_STATUS[st] || "Noma'lum";
+              const statusLabel = st === 1 ? "Yechildi" : "Emergency";
               const statusClass = st === 1 ? "withdrawn" : "emergency";
               return (
                 <div key={lock.id} className="lock-row" style={{opacity:0.75}}>
@@ -1309,22 +1323,22 @@ const countdown = (unlockTs, status) => {
               );
             })}
           </div>
-        )}
+        </>
+      )}
 
-        {/* NFT tarix */}
-        <h2 style={{fontSize:16,fontWeight:700,marginBottom:16}}>
-          {t("vaultNFTHistory")}
-          <span style={{marginLeft:8,fontSize:12,color:"var(--text-muted)",fontFamily:"var(--font-mono)",fontWeight:400}}>
-            {historyNFTLocks.length}{t("vaultCount")}
-          </span>
-        </h2>
-        {historyNFTLocks.length === 0 ? (
-          <div className="empty-state" style={{padding:32}}><p style={{color:"var(--text-muted)",fontSize:13}}>{t("vaultNoHistory")}</p></div>
-        ) : (
+      {/* NFT tarix */}
+      {historyNFTLocks.length > 0 && (
+        <>
+          <h2 style={{fontSize:16,fontWeight:700,marginBottom:16}}>
+            {t("vaultNFTHistory")}
+            <span style={{marginLeft:8,fontSize:12,color:"var(--text-muted)",fontFamily:"var(--font-mono)",fontWeight:400}}>
+              {historyNFTLocks.length}{t("vaultCount")}
+            </span>
+          </h2>
           <div className="lock-list">
             {historyNFTLocks.map(nft => {
               const st = Number(nft.status);
-              const statusLabel = NFT_HISTORY_STATUS[st] || "Noma'lum";
+              const statusLabel = st === 1 ? "Yechildi" : st === 2 ? "Rebalanced" : "Emergency";
               const statusClass = st === 1 ? "withdrawn" : st === 2 ? "emergency" : "emergency";
               return (
                 <div key={nft.id} className="lock-row" style={{opacity:0.75}}>
@@ -1355,10 +1369,55 @@ const countdown = (unlockTs, status) => {
               );
             })}
           </div>
-        )}
-      </>
-    );
-  };
+        </>
+      )}
+
+      {/* Stream tarix */}
+      {finishedStreams.length > 0 && (
+        <>
+          <h2 style={{fontSize:16,fontWeight:700,marginBottom:16}}>
+            Stream tarixi
+            <span style={{marginLeft:8,fontSize:12,color:"var(--text-muted)",fontFamily:"var(--font-mono)",fontWeight:400}}>
+              {finishedStreams.length}
+            </span>
+          </h2>
+          <div className="lock-list">
+            {finishedStreams.map(s => {
+              const token = TOKEN_BY_ADDR[s.token?.toLowerCase()];
+              const sym = token?.symbol || "???";
+              const dec = token?.decimals || 18;
+              const st = Number(s.status);
+              const statusLabel = st === 1 ? "Tugagan" : "Emergency";
+              return (
+                <div key={`s-${s.id}`} className="lock-row" style={{opacity:0.75}}>
+                  <div className="lock-id">S#{s.id}</div>
+                  <div>
+                    <span className={"token-badge " + sym.toLowerCase()}>{sym}</span>
+                    <span className="lock-amount" style={{marginLeft:10}}>{formatAmt(s.totalAmount, dec)}</span>
+                  </div>
+                  <div className="lock-time">
+                    <div style={{fontSize:11,color:"var(--text-muted)",marginBottom:2}}>Boshlangan</div>
+                    <div>{formatDate(s.startTime)}</div>
+                  </div>
+                  <div className="lock-time">
+                    <div style={{fontSize:11,color:"var(--text-muted)",marginBottom:2}}>Tugagan</div>
+                    <div>{formatDate(s.endTime)}</div>
+                  </div>
+                  <div>
+                    <span className={"status-badge " + (st === 1 ? "withdrawn" : "emergency")}>
+                      <span className="status-dot" />{statusLabel}
+                    </span>
+                  </div>
+                  <div />
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </>
+  );
+};
 
   // в”Ђв”Ђ Boshqalar uchun oddiy view в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
   if (!isOwner) {
