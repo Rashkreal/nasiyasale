@@ -1090,3 +1090,4 @@ toast.success(t('approvedClaimDefaultSuccess') || 'Default claim muvaffaqiyatli 
     </div>
   );
 }
+
