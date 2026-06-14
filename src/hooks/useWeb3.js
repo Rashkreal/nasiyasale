@@ -25,11 +25,6 @@ function isMobile() {
   return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
-function isSameAddress(a, b) {
-  if (!a || !b) return false;
-  return a.toLowerCase() === b.toLowerCase();
-}
-
 export function Web3Provider({ children }) {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
@@ -72,10 +67,6 @@ export function Web3Provider({ children }) {
   }, []);
 
   const initContracts = useCallback((signerOrProvider) => {
-    // Agar provayder berilmagan bo'lsa, mavjud signer yoki providerdan foydalanamiz
-    if (!signerOrProvider) {
-      signerOrProvider = signer || provider;
-    }
     if (!signerOrProvider) {
       setContract(null);
       return { c: null, tokenContracts: {} };
@@ -87,7 +78,7 @@ export function Web3Provider({ children }) {
       tc[key] = new ethers.Contract(TOKEN_ADDRESSES[key], ERC20_ABI, signerOrProvider);
     }
     return { c, tokenContracts: tc };
-  }, [signer, provider]);
+  }, []);
 
   const fetchBalances = useCallback(async (addr, tokenContracts) => {
     if (!addr || !tokenContracts || Object.keys(tokenContracts).length === 0) return;
@@ -206,7 +197,7 @@ export function Web3Provider({ children }) {
       }
       const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
       const addr = ethers.getAddress(accounts[0]);
-      const s = new ethers.BrowserProvider(window.ethereum).getSigner();
+      const s = await new ethers.BrowserProvider(window.ethereum).getSigner();
       setSigner(s);
       setAccount(addr);
       setProvider(window.ethereum);
@@ -224,7 +215,7 @@ export function Web3Provider({ children }) {
         const switched = await requestSwitchToOptimism(window.ethereum);
         if (switched) {
           await new Promise((r) => setTimeout(r, 500));
-          const newS = new ethers.BrowserProvider(window.ethereum).getSigner();
+          const newS = await new ethers.BrowserProvider(window.ethereum).getSigner();
           setSigner(newS);
           const newCid = await window.ethereum.request({ method: 'eth_chainId' });
           const nc = parseInt(newCid, 16);
@@ -269,7 +260,7 @@ export function Web3Provider({ children }) {
         return;
       }
       const addr = ethers.getAddress(accounts[0]);
-      const s = new ethers.BrowserProvider(wc).getSigner();
+      const s = await new ethers.BrowserProvider(wc).getSigner();
       setSigner(s);
       setAccount(addr);
       setProvider(wc);
@@ -286,7 +277,7 @@ export function Web3Provider({ children }) {
         const switched = await requestSwitchToOptimism(wc);
         if (switched) {
           await new Promise((r) => setTimeout(r, 500));
-          const newS = new ethers.BrowserProvider(wc).getSigner();
+          const newS = await new ethers.BrowserProvider(wc).getSigner();
           setSigner(newS);
           const newCid = await wc.request({ method: 'eth_chainId' });
           const nc = parseInt(newCid, 16);
@@ -308,29 +299,6 @@ export function Web3Provider({ children }) {
       setConnecting(false);
     }
   }, [initContracts, fetchBalances, requestSwitchToOptimism]);
-
-  const connectByAddress = useCallback(async (address) => {
-    setConnecting(true);
-    try {
-      // Read-only rejimda ishlaydigan provayder
-      const p = new ethers.JsonRpcProvider('https://mainnet.optimism.io');
-      setProvider(p);
-      setSigner(null);
-      setAccount(ethers.getAddress(address));
-      setChainId(OP_MAINNET.chainId);
-      setWalletType('readonly');
-      const { tokenContracts } = initContracts(p);
-      setTokens(tokenContracts);
-      await fetchBalances(address, tokenContracts);
-      return true;
-    } catch (e) {
-      console.error('Read-only ulanish xatosi:', e);
-      toast.error('Manzil orqali ulanishda xato');
-      return false;
-    } finally {
-      setConnecting(false);
-    }
-  }, [initContracts, fetchBalances]);
 
   const disconnect = useCallback(async (options = {}) => {
     if (disconnectingRef.current) return;
@@ -362,6 +330,7 @@ export function Web3Provider({ children }) {
   }, [clearWalletSessionStorage]);
 
   const refreshBalances = useCallback(() => {
+    if (!account || !tokens || Object.keys(tokens).length === 0) return;
     fetchBalances(account, tokens);
   }, [account, tokens, fetchBalances]);
 
@@ -375,7 +344,7 @@ export function Web3Provider({ children }) {
         }
         const addr = ethers.getAddress(accounts[0]);
         setAccount(addr);
-        const s = new ethers.BrowserProvider(window.ethereum).getSigner();
+        const s = await new ethers.BrowserProvider(window.ethereum).getSigner();
         setSigner(s);
         const { tokenContracts } = initContracts(s);
         setTokens(tokenContracts);
@@ -395,7 +364,7 @@ export function Web3Provider({ children }) {
         setChainId(nc);
         const addr = account;
         if (!addr) return;
-        const s = new ethers.BrowserProvider(window.ethereum).getSigner();
+        const s = await new ethers.BrowserProvider(window.ethereum).getSigner();
         setSigner(s);
         const { tokenContracts } = initContracts(s);
         setTokens(tokenContracts);
@@ -521,7 +490,6 @@ export function Web3Provider({ children }) {
         walletType,
         connectMetaMask,
         connectWalletConnect,
-        connectByAddress,
         disconnect,
         refreshBalances,
         ensureApproval,
@@ -537,4 +505,3 @@ export function Web3Provider({ children }) {
     </Web3Context.Provider>
   );
 }
-
