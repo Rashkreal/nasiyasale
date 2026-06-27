@@ -3,7 +3,7 @@ import { useWeb3 } from '../hooks/useWeb3';
 import { useLang } from '../hooks/useLang';
 import { COLLATERAL_TOKENS, TOKEN_COLORS } from '../abi/contract';
 import { ethers } from 'ethers';
-import { CONTRACT_ADDRESS, TOKEN_ADDRESSES, ERC20_ABI, OP_MAINNET } from '../abi/contract';
+import { CONTRACT_ADDRESS, TOKEN_ADDRESSES, ERC20_ABI, ARBITRUM_ONE } from '../abi/contract';
 import toast from 'react-hot-toast';
 import { saveLocalTxHistory } from '../utils/localTxHistory';
 import {

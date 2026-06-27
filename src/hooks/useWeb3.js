@@ -6,7 +6,7 @@ import {
   ERC20_ABI,
   TOKEN_ADDRESSES,
   TOKEN_DECIMALS,
-  OP_MAINNET,
+  ARBITRUM_ONE,
 } from '../abi/contract';
 import toast from 'react-hot-toast';
 
@@ -42,7 +42,7 @@ export function Web3Provider({ children }) {
   const actionAbortRef = useRef(false);
   const activeToastRef = useRef(null);
 
-  const isCorrectNetwork = chainId === OP_MAINNET.chainId;
+  const isCorrectNetwork = chainId === ARBITRUM_ONE.chainId;
 
   const clearWalletSessionStorage = useCallback(async () => {
     try {
@@ -100,7 +100,7 @@ export function Web3Provider({ children }) {
     try {
       await walletProvider.request({
         method: 'wallet_switchEthereumChain',
-        params: [{ chainId: '0xa' }],
+        params: [{ chainId: '0xa4b1' }],
       });
       return true;
     } catch (switchError) {
@@ -109,11 +109,11 @@ export function Web3Provider({ children }) {
           await walletProvider.request({
             method: 'wallet_addEthereumChain',
             params: [{
-              chainId: '0xa',
-              chainName: 'OP Mainnet',
+              chainId: '0xa4b1',
+              chainName: 'Arbitrum One',
               nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-              rpcUrls: ['https://mainnet.optimism.io'],
-              blockExplorerUrls: ['https://optimistic.etherscan.io'],
+              rpcUrls: ['https://arb1.arbitrum.io/rpc'],
+              blockExplorerUrls: ['https://arbiscan.io'],
             }],
           });
           return true;
@@ -164,8 +164,8 @@ export function Web3Provider({ children }) {
   const ensureCorrectChain = useCallback(async () => {
     if (!provider) throw new Error('Provider topilmadi');
     const currentChainId = await provider.request({ method: 'eth_chainId' });
-    if (parseInt(currentChainId, 16) === OP_MAINNET.chainId) {
-      if (chainId !== OP_MAINNET.chainId) setChainId(OP_MAINNET.chainId);
+    if (parseInt(currentChainId, 16) === ARBITRUM_ONE.chainId) {
+      if (chainId !== ARBITRUM_ONE.chainId) setChainId(ARBITRUM_ONE.chainId);
       return true;
     }
     const tid = toast.loading(`Wallet ${currentChainId} tarmog'ida. Optimism'ga o'tkazilmoqda...`);
@@ -179,7 +179,7 @@ export function Web3Provider({ children }) {
     const newChainId = await provider.request({ method: 'eth_chainId' });
     const newCid = parseInt(newChainId, 16);
     setChainId(newCid);
-    if (newCid !== OP_MAINNET.chainId) {
+    if (newCid !== ARBITRUM_ONE.chainId) {
       toast.error("Wallet hali ham Optimism'da emas. Qo'lda o'ting.", { id: tid });
       throw new Error("Wallet hali ham Optimism'da emas");
     }
@@ -211,7 +211,7 @@ export function Web3Provider({ children }) {
       const { tokenContracts } = initContracts(s);
       setTokens(tokenContracts);
 
-      if (numCid !== OP_MAINNET.chainId) {
+      if (numCid !== ARBITRUM_ONE.chainId) {
         const switched = await requestSwitchToOptimism(window.ethereum);
         if (switched) {
           await new Promise((r) => setTimeout(r, 500));
@@ -220,7 +220,7 @@ export function Web3Provider({ children }) {
           const newCid = await window.ethereum.request({ method: 'eth_chainId' });
           const nc = parseInt(newCid, 16);
           setChainId(nc);
-          if (nc === OP_MAINNET.chainId) {
+          if (nc === ARBITRUM_ONE.chainId) {
             const { tokenContracts: tc } = initContracts(newS);
             setTokens(tc);
             await fetchBalances(addr, tc);
@@ -244,11 +244,11 @@ export function Web3Provider({ children }) {
       const WalletConnectProvider = (await import('@walletconnect/ethereum-provider')).default;
       const wc = await WalletConnectProvider.init({
         projectId: WC_PROJECT_ID,
-        chains: [10],
+        chains: [42161],
         optionalChains: [],
         showQrModal: true,
         rpcMap: {
-          10: 'https://mainnet.optimism.io',
+          42161: 'https://arb1.arbitrum.io/rpc',
         },
       });
       wcProviderRef.current = wc;
@@ -273,7 +273,7 @@ export function Web3Provider({ children }) {
       const { tokenContracts } = initContracts(s);
       setTokens(tokenContracts);
 
-      if (numCid !== OP_MAINNET.chainId) {
+      if (numCid !== ARBITRUM_ONE.chainId) {
         const switched = await requestSwitchToOptimism(wc);
         if (switched) {
           await new Promise((r) => setTimeout(r, 500));
@@ -282,7 +282,7 @@ export function Web3Provider({ children }) {
           const newCid = await wc.request({ method: 'eth_chainId' });
           const nc = parseInt(newCid, 16);
           setChainId(nc);
-          if (nc === OP_MAINNET.chainId) {
+          if (nc === ARBITRUM_ONE.chainId) {
             const { tokenContracts: tc } = initContracts(newS);
             setTokens(tc);
             await fetchBalances(addr, tc);
@@ -351,7 +351,7 @@ export function Web3Provider({ children }) {
         const cid = await window.ethereum.request({ method: 'eth_chainId' });
         const nc = parseInt(cid, 16);
         setChainId(nc);
-        if (nc === OP_MAINNET.chainId) {
+        if (nc === ARBITRUM_ONE.chainId) {
           await fetchBalances(addr, tokenContracts);
         }
       } catch (e) {
@@ -368,7 +368,7 @@ export function Web3Provider({ children }) {
         setSigner(s);
         const { tokenContracts } = initContracts(s);
         setTokens(tokenContracts);
-        if (nc === OP_MAINNET.chainId) {
+        if (nc === ARBITRUM_ONE.chainId) {
           await fetchBalances(addr, tokenContracts);
         }
       } catch (e) {

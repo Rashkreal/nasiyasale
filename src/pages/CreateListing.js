@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useWeb3 } from '../hooks/useWeb3';
 import { useLang } from '../hooks/useLang';
-import { maskFromTokens, COLLATERAL_TOKENS, TOKEN_COLORS, TOKEN_IDS, TOKEN_DECIMALS, TOKEN_ADDRESSES, ERC20_ABI, CONTRACT_ADDRESS, OP_MAINNET } from '../abi/contract';
+import { maskFromTokens, COLLATERAL_TOKENS, TOKEN_COLORS, TOKEN_IDS, TOKEN_DECIMALS, TOKEN_ADDRESSES, ERC20_ABI, CONTRACT_ADDRESS, ARBITRUM_ONE } from '../abi/contract';
 import { ethers } from 'ethers';
 import toast from 'react-hot-toast';
 import { saveLocalTxHistory } from '../utils/localTxHistory';
@@ -63,7 +63,7 @@ async function waitAllowanceForCreateListing(tokenKey, owner, neededRaw) {
   const tokenAddress = TOKEN_ADDRESSES[tokenKey];
   if (!tokenAddress || !owner) return false;
 
-  const provider = new ethers.JsonRpcProvider(OP_MAINNET.rpcUrl);
+  const provider = new ethers.JsonRpcProvider(ARBITRUM_ONE.rpcUrl);
   const token = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
 
   for (let i = 0; i < 15; i++) {
