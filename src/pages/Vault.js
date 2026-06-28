@@ -6,23 +6,22 @@ import { useLang } from "../hooks/useLang";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Lock, Unlock, AlertTriangle, RefreshCw, Search, Zap, Shield, ArrowDownToLine } from "lucide-react";
 
-// в”Ђв”Ђв”Ђ Konstantalar в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
-const VAULT_ADDRESS = "0xaB7B9E2d539Bbcd6a8Bde434ab481D192DDC2Ba5";
-const OWNER_ADDRESS = "0x0e86d8afaa0B77D732d89BD5ceC3dC9003b321dA";
-const RPC           = "https://optimism.drpc.org";
-const RPC_BACKUP    = "https://1rpc.io/op";
+// ─── Konstantalar (Arbitrum One) ────────────────────────────────────────────
+const VAULT_ADDRESS    = "0x334ABa8643C7B7C97d5CeF5b73991e2af7D43462";
+const OWNER_ADDRESS    = "0x0e86d8afaa0B77D732d89BD5ceC3dC9003b321dA";
+const POSITION_MANAGER = "0xd88F38F930b7952f2DB2432Cb002E7abbF3dD869";
+const RPC              = "https://rpc.ankr.com/arbitrum/e531710028d0852baae1e1de9993017d4025b2d30d21d0ac5f812150724416b5";
+const RPC_BACKUP       = "https://arb1.arbitrum.io/rpc";
 
 const TOKENS = {
-  DUR:  { address: "0xf2f471dd1fBD278e54a81af7D5a22E3a38eA43Ff", decimals: 18, symbol: "DUR",  name: "Durvodik"              },
-  USDC: { address: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85", decimals: 6,  symbol: "USDC", name: "USD Coin"             },
-  USDT: { address: "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58", decimals: 6,  symbol: "USDT", name: "Tether USD"           },
-  WBTC: { address: "0x68f180fcCe6836688e9084f035309E29Bf0A2095", decimals: 8,  symbol: "WBTC", name: "Wrapped Bitcoin"      },
-  BLT:  { address: "0xEac1b253E553E28c48535ed738dAB70204B5D28B", decimals: 18, symbol: "BLT",  name: "Business Level Token" },
+  DUR:  { address: "0x92E1EbD0Cfac092047AB4a69B6E6a8ECA0687e26", decimals: 18, symbol: "DUR",  name: "Durvodik"         },
+  USDC: { address: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", decimals: 6,  symbol: "USDC", name: "USD Coin"         },
+  WBTC: { address: "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f", decimals: 8,  symbol: "WBTC", name: "Wrapped Bitcoin"  },
 };
 const TOKEN_LIST    = Object.values(TOKENS);
 const TOKEN_BY_ADDR = Object.fromEntries(TOKEN_LIST.map(t => [t.address.toLowerCase(), t]));
 
-const VAULT_ABI = [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[{"internalType":"uint256","name":"lockId","type":"uint256"},{"internalType":"uint256","name":"availableAt","type":"uint256"}],"name":"EmergencyNotReady","type":"error"},{"inputs":[{"internalType":"string","name":"reason","type":"string"}],"name":"InvalidNFT","type":"error"},{"inputs":[{"internalType":"string","name":"reason","type":"string"}],"name":"InvalidUnlockTime","type":"error"},{"inputs":[{"internalType":"uint256","name":"lockId","type":"uint256"}],"name":"LockAlreadyDone","type":"error"},{"inputs":[{"internalType":"uint256","name":"lockId","type":"uint256"}],"name":"LockNotFound","type":"error"},{"inputs":[{"internalType":"uint256","name":"lockId","type":"uint256"},{"internalType":"uint256","name":"unlockTimestamp","type":"uint256"}],"name":"LockStillActive","type":"error"},{"inputs":[{"internalType":"uint256","name":"nftLockId","type":"uint256"},{"internalType":"uint256","name":"availableAt","type":"uint256"}],"name":"NFTEmergencyNotReady","type":"error"},{"inputs":[{"internalType":"uint256","name":"nftLockId","type":"uint256"}],"name":"NFTLockAlreadyDone","type":"error"},{"inputs":[{"internalType":"uint256","name":"nftLockId","type":"uint256"}],"name":"NFTLockNotFound","type":"error"},{"inputs":[{"internalType":"uint256","name":"nftLockId","type":"uint256"},{"internalType":"uint256","name":"unlockTimestamp","type":"uint256"}],"name":"NFTLockStillActive","type":"error"},{"inputs":[],"name":"NotOwner","type":"error"},{"inputs":[],"name":"NotPositionManager","type":"error"},{"inputs":[{"internalType":"uint256","name":"streamId","type":"uint256"}],"name":"NothingToWithdraw","type":"error"},{"inputs":[],"name":"ReentrancyGuardReentrantCall","type":"error"},{"inputs":[{"internalType":"address","name":"token","type":"address"}],"name":"SafeERC20FailedOperation","type":"error"},{"inputs":[{"internalType":"uint256","name":"streamId","type":"uint256"}],"name":"StreamAlreadyDone","type":"error"},{"inputs":[{"internalType":"uint256","name":"streamId","type":"uint256"},{"internalType":"uint256","name":"availableAt","type":"uint256"}],"name":"StreamEmergencyNotReady","type":"error"},{"inputs":[{"internalType":"uint256","name":"streamId","type":"uint256"}],"name":"StreamNotFound","type":"error"},{"inputs":[],"name":"StreamTokenNotAllowed","type":"error"},{"inputs":[],"name":"TokenNotAllowed","type":"error"},{"inputs":[],"name":"ZeroAmount","type":"error"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"lockId","type":"uint256"},{"indexed":true,"internalType":"address","name":"token","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"depositTime","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"unlockTimestamp","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"emergencyAvailableAt","type":"uint256"}],"name":"Deposited","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"lockId","type":"uint256"},{"indexed":true,"internalType":"address","name":"token","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"},{"indexed":true,"internalType":"address","name":"to","type":"address"}],"name":"EmergencyWithdrawn","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"nftLockId","type":"uint256"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"},{"indexed":false,"internalType":"enum PrivateTimeLockVault.PoolType","name":"poolType","type":"uint8"},{"indexed":false,"internalType":"uint128","name":"liquidity","type":"uint128"},{"indexed":false,"internalType":"uint256","name":"unlockTimestamp","type":"uint256"}],"name":"NFTDeposited","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"nftLockId","type":"uint256"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"},{"indexed":true,"internalType":"address","name":"to","type":"address"}],"name":"NFTEmergencyWithdrawn","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"oldNftLockId","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"oldTokenId","type":"uint256"},{"indexed":true,"internalType":"uint256","name":"newNftLockId","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"newTokenId","type":"uint256"}],"name":"NFTRebalanced","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"nftLockId","type":"uint256"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"},{"indexed":true,"internalType":"address","name":"to","type":"address"}],"name":"NFTWithdrawn","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"streamId","type":"uint256"},{"indexed":true,"internalType":"address","name":"token","type":"address"},{"indexed":false,"internalType":"uint256","name":"totalAmount","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"startTime","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"endTime","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"emergencyAvailableAt","type":"uint256"}],"name":"StreamDeposited","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"streamId","type":"uint256"},{"indexed":true,"internalType":"address","name":"token","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"},{"indexed":true,"internalType":"address","name":"to","type":"address"}],"name":"StreamEmergencyWithdrawn","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"streamId","type":"uint256"},{"indexed":true,"internalType":"address","name":"token","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"totalWithdrawn","type":"uint256"},{"indexed":true,"internalType":"address","name":"to","type":"address"}],"name":"StreamWithdrawn","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"lockId","type":"uint256"},{"indexed":true,"internalType":"address","name":"token","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"},{"indexed":true,"internalType":"address","name":"to","type":"address"}],"name":"Withdrawn","type":"event"},{"stateMutability":"payable","type":"fallback"},{"inputs":[],"name":"BLT","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"BLT_POOL_ID","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"DUR","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"DUR_POOL_ID","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"OWNER","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"POSITION_MANAGER","outputs":[{"internalType":"contract IPositionManager","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"STATE_VIEW","outputs":[{"internalType":"contract IStateView","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"USDC","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"USDT","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"WBTC","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"token","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint256","name":"unlockTimestamp","type":"uint256"}],"name":"deposit","outputs":[{"internalType":"uint256","name":"lockId","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"},{"internalType":"uint256","name":"unlockTimestamp","type":"uint256"}],"name":"depositNFT","outputs":[{"internalType":"uint256","name":"nftLockId","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"token","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint256","name":"endTimestamp","type":"uint256"}],"name":"depositStream","outputs":[{"internalType":"uint256","name":"streamId","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"lockId","type":"uint256"}],"name":"emergencyWithdraw","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"nftLockId","type":"uint256"}],"name":"emergencyWithdrawNFT","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"streamId","type":"uint256"}],"name":"emergencyWithdrawStream","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"token","type":"address"}],"name":"getActiveLocksByToken","outputs":[{"components":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"address","name":"token","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint256","name":"depositTime","type":"uint256"},{"internalType":"uint256","name":"unlockTimestamp","type":"uint256"},{"internalType":"enum PrivateTimeLockVault.LockStatus","name":"status","type":"uint8"}],"internalType":"struct PrivateTimeLockVault.LockEntry[]","name":"","type":"tuple[]"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getActiveNFTLocks","outputs":[{"components":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"uint256","name":"tokenId","type":"uint256"},{"internalType":"enum PrivateTimeLockVault.PoolType","name":"poolType","type":"uint8"},{"internalType":"uint128","name":"liquidity","type":"uint128"},{"internalType":"uint256","name":"depositTime","type":"uint256"},{"internalType":"uint256","name":"unlockTimestamp","type":"uint256"},{"internalType":"enum PrivateTimeLockVault.NFTLockStatus","name":"status","type":"uint8"}],"internalType":"struct PrivateTimeLockVault.NFTLockEntry[]","name":"","type":"tuple[]"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getActiveStreams","outputs":[{"components":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"address","name":"token","type":"address"},{"internalType":"uint256","name":"totalAmount","type":"uint256"},{"internalType":"uint256","name":"withdrawnAmount","type":"uint256"},{"internalType":"uint256","name":"startTime","type":"uint256"},{"internalType":"uint256","name":"endTime","type":"uint256"},{"internalType":"enum PrivateTimeLockVault.StreamStatus","name":"status","type":"uint8"}],"internalType":"struct PrivateTimeLockVault.StreamEntry[]","name":"","type":"tuple[]"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getAllBalances","outputs":[{"internalType":"uint256","name":"durBalance","type":"uint256"},{"internalType":"uint256","name":"usdtBalance","type":"uint256"},{"internalType":"uint256","name":"wbtcBalance","type":"uint256"},{"internalType":"uint256","name":"usdcBalance","type":"uint256"},{"internalType":"uint256","name":"bltBalance","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getAllNFTLocks","outputs":[{"components":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"uint256","name":"tokenId","type":"uint256"},{"internalType":"enum PrivateTimeLockVault.PoolType","name":"poolType","type":"uint8"},{"internalType":"uint128","name":"liquidity","type":"uint128"},{"internalType":"uint256","name":"depositTime","type":"uint256"},{"internalType":"uint256","name":"unlockTimestamp","type":"uint256"},{"internalType":"enum PrivateTimeLockVault.NFTLockStatus","name":"status","type":"uint8"}],"internalType":"struct PrivateTimeLockVault.NFTLockEntry[]","name":"","type":"tuple[]"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getAllStreams","outputs":[{"components":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"address","name":"token","type":"address"},{"internalType":"uint256","name":"totalAmount","type":"uint256"},{"internalType":"uint256","name":"withdrawnAmount","type":"uint256"},{"internalType":"uint256","name":"startTime","type":"uint256"},{"internalType":"uint256","name":"endTime","type":"uint256"},{"internalType":"enum PrivateTimeLockVault.StreamStatus","name":"status","type":"uint8"}],"internalType":"struct PrivateTimeLockVault.StreamEntry[]","name":"","type":"tuple[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"token","type":"address"}],"name":"getAllowance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"lockId","type":"uint256"}],"name":"getLock","outputs":[{"components":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"address","name":"token","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint256","name":"depositTime","type":"uint256"},{"internalType":"uint256","name":"unlockTimestamp","type":"uint256"},{"internalType":"enum PrivateTimeLockVault.LockStatus","name":"status","type":"uint8"}],"internalType":"struct PrivateTimeLockVault.LockEntry","name":"","type":"tuple"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"lockId","type":"uint256"}],"name":"getLockTimeInfo","outputs":[{"internalType":"bool","name":"isUnlocked","type":"bool"},{"internalType":"bool","name":"isEmergencyReady","type":"bool"},{"internalType":"uint256","name":"secondsToUnlock","type":"uint256"},{"internalType":"uint256","name":"secondsToEmergency","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"token","type":"address"}],"name":"getLocksByToken","outputs":[{"components":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"address","name":"token","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint256","name":"depositTime","type":"uint256"},{"internalType":"uint256","name":"unlockTimestamp","type":"uint256"},{"internalType":"enum PrivateTimeLockVault.LockStatus","name":"status","type":"uint8"}],"internalType":"struct PrivateTimeLockVault.LockEntry[]","name":"","type":"tuple[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"nftLockId","type":"uint256"}],"name":"getNFTLock","outputs":[{"components":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"uint256","name":"tokenId","type":"uint256"},{"internalType":"enum PrivateTimeLockVault.PoolType","name":"poolType","type":"uint8"},{"internalType":"uint128","name":"liquidity","type":"uint128"},{"internalType":"uint256","name":"depositTime","type":"uint256"},{"internalType":"uint256","name":"unlockTimestamp","type":"uint256"},{"internalType":"enum PrivateTimeLockVault.NFTLockStatus","name":"status","type":"uint8"}],"internalType":"struct PrivateTimeLockVault.NFTLockEntry","name":"","type":"tuple"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"nftLockId","type":"uint256"}],"name":"getNFTLockTimeInfo","outputs":[{"internalType":"bool","name":"isUnlocked","type":"bool"},{"internalType":"bool","name":"isEmergencyReady","type":"bool"},{"internalType":"uint256","name":"secondsToUnlock","type":"uint256"},{"internalType":"uint256","name":"secondsToEmergency","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"getNFTValueUSDC","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"token","type":"address"}],"name":"getRealBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"streamId","type":"uint256"}],"name":"getStream","outputs":[{"components":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"address","name":"token","type":"address"},{"internalType":"uint256","name":"totalAmount","type":"uint256"},{"internalType":"uint256","name":"withdrawnAmount","type":"uint256"},{"internalType":"uint256","name":"startTime","type":"uint256"},{"internalType":"uint256","name":"endTime","type":"uint256"},{"internalType":"enum PrivateTimeLockVault.StreamStatus","name":"status","type":"uint8"}],"internalType":"struct PrivateTimeLockVault.StreamEntry","name":"","type":"tuple"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"streamId","type":"uint256"}],"name":"getStreamTimeInfo","outputs":[{"internalType":"bool","name":"isFullyUnlocked","type":"bool"},{"internalType":"bool","name":"isEmergencyReady","type":"bool"},{"internalType":"uint256","name":"secondsToEnd","type":"uint256"},{"internalType":"uint256","name":"secondsToEmergency","type":"uint256"},{"internalType":"uint256","name":"unlocked","type":"uint256"},{"internalType":"uint256","name":"withdrawable","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getWithdrawalAddress","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"operator","type":"address"},{"internalType":"address","name":"","type":"address"},{"internalType":"uint256","name":"","type":"uint256"},{"internalType":"bytes","name":"","type":"bytes"}],"name":"onERC721Received","outputs":[{"internalType":"bytes4","name":"","type":"bytes4"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"oldNftLockId","type":"uint256"},{"internalType":"uint256","name":"newTokenId","type":"uint256"}],"name":"rebalanceNFT","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"streamBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"token","type":"address"}],"name":"syncBalance","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"totalLocks","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"totalNFTLocks","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"totalStreams","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"streamId","type":"uint256"}],"name":"unlockedAmount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"vaultBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"lockId","type":"uint256"}],"name":"withdraw","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"nftLockId","type":"uint256"}],"name":"withdrawNFT","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"streamId","type":"uint256"}],"name":"withdrawStream","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"streamId","type":"uint256"}],"name":"withdrawableAmount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"stateMutability":"payable","type":"receive"}];
+const VAULT_ABI = [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[{"internalType":"uint256","name":"lockId","type":"uint256"},{"internalType":"uint256","name":"availableAt","type":"uint256"}],"name":"EmergencyNotReady","type":"error"},{"inputs":[{"internalType":"string","name":"reason","type":"string"}],"name":"InvalidNFT","type":"error"},{"inputs":[{"internalType":"string","name":"reason","type":"string"}],"name":"InvalidUnlockTime","type":"error"},{"inputs":[{"internalType":"uint256","name":"lockId","type":"uint256"}],"name":"LockAlreadyDone","type":"error"},{"inputs":[{"internalType":"uint256","name":"lockId","type":"uint256"}],"name":"LockNotFound","type":"error"},{"inputs":[{"internalType":"uint256","name":"lockId","type":"uint256"},{"internalType":"uint256","name":"unlockTimestamp","type":"uint256"}],"name":"LockStillActive","type":"error"},{"inputs":[{"internalType":"uint256","name":"nftLockId","type":"uint256"},{"internalType":"uint256","name":"availableAt","type":"uint256"}],"name":"NFTEmergencyNotReady","type":"error"},{"inputs":[{"internalType":"uint256","name":"nftLockId","type":"uint256"}],"name":"NFTLockAlreadyDone","type":"error"},{"inputs":[{"internalType":"uint256","name":"nftLockId","type":"uint256"}],"name":"NFTLockNotFound","type":"error"},{"inputs":[{"internalType":"uint256","name":"nftLockId","type":"uint256"},{"internalType":"uint256","name":"unlockTimestamp","type":"uint256"}],"name":"NFTLockStillActive","type":"error"},{"inputs":[],"name":"NotOwner","type":"error"},{"inputs":[],"name":"NotPositionManager","type":"error"},{"inputs":[{"internalType":"uint256","name":"streamId","type":"uint256"}],"name":"NothingToWithdraw","type":"error"},{"inputs":[],"name":"ReentrancyGuardReentrantCall","type":"error"},{"inputs":[{"internalType":"address","name":"token","type":"address"}],"name":"SafeERC20FailedOperation","type":"error"},{"inputs":[{"internalType":"uint256","name":"streamId","type":"uint256"}],"name":"StreamAlreadyDone","type":"error"},{"inputs":[{"internalType":"uint256","name":"streamId","type":"uint256"},{"internalType":"uint256","name":"availableAt","type":"uint256"}],"name":"StreamEmergencyNotReady","type":"error"},{"inputs":[{"internalType":"uint256","name":"streamId","type":"uint256"}],"name":"StreamNotFound","type":"error"},{"inputs":[],"name":"TokenNotAllowed","type":"error"},{"inputs":[],"name":"ZeroAmount","type":"error"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"lockId","type":"uint256"},{"indexed":true,"internalType":"address","name":"token","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"depositTime","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"unlockTimestamp","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"emergencyAvailableAt","type":"uint256"}],"name":"Deposited","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"lockId","type":"uint256"},{"indexed":true,"internalType":"address","name":"token","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"},{"indexed":true,"internalType":"address","name":"to","type":"address"}],"name":"EmergencyWithdrawn","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"nftLockId","type":"uint256"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"},{"indexed":false,"internalType":"uint128","name":"liquidity","type":"uint128"},{"indexed":false,"internalType":"uint256","name":"usdcAmount","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"unlockTimestamp","type":"uint256"}],"name":"NFTDeposited","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"nftLockId","type":"uint256"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"},{"indexed":true,"internalType":"address","name":"to","type":"address"}],"name":"NFTEmergencyWithdrawn","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"oldNftLockId","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"oldTokenId","type":"uint256"},{"indexed":true,"internalType":"uint256","name":"newNftLockId","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"newTokenId","type":"uint256"}],"name":"NFTRebalanced","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"nftLockId","type":"uint256"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"},{"indexed":true,"internalType":"address","name":"to","type":"address"}],"name":"NFTWithdrawn","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"streamId","type":"uint256"},{"indexed":true,"internalType":"address","name":"token","type":"address"},{"indexed":false,"internalType":"uint256","name":"totalAmount","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"startTime","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"endTime","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"emergencyAvailableAt","type":"uint256"}],"name":"StreamDeposited","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"streamId","type":"uint256"},{"indexed":true,"internalType":"address","name":"token","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"},{"indexed":true,"internalType":"address","name":"to","type":"address"}],"name":"StreamEmergencyWithdrawn","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"streamId","type":"uint256"},{"indexed":true,"internalType":"address","name":"token","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"totalWithdrawn","type":"uint256"},{"indexed":true,"internalType":"address","name":"to","type":"address"}],"name":"StreamWithdrawn","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"lockId","type":"uint256"},{"indexed":true,"internalType":"address","name":"token","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"},{"indexed":true,"internalType":"address","name":"to","type":"address"}],"name":"Withdrawn","type":"event"},{"stateMutability":"payable","type":"fallback"},{"inputs":[],"name":"DUR","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"DUR_POOL_ID","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"OWNER","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"POSITION_MANAGER","outputs":[{"internalType":"contract IPositionManager","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"STATE_VIEW","outputs":[{"internalType":"contract IStateView","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"USDC","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"WBTC","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"token","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint256","name":"unlockTimestamp","type":"uint256"}],"name":"deposit","outputs":[{"internalType":"uint256","name":"lockId","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"},{"internalType":"uint256","name":"unlockTimestamp","type":"uint256"}],"name":"depositNFT","outputs":[{"internalType":"uint256","name":"nftLockId","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"token","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint256","name":"startTimestamp","type":"uint256"},{"internalType":"uint256","name":"endTimestamp","type":"uint256"}],"name":"depositStream","outputs":[{"internalType":"uint256","name":"streamId","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"lockId","type":"uint256"}],"name":"emergencyWithdraw","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"nftLockId","type":"uint256"}],"name":"emergencyWithdrawNFT","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"streamId","type":"uint256"}],"name":"emergencyWithdrawStream","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"token","type":"address"}],"name":"getActiveLocksByToken","outputs":[{"components":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"address","name":"token","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint256","name":"depositTime","type":"uint256"},{"internalType":"uint256","name":"unlockTimestamp","type":"uint256"},{"internalType":"enum PrivateTimeLockVault.LockStatus","name":"status","type":"uint8"}],"internalType":"struct PrivateTimeLockVault.LockEntry[]","name":"","type":"tuple[]"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getActiveNFTLocks","outputs":[{"components":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"uint256","name":"tokenId","type":"uint256"},{"internalType":"uint128","name":"liquidity","type":"uint128"},{"internalType":"uint256","name":"usdcAmount","type":"uint256"},{"internalType":"uint256","name":"depositTime","type":"uint256"},{"internalType":"uint256","name":"unlockTimestamp","type":"uint256"},{"internalType":"enum PrivateTimeLockVault.NFTLockStatus","name":"status","type":"uint8"}],"internalType":"struct PrivateTimeLockVault.NFTLockEntry[]","name":"","type":"tuple[]"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getActiveStreams","outputs":[{"components":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"address","name":"token","type":"address"},{"internalType":"uint256","name":"totalAmount","type":"uint256"},{"internalType":"uint256","name":"withdrawnAmount","type":"uint256"},{"internalType":"uint256","name":"startTime","type":"uint256"},{"internalType":"uint256","name":"endTime","type":"uint256"},{"internalType":"enum PrivateTimeLockVault.StreamStatus","name":"status","type":"uint8"}],"internalType":"struct PrivateTimeLockVault.StreamEntry[]","name":"","type":"tuple[]"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getAllBalances","outputs":[{"internalType":"uint256","name":"durBalance","type":"uint256"},{"internalType":"uint256","name":"wbtcBalance","type":"uint256"},{"internalType":"uint256","name":"usdcBalance","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getAllNFTLocks","outputs":[{"components":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"uint256","name":"tokenId","type":"uint256"},{"internalType":"uint128","name":"liquidity","type":"uint128"},{"internalType":"uint256","name":"usdcAmount","type":"uint256"},{"internalType":"uint256","name":"depositTime","type":"uint256"},{"internalType":"uint256","name":"unlockTimestamp","type":"uint256"},{"internalType":"enum PrivateTimeLockVault.NFTLockStatus","name":"status","type":"uint8"}],"internalType":"struct PrivateTimeLockVault.NFTLockEntry[]","name":"","type":"tuple[]"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getAllStreams","outputs":[{"components":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"address","name":"token","type":"address"},{"internalType":"uint256","name":"totalAmount","type":"uint256"},{"internalType":"uint256","name":"withdrawnAmount","type":"uint256"},{"internalType":"uint256","name":"startTime","type":"uint256"},{"internalType":"uint256","name":"endTime","type":"uint256"},{"internalType":"enum PrivateTimeLockVault.StreamStatus","name":"status","type":"uint8"}],"internalType":"struct PrivateTimeLockVault.StreamEntry[]","name":"","type":"tuple[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"token","type":"address"}],"name":"getAllowance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"lockId","type":"uint256"}],"name":"getLock","outputs":[{"components":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"address","name":"token","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint256","name":"depositTime","type":"uint256"},{"internalType":"uint256","name":"unlockTimestamp","type":"uint256"},{"internalType":"enum PrivateTimeLockVault.LockStatus","name":"status","type":"uint8"}],"internalType":"struct PrivateTimeLockVault.LockEntry","name":"","type":"tuple"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"lockId","type":"uint256"}],"name":"getLockTimeInfo","outputs":[{"internalType":"bool","name":"isUnlocked","type":"bool"},{"internalType":"bool","name":"isEmergencyReady","type":"bool"},{"internalType":"uint256","name":"secondsToUnlock","type":"uint256"},{"internalType":"uint256","name":"secondsToEmergency","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"token","type":"address"}],"name":"getLocksByToken","outputs":[{"components":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"address","name":"token","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint256","name":"depositTime","type":"uint256"},{"internalType":"uint256","name":"unlockTimestamp","type":"uint256"},{"internalType":"enum PrivateTimeLockVault.LockStatus","name":"status","type":"uint8"}],"internalType":"struct PrivateTimeLockVault.LockEntry[]","name":"","type":"tuple[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"nftLockId","type":"uint256"}],"name":"getNFTLock","outputs":[{"components":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"uint256","name":"tokenId","type":"uint256"},{"internalType":"uint128","name":"liquidity","type":"uint128"},{"internalType":"uint256","name":"usdcAmount","type":"uint256"},{"internalType":"uint256","name":"depositTime","type":"uint256"},{"internalType":"uint256","name":"unlockTimestamp","type":"uint256"},{"internalType":"enum PrivateTimeLockVault.NFTLockStatus","name":"status","type":"uint8"}],"internalType":"struct PrivateTimeLockVault.NFTLockEntry","name":"","type":"tuple"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"nftLockId","type":"uint256"}],"name":"getNFTLockTimeInfo","outputs":[{"internalType":"bool","name":"isUnlocked","type":"bool"},{"internalType":"bool","name":"isEmergencyReady","type":"bool"},{"internalType":"uint256","name":"secondsToUnlock","type":"uint256"},{"internalType":"uint256","name":"secondsToEmergency","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"getNFTValueUSDC","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"token","type":"address"}],"name":"getRealBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"streamId","type":"uint256"}],"name":"getStream","outputs":[{"components":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"address","name":"token","type":"address"},{"internalType":"uint256","name":"totalAmount","type":"uint256"},{"internalType":"uint256","name":"withdrawnAmount","type":"uint256"},{"internalType":"uint256","name":"startTime","type":"uint256"},{"internalType":"uint256","name":"endTime","type":"uint256"},{"internalType":"enum PrivateTimeLockVault.StreamStatus","name":"status","type":"uint8"}],"internalType":"struct PrivateTimeLockVault.StreamEntry","name":"","type":"tuple"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"streamId","type":"uint256"}],"name":"getStreamTimeInfo","outputs":[{"internalType":"bool","name":"isFullyUnlocked","type":"bool"},{"internalType":"bool","name":"isEmergencyReady","type":"bool"},{"internalType":"uint256","name":"secondsToEnd","type":"uint256"},{"internalType":"uint256","name":"secondsToEmergency","type":"uint256"},{"internalType":"uint256","name":"unlocked","type":"uint256"},{"internalType":"uint256","name":"withdrawable","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getWithdrawalAddress","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"operator","type":"address"},{"internalType":"address","name":"","type":"address"},{"internalType":"uint256","name":"","type":"uint256"},{"internalType":"bytes","name":"","type":"bytes"}],"name":"onERC721Received","outputs":[{"internalType":"bytes4","name":"","type":"bytes4"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"oldNftLockId","type":"uint256"},{"internalType":"uint256","name":"newTokenId","type":"uint256"}],"name":"rebalanceNFT","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"streamBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"token","type":"address"}],"name":"syncBalance","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"totalLocks","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"totalNFTLocks","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"totalStreams","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"streamId","type":"uint256"}],"name":"unlockedAmount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"vaultBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"lockId","type":"uint256"}],"name":"withdraw","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"nftLockId","type":"uint256"}],"name":"withdrawNFT","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"streamId","type":"uint256"}],"name":"withdrawStream","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"streamId","type":"uint256"}],"name":"withdrawableAmount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"stateMutability":"payable","type":"receive"}];
 
 const ERC20_ABI = [
   "function approve(address spender, uint256 amount) returns (bool)",
@@ -30,7 +29,7 @@ const ERC20_ABI = [
   "function balanceOf(address account) view returns (uint256)",
 ];
 
-// в”Ђв”Ђв”Ђ Yordamchilar в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ─── Yordamchilar ────────────────────────────────────────────────────────────
 const formatAmt = (val, dec) => {
   try {
     const n = Number(ethers.formatUnits(val, dec));
@@ -50,21 +49,11 @@ const formatDate = (ts) => {
   });
 };
 
-const fmtPrice = (val) => {
-  try {
-    const n = Number(ethers.formatUnits(val, 6));
-    if (n === 0) return "—";
-    return "$" + n.toFixed(6);
-  } catch { return "—"; }
-};
-
 // +60 sekund zaxira
 const daysToUnlockTs = (days) =>
-  Math.floor(Date.now() / 1000) + Number(days) * 86400 + 60;
+  Math.floor(Date.now() / 1000) + Number(days) * 86400 + 300;
 
-const POOL = { 0: "BLT/USDC", 1: "DUR/USDC" };
-
-// в”Ђв”Ђв”Ђ Vault Styles в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ─── Vault Styles ────────────────────────────────────────────────────────────
 const vaultStyles = `
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
@@ -134,9 +123,7 @@ const vaultStyles = `
 }
 .token-badge.dur  { background: rgba(0,212,170,0.12);  color: #00d4aa; }
 .token-badge.usdc { background: rgba(38,118,230,0.12); color: #2676e6; }
-.token-badge.usdt { background: rgba(38,161,123,0.12); color: #26a17b; }
 .token-badge.wbtc { background: rgba(247,147,26,0.12); color: #f7931a; }
-.token-badge.blt  { background: rgba(168,85,247,0.12); color: #a855f7; }
 
 /* Status badge */
 .status-badge {
@@ -358,10 +345,8 @@ const vaultStyles = `
 }
 `;
 
-
-
-// в”Ђв”Ђв”Ђ DepositForm в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
-function DepositForm({ signer, provider, account, onSuccess }) {
+// ─── DepositForm ─────────────────────────────────────────────────────────────
+function DepositForm({ signer, provider, account, onSuccess, approveMode }) {
   const { t } = useLang();
   const [selectedToken, setSelectedToken] = useState(TOKEN_LIST[0]);
   const [amount,        setAmount]        = useState("");
@@ -392,13 +377,13 @@ function DepositForm({ signer, provider, account, onSuccess }) {
     try {
       if (!amount || isNaN(Number(amount))) return 0n;
       return ethers.parseUnits(amount, selectedToken.decimals);
-  } catch { return "—"; }
+    } catch { return 0n; }
   })();
 
   const unlockTs = (() => {
     const d = parseInt(lockDays);
     if (!d || d < 1) return 0;
-    return Math.floor(Date.now() / 1000) + d * 86400 + 60;
+    return Math.floor(Date.now() / 1000) + d * 86400 + 300;
   })();
 
   const needsApproval = rawAmount > 0n && allowance < rawAmount;
@@ -415,8 +400,15 @@ function DepositForm({ signer, provider, account, onSuccess }) {
     setApproving(true);
     try {
       const erc20 = new ethers.Contract(selectedToken.address, ERC20_ABI, signer);
+      // Approve miqdori: approveMode ga ko'ra (1, 10, 100, yoki cheksiz)
+      let approveAmount;
+      if (approveMode === "max") {
+        approveAmount = ethers.MaxUint256;
+      } else {
+        approveAmount = rawAmount * BigInt(approveMode || 1);
+      }
       toast.loading(t("vaultApproving"), { id: "approve" });
-      const tx = await erc20.approve(VAULT_ADDRESS, rawAmount);
+      const tx = await erc20.approve(VAULT_ADDRESS, approveAmount);
       await tx.wait();
       toast.success(t("vaultApproveSuccess"), { id: "approve" });
       await fetchBal();
@@ -527,7 +519,7 @@ function DepositForm({ signer, provider, account, onSuccess }) {
   );
 }
 
-// в”Ђв”Ђв”Ђ Asosiy komponent в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ─── Asosiy komponent ────────────────────────────────────────────────────────
 export default function Vault() {
   const { account, signer, provider } = useWeb3();
   const { t } = useLang();
@@ -541,7 +533,6 @@ export default function Vault() {
   const [balances,       setBalances]       = useState(null);
   const [locks,          setLocks]          = useState([]);
   const [nftLocks,       setNftLocks]       = useState([]);
-  const [prices,         setPrices]         = useState({ blt: 0n, dur: 0n });
   const [totalL,         setTotalL]         = useState(0);
   const [totalN,         setTotalN]         = useState(0);
   const [withdrawalAddr, setWithdrawalAddr] = useState("");
@@ -553,10 +544,12 @@ export default function Vault() {
   const [rebalanceOld,   setRebalanceOld]   = useState("");
   const [rebalanceNew,   setRebalanceNew]   = useState("");
   const [syncToken,      setSyncToken]      = useState("DUR");
+  const [approveMode,    setApproveMode]    = useState("max");
   const [streams,        setStreams]         = useState([]);
   const [streamToken,    setStreamToken]     = useState("DUR");
   const [streamAmount,   setStreamAmount]    = useState("");
-  const [streamDays,     setStreamDays]      = useState("");
+  const [streamStartDays,setStreamStartDays] = useState("");
+  const [streamEndDays,  setStreamEndDays]   = useState("");
   const timerRef = useRef(null);
 
   // Live clock
@@ -565,7 +558,7 @@ export default function Vault() {
     return () => clearInterval(timerRef.current);
   }, []);
 
-  // в”Ђв”Ђ Ma'lumot yuklash в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+  // ── Ma'lumot yuklash ───────────────────────────────────────────────────────
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -589,8 +582,6 @@ export default function Vault() {
       setTotalN(Number(totalNFTs));
 
       try { setWithdrawalAddr(await vault.getWithdrawalAddress()); } catch {}
-      // BLT narxi vault da yoq
-      // DUR narxi vault da yoq
 
       const lockArr = [];
       for (let i = 0; i < Number(totalLocks); i++) {
@@ -610,7 +601,6 @@ export default function Vault() {
           } catch { if (_try < 2) await new Promise(r => setTimeout(r, 500)); }
         }
       }
-console.log('Tarixiy locklar:', lockArr.filter(l => Number(l.status) !== 0).length);
       setLocks(lockArr);
 
       const nftArr = [];
@@ -628,7 +618,6 @@ console.log('Tarixiy locklar:', lockArr.filter(l => Number(l.status) !== 0).leng
             nftArr.push({
               id: i,
               tokenId: nft.tokenId,
-              poolType: nft.poolType,
               liquidity: nft.liquidity,
               depositTime: nft.depositTime,
               unlockTimestamp: nft.unlockTimestamp,
@@ -674,7 +663,7 @@ console.log('Tarixiy locklar:', lockArr.filter(l => Number(l.status) !== 0).leng
 
   useEffect(() => { load(); }, [load]);
 
-  // в”Ђв”Ђ Write vault в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+  // ── Write vault ──────────────────────────────────────────────────────────────
   const getWriteVault = () => {
     if (!signer) { toast.error(t("vaultWalletNotConnected")); return null; }
     return new ethers.Contract(VAULT_ADDRESS, VAULT_ABI, signer);
@@ -730,7 +719,6 @@ console.log('Tarixiy locklar:', lockArr.filter(l => Number(l.status) !== 0).leng
     const v = getWriteVault(); if (!v) return;
 
     // Position Manager ga approve
-    const POSITION_MANAGER = "0x3C3Ea4B57a46241e54610e5f022E5c45859A1017";
     const posMgr = new ethers.Contract(POSITION_MANAGER, [
       "function approve(address to, uint256 tokenId)",
       "function getApproved(uint256 tokenId) view returns (address)",
@@ -754,7 +742,6 @@ console.log('Tarixiy locklar:', lockArr.filter(l => Number(l.status) !== 0).leng
     const v = getWriteVault(); if (!v) return;
 
     // Yangi NFT ni approve qilish
-    const POSITION_MANAGER = "0x3C3Ea4B57a46241e54610e5f022E5c45859A1017";
     const posMgr = new ethers.Contract(POSITION_MANAGER, [
       "function approve(address to, uint256 tokenId)",
       "function getApproved(uint256 tokenId) view returns (address)",
@@ -772,23 +759,25 @@ console.log('Tarixiy locklar:', lockArr.filter(l => Number(l.status) !== 0).leng
     setRebalanceOld(""); setRebalanceNew("");
   });
 
-  const handleUpdatePrices = () => withTx("prices", async () => {
-    const v = getWriteVault(); if (!v) return;
-    toast.loading(t("vaultBLTUpdating"), { id: "prices" });
-    await (await v.updateBLTPrice()).wait();
-    toast.loading(t("vaultDURUpdating"), { id: "prices" });
-    await (await v.updateDURPrice()).wait();
-    toast.success(t("vaultPricesUpdated"), { id: "prices" });
-  });
-
   const handleDepositStream = () => withTx("depositStream", async () => {
-    if (!streamAmount || !streamDays) throw new Error("Token, miqdor va kun kiriting");
+    if (!streamAmount || !streamEndDays) throw new Error("Token, miqdor va tugash kunini kiriting");
     const v = getWriteVault();
     if (!v) return;
     const token = TOKEN_LIST.find(t => t.symbol === streamToken);
     if (!token) throw new Error("Token topilmadi");
+
+    const startD = Number(streamStartDays) || 0;   // bo'sh bo'lsa 0 = darhol boshlanadi
+    const endD   = Number(streamEndDays);
+    if (endD <= startD) throw new Error("Tugash kuni boshlanishdan katta bo'lishi kerak");
+    if (endD - startD < 1) throw new Error("Vesting davri kamida 1 kun bo'lishi kerak");
+
     const amtRaw = ethers.parseUnits(streamAmount, token.decimals);
-    const endTs = Math.floor(Date.now() / 1000) + Number(streamDays) * 86400;
+    const nowSec = Math.floor(Date.now() / 1000);
+    // startD = 0 bo'lsa, startTs = now (kontrakt buni block.timestamp ga clamp qiladi)
+    const startTs = startD === 0 ? nowSec : nowSec + startD * 86400;
+    // endTs uchun +300 bufer (kontrakt end >= start + 1 kun talab qiladi)
+    const endTs   = nowSec + endD * 86400 + 300;
+
     const erc20 = new ethers.Contract(token.address, ["function approve(address,uint256) external returns(bool)", "function allowance(address,address) view returns(uint256)"], signer);
     const allowance = await erc20.allowance(await signer.getAddress(), VAULT_ADDRESS);
     if (allowance < amtRaw) {
@@ -796,9 +785,9 @@ console.log('Tarixiy locklar:', lockArr.filter(l => Number(l.status) !== 0).leng
       await (await erc20.approve(VAULT_ADDRESS, amtRaw)).wait();
     }
     toast.loading("Stream lock...", { id: "depositStream" });
-    await (await v.depositStream(token.address, amtRaw, endTs)).wait();
+    await (await v.depositStream(token.address, amtRaw, startTs, endTs)).wait();
     toast.success("Stream yaratildi!", { id: "depositStream" });
-    setStreamAmount(""); setStreamDays("");
+    setStreamAmount(""); setStreamStartDays(""); setStreamEndDays("");
   });
 
   const handleWithdrawStream = (id) => withTx("ws" + id, async () => {
@@ -823,18 +812,45 @@ console.log('Tarixiy locklar:', lockArr.filter(l => Number(l.status) !== 0).leng
     toast.success(t("vaultSyncSuccess"), { id: "sync" });
   });
 
-  // в”Ђв”Ђ Countdown в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
-const emergencyCountdown = (secs) => {
-  const s = Number(secs);
-  if (s <= 0) return t("vaultReady");
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  if (h > 0) return h + "s " + m + "d " + sec + "sek";
-  return m + "d " + sec + "sek";
-};
+  // Barcha tokenlar uchun Vault ga berilgan approve larni bekor qilish (0 ga tushirish)
+  const handleRevokeAll = () => withTx("revokeAll", async () => {
+    if (!signer) { toast.error(t("vaultWalletNotConnected")); return; }
+    const owner = await signer.getAddress();
+    // Qaysi tokenlarda allowance > 0 ekanini aniqlash
+    const toRevoke = [];
+    for (const tk of TOKEN_LIST) {
+      try {
+        const erc20 = new ethers.Contract(tk.address, ERC20_ABI, signer);
+        const allow = await erc20.allowance(owner, VAULT_ADDRESS);
+        if (allow > 0n) toRevoke.push(tk);
+      } catch {}
+    }
+    if (toRevoke.length === 0) {
+      toast.success("Bekor qilinadigan approve yo'q", { id: "revokeAll" });
+      return;
+    }
+    let done = 0;
+    for (const tk of toRevoke) {
+      toast.loading(`${tk.symbol} bekor qilinmoqda (${done + 1}/${toRevoke.length})...`, { id: "revokeAll" });
+      const erc20 = new ethers.Contract(tk.address, ERC20_ABI, signer);
+      await (await erc20.approve(VAULT_ADDRESS, 0)).wait();
+      done++;
+    }
+    toast.success(`${done} ta approve bekor qilindi`, { id: "revokeAll" });
+  });
 
-const countdown = (unlockTs, status) => {
+  // ── Countdown ──────────────────────────────────────────────────────────────
+  const emergencyCountdown = (secs) => {
+    const s = Number(secs);
+    if (s <= 0) return t("vaultReady");
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    if (h > 0) return h + "s " + m + "d " + sec + "sek";
+    return m + "d " + sec + "sek";
+  };
+
+  const countdown = (unlockTs, status) => {
     if (Number(status) !== 0) return "—";
     const diff = Number(unlockTs) - now;
     if (diff <= 0) return "✓ Ochilgan";
@@ -852,7 +868,7 @@ const countdown = (unlockTs, status) => {
   const activeNFTLocks = nftLocks.filter(n => Number(n.status) === 0);
   const historyNFTLocks = nftLocks.filter(n => Number(n.status) !== 0);
 
-  // в”Ђв”Ђ Filter в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+  // ── Filter ──────────────────────────────────────────────────────────────────
   const filteredLocks = activeLocks.filter(l => {
     if (search) {
       const token = TOKEN_BY_ADDR[l.token?.toLowerCase()];
@@ -863,12 +879,10 @@ const countdown = (unlockTs, status) => {
     return true;
   });
 
-  // в”Ђв”Ђ Render в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+  // ── Render ────────────────────────────────────────────────────────────────────
   if (loading) {
     return <><style>{vaultStyles}</style><div className="loading-center"><div className="spinner" style={{width:28,height:28}} /></div></>;
   }
-
-
 
   const renderStatistika = () => (
     <>
@@ -892,9 +906,9 @@ const countdown = (unlockTs, status) => {
             </div>
           </div>
           <div className="balance-grid">
-            {TOKEN_LIST.filter(tk => isOwner || tk.symbol === "DUR" || tk.symbol === "BLT").map(tk => {
-              const bal = tk.symbol === "DUR" ? balances.durBalance : tk.symbol === "BLT" ? balances.bltBalance
-                        : tk.symbol === "USDC" ? balances.usdcBalance : tk.symbol === "USDT" ? balances.usdtBalance
+            {TOKEN_LIST.filter(tk => isOwner || tk.symbol === "DUR").map(tk => {
+              const bal = tk.symbol === "DUR" ? balances.durBalance
+                        : tk.symbol === "USDC" ? balances.usdcBalance
                         : tk.symbol === "WBTC" ? balances.wbtcBalance : 0n;
               return (
                 <div className="balance-item" key={tk.symbol}>
@@ -950,7 +964,7 @@ const countdown = (unlockTs, status) => {
             .filter(lock => {
               if (isOwner) return true;
               const token = TOKEN_BY_ADDR[lock.token?.toLowerCase()];
-              return token?.symbol === "DUR" || token?.symbol === "BLT";
+              return token?.symbol === "DUR";
             })
             .map(lock => {
             const token = TOKEN_BY_ADDR[lock.token?.toLowerCase()];
@@ -959,7 +973,6 @@ const countdown = (unlockTs, status) => {
             const st = Number(lock.status);
             const ti = lock.ti;
             const isActive = st === 0;
-            // now dan real-time hisoblash
             const isUnlocked = now >= Number(lock.unlockTimestamp);
             const isEmergencyReady = now >= Number(lock.unlockTimestamp) + 48 * 3600;
             const cd = countdown(lock.unlockTimestamp, st);
@@ -1037,7 +1050,7 @@ const countdown = (unlockTs, status) => {
                 <div className="lock-id">#{nft.id}</div>
                 <div>
                   <span className="token-badge" style={{background:"rgba(99,102,241,0.12)",color:"#818cf8"}}>
-                    {POOL[Number(nft.poolType)] || "LP"} NFT
+                    DUR/USDC NFT
                   </span>
                   <span style={{marginLeft:10,fontSize:12,color:"var(--text-secondary)",fontFamily:"var(--font-mono)"}}>
                     #{Number(nft.tokenId)}
@@ -1069,7 +1082,7 @@ const countdown = (unlockTs, status) => {
                   {st === 0 && isOwner && (
                     <button className="btn btn-ghost btn-sm" onClick={() => {
                       setRebalanceOld(String(nft.id));
-                      setActiveTab("narxlar");
+                      setActiveTab("sozlamalar");
                       toast.success(`Lock #${nft.id} ${t("vaultRebalanceSelected")}`);
                     }}>
                       <RefreshCw size={13} /> Rebalance
@@ -1117,7 +1130,9 @@ const countdown = (unlockTs, status) => {
                   <span className="lock-amount" style={{marginLeft:10}}>{formatAmt(s.totalAmount, dec)}</span>
                 </div>
                 <div className="lock-time">
-                  <div style={{fontSize:11,color:"var(--text-muted)",marginBottom:2}}>Tugash</div>
+                  <div style={{fontSize:11,color:"var(--text-muted)",marginBottom:2}}>Boshlanish</div>
+                  <div>{formatDate(s.startTime)}</div>
+                  <div style={{fontSize:11,color:"var(--text-muted)",marginBottom:2,marginTop:6}}>Tugash</div>
                   <div>{formatDate(s.endTime)}</div>
                 </div>
                 <div>
@@ -1125,7 +1140,7 @@ const countdown = (unlockTs, status) => {
                   <div style={{fontSize:13,color:"var(--text-primary)",fontFamily:"var(--font-mono)"}}>{formatAmt(BigInt(s.totalAmount) - BigInt(s.withdrawnAmount), dec)} {sym}</div>
                   <div style={{fontSize:11,color:"var(--text-muted)",marginTop:6}}>Yechish mumkin</div>
                   <div style={{fontSize:13,color:"var(--success)"}}>{formatAmt(withdrawable, dec)} {sym}</div>
-                </div> 
+                </div>
                 <div className="lock-actions">
                   {isOwner && BigInt(withdrawable) > 0n && (
                     <button className="btn btn-primary btn-sm" onClick={() => handleWithdrawStream(s.id)} disabled={!!txLoading["ws"+s.id]}>
@@ -1153,15 +1168,23 @@ const countdown = (unlockTs, status) => {
               {TOKEN_LIST.map(t => <option key={t.symbol} value={t.symbol}>{t.symbol}</option>)}
             </select>
             <input className="input" type="number" placeholder="Miqdor" value={streamAmount} onChange={e => setStreamAmount(e.target.value)} style={{width:140}} />
-            <input className="input" type="number" placeholder="Kun" value={streamDays} onChange={e => setStreamDays(e.target.value)} style={{width:100}} />
+            <input className="input" type="number" min="0" placeholder="Boshlanish (kun, cliff)" value={streamStartDays} onChange={e => setStreamStartDays(e.target.value)} style={{width:160}} />
+            <input className="input" type="number" min="1" placeholder="Tugash (kun)" value={streamEndDays} onChange={e => setStreamEndDays(e.target.value)} style={{width:120}} />
             <button className="btn btn-primary" onClick={handleDepositStream} disabled={!!txLoading.depositStream}>
               {txLoading.depositStream ? <div className="spinner" style={{width:14,height:14}}/> : <Lock size={13}/>}
               Stream yaratish
             </button>
           </div>
-          {streamDays && Number(streamDays) >= 1 && (
-            <div style={{fontSize:12,color:"var(--text-muted)",marginTop:8}}>
-              Tugash: {new Date(Date.now() + Number(streamDays)*86400000).toLocaleDateString("uz")}
+          <div style={{fontSize:11,color:"var(--text-muted)",marginTop:8,lineHeight:1.5}}>
+            Boshlanish (cliff) — necha kundan keyin ochila boshlasin (0 yoki bo'sh = darhol).
+            Tugash — necha kunda to'liq ochilsin. Ikkalasi orasida chiziqli ochiladi.
+          </div>
+          {streamEndDays && Number(streamEndDays) >= 1 && (
+            <div style={{fontSize:12,color:"var(--text-muted)",marginTop:6}}>
+              {(Number(streamStartDays) || 0) > 0 && (
+                <>Cliff: {new Date(Date.now() + (Number(streamStartDays)||0)*86400000).toLocaleDateString("uz")} gacha 0%, keyin ochila boshlaydi. <br/></>
+              )}
+              To'liq ochilish: {new Date(Date.now() + Number(streamEndDays)*86400000).toLocaleDateString("uz")}
             </div>
           )}
         </div>
@@ -1173,7 +1196,7 @@ const countdown = (unlockTs, status) => {
     <div style={{maxWidth:520}}>
       <h2 style={{fontSize:16,fontWeight:700,marginBottom:20}}>{t("vaultDepositToken")}</h2>
       <div className="card" style={{marginBottom:24}}>
-        <DepositForm signer={signer} provider={provider} account={account} onSuccess={load} />
+        <DepositForm signer={signer} provider={provider} account={account} onSuccess={load} approveMode={approveMode} />
       </div>
       <h2 style={{fontSize:16,fontWeight:700,marginBottom:16}}>{t("vaultDepositNFT")}</h2>
       <div className="card">
@@ -1205,28 +1228,56 @@ const countdown = (unlockTs, status) => {
     </div>
   );
 
-  const renderNarxlar = () => (
+  const APPROVE_MODES = [
+    { id: "1",   label: "1 × 1" },
+    { id: "10",  label: "1 × 10" },
+    { id: "100", label: "1 × 100" },
+    { id: "max", label: "Cheksiz" },
+  ];
+
+  const renderSozlamalar = () => (
     <div style={{maxWidth:600}}>
-      <h2 style={{fontSize:16,fontWeight:700,marginBottom:20}}>{t("vaultPrices")}</h2>
+      <h2 style={{fontSize:16,fontWeight:700,marginBottom:20}}>{t("vaultSettings") || "Sozlamalar"}</h2>
+
+      {/* Approve miqdori sozlamasi */}
       <div className="card" style={{marginBottom:16}}>
-        <div className="card-title" style={{marginBottom:16}}>{t("vaultCurrentPrices")}</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
-          <div className="balance-item">
-            <span style={{fontFamily:"var(--font-mono)",fontSize:12,color:"var(--text-muted)"}}>DUR/USDC</span>
-            <span style={{fontFamily:"var(--font-mono)",fontSize:14,fontWeight:700,color:"var(--accent)"}}>{fmtPrice(prices.dur)}</span>
-          </div>
-          <div className="balance-item">
-            <span style={{fontFamily:"var(--font-mono)",fontSize:12,color:"var(--text-muted)"}}>BLT/USDC</span>
-            <span style={{fontFamily:"var(--font-mono)",fontSize:14,fontWeight:700,color:"var(--accent)"}}>{fmtPrice(prices.blt)}</span>
-          </div>
+        <div className="card-title" style={{marginBottom:8}}>Approve miqdori</div>
+        <p style={{fontSize:12,color:"var(--text-muted)",marginBottom:14,lineHeight:1.5}}>
+          Token kiritishda Vault ga beriladigan ruxsat miqdori. Kiritilgan miqdorga ko'paytiriladi
+          (masalan 100 DUR × 10 = 1000 DUR), yoki cheksiz.
+        </p>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          {APPROVE_MODES.map(m => (
+            <button key={m.id}
+              className={"btn btn-sm" + (approveMode === m.id ? " btn-primary" : " btn-ghost")}
+              onClick={() => setApproveMode(m.id)}>
+              {m.label}
+            </button>
+          ))}
         </div>
-        <button className="btn btn-primary btn-sm" onClick={handleUpdatePrices} disabled={txLoading.prices}>
-          {txLoading.prices
+        <div style={{fontSize:11,color:"var(--text-muted)",marginTop:10}}>
+          Tanlangan: <span style={{color:"var(--accent)",fontWeight:600}}>
+            {APPROVE_MODES.find(m => m.id === approveMode)?.label}
+          </span>
+        </div>
+      </div>
+
+      {/* Barcha approve larni bekor qilish */}
+      <div className="card" style={{marginBottom:16,borderColor:"rgba(239,68,68,0.2)"}}>
+        <div className="card-title" style={{marginBottom:8}}>Approve larni bekor qilish</div>
+        <p style={{fontSize:12,color:"var(--text-muted)",marginBottom:14,lineHeight:1.5}}>
+          Barcha tokenlar (DUR, USDC, WBTC) uchun Vault ga berilgan ruxsatni 0 ga tushiradi.
+          Faqat ruxsat berilgan tokenlar uchun tranzaksiya yuboriladi.
+        </p>
+        <button className="btn btn-danger" style={{width:"100%"}}
+          onClick={handleRevokeAll} disabled={txLoading.revokeAll}>
+          {txLoading.revokeAll
             ? <div className="spinner" style={{width:14,height:14}} />
-            : <RefreshCw size={13} />}
-          {t("vaultUpdatePrices")}
+            : <AlertTriangle size={14} />}
+          Barcha approve larni bekor qilish
         </button>
       </div>
+
       <div className="card" style={{marginBottom:16}}>
         <div className="card-title" style={{marginBottom:16}}>{t("vaultSyncBalance")}</div>
         <div style={{display:"flex",gap:8}}>
@@ -1261,169 +1312,170 @@ const countdown = (unlockTs, status) => {
       </div>
     </div>
   );
+
   const renderTarix = () => {
-  const finishedStreams = streams.filter(s => Number(s.status) !== 0);
+    const finishedStreams = streams.filter(s => Number(s.status) !== 0);
 
-  if (historyLocks.length === 0 && historyNFTLocks.length === 0 && finishedStreams.length === 0) {
+    if (historyLocks.length === 0 && historyNFTLocks.length === 0 && finishedStreams.length === 0) {
+      return (
+        <div className="empty-state" style={{padding: 48}}>
+          <Search size={40} />
+          <p style={{color: "var(--text-muted)", marginTop: 16}}>
+            Tarixda hozircha yozuvlar yo'q.
+          </p>
+          <p style={{color: "var(--text-secondary)", fontSize: 13, marginTop: 8, textAlign: 'center', lineHeight: 1.6}}>
+            Token lock, NFT lock yoki Stream muddati tugagach<br/>
+            (yoki emergency qilinganda) tarixga tushadi.
+          </p>
+        </div>
+      );
+    }
+
     return (
-      <div className="empty-state" style={{padding: 48}}>
-        <Search size={40} />
-        <p style={{color: "var(--text-muted)", marginTop: 16}}>
-          Tarixda hozircha yozuvlar yo'q.
-        </p>
-        <p style={{color: "var(--text-secondary)", fontSize: 13, marginTop: 8, textAlign: 'center', lineHeight: 1.6}}>
-          Token lock, NFT lock yoki Stream muddati tugagach<br/>
-          (yoki emergency qilinganda) tarixga tushadi.
-        </p>
-      </div>
+      <>
+        {/* Token tarix */}
+        {historyLocks.length > 0 && (
+          <>
+            <h2 style={{fontSize:16,fontWeight:700,marginBottom:16}}>
+              {t("vaultTokenHistory")}
+              <span style={{marginLeft:8,fontSize:12,color:"var(--text-muted)",fontFamily:"var(--font-mono)",fontWeight:400}}>
+                {historyLocks.length}{t("vaultCount")}
+              </span>
+            </h2>
+            <div className="lock-list" style={{marginBottom:32}}>
+              {historyLocks.map(lock => {
+                const token = TOKEN_BY_ADDR[lock.token?.toLowerCase()];
+                const sym = token?.symbol || "???";
+                const dec = token?.decimals || 18;
+                const st = Number(lock.status);
+                const statusLabel = st === 1 ? "Yechildi" : "Emergency";
+                const statusClass = st === 1 ? "withdrawn" : "emergency";
+                return (
+                  <div key={lock.id} className="lock-row" style={{opacity:0.75}}>
+                    <div className="lock-id">#{lock.id}</div>
+                    <div>
+                      <span className={"token-badge " + sym.toLowerCase()}>{sym}</span>
+                      <span className="lock-amount" style={{marginLeft:10}}>{formatAmt(lock.amount, dec)}</span>
+                    </div>
+                    <div className="lock-time">
+                      <div style={{fontSize:11,color:"var(--text-muted)",marginBottom:2}}>{t("vaultDeposited")}</div>
+                      <div>{formatDate(lock.depositTime)}</div>
+                    </div>
+                    <div className="lock-time">
+                      <div style={{fontSize:11,color:"var(--text-muted)",marginBottom:2}}>{t("vaultUnlockDate")}</div>
+                      <div>{formatDate(lock.unlockTimestamp)}</div>
+                    </div>
+                    <div>
+                      <span className={"status-badge " + statusClass}>
+                        <span className="status-dot" />{statusLabel}
+                      </span>
+                    </div>
+                    <div />
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {/* NFT tarix */}
+        {historyNFTLocks.length > 0 && (
+          <>
+            <h2 style={{fontSize:16,fontWeight:700,marginBottom:16}}>
+              {t("vaultNFTHistory")}
+              <span style={{marginLeft:8,fontSize:12,color:"var(--text-muted)",fontFamily:"var(--font-mono)",fontWeight:400}}>
+                {historyNFTLocks.length}{t("vaultCount")}
+              </span>
+            </h2>
+            <div className="lock-list">
+              {historyNFTLocks.map(nft => {
+                const st = Number(nft.status);
+                const statusLabel = st === 1 ? "Yechildi" : st === 2 ? "Rebalanced" : "Emergency";
+                const statusClass = st === 1 ? "withdrawn" : st === 2 ? "emergency" : "emergency";
+                return (
+                  <div key={nft.id} className="lock-row" style={{opacity:0.75}}>
+                    <div className="lock-id">#{nft.id}</div>
+                    <div>
+                      <span className="token-badge" style={{background:"rgba(99,102,241,0.12)",color:"#818cf8"}}>
+                        DUR/USDC NFT
+                      </span>
+                      <span style={{marginLeft:10,fontSize:12,color:"var(--text-secondary)",fontFamily:"var(--font-mono)"}}>
+                        #{Number(nft.tokenId)}
+                      </span>
+                    </div>
+                    <div className="lock-time">
+                      <div style={{fontSize:11,color:"var(--text-muted)",marginBottom:2}}>{t("vaultDeposited")}</div>
+                      <div>{formatDate(nft.depositTime)}</div>
+                    </div>
+                    <div className="lock-time">
+                      <div style={{fontSize:11,color:"var(--text-muted)",marginBottom:2}}>{t("vaultUnlockDate")}</div>
+                      <div>{formatDate(nft.unlockTimestamp)}</div>
+                    </div>
+                    <div>
+                      <span className={"status-badge " + statusClass}>
+                        <span className="status-dot" />{statusLabel}
+                      </span>
+                    </div>
+                    <div />
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {/* Stream tarix */}
+        {finishedStreams.length > 0 && (
+          <>
+            <h2 style={{fontSize:16,fontWeight:700,marginBottom:16}}>
+              Stream tarixi
+              <span style={{marginLeft:8,fontSize:12,color:"var(--text-muted)",fontFamily:"var(--font-mono)",fontWeight:400}}>
+                {finishedStreams.length}
+              </span>
+            </h2>
+            <div className="lock-list">
+              {finishedStreams.map(s => {
+                const token = TOKEN_BY_ADDR[s.token?.toLowerCase()];
+                const sym = token?.symbol || "???";
+                const dec = token?.decimals || 18;
+                const st = Number(s.status);
+                const statusLabel = st === 1 ? "Tugagan" : "Emergency";
+                return (
+                  <div key={`s-${s.id}`} className="lock-row" style={{opacity:0.75}}>
+                    <div className="lock-id">S#{s.id}</div>
+                    <div>
+                      <span className={"token-badge " + sym.toLowerCase()}>{sym}</span>
+                      <span className="lock-amount" style={{marginLeft:10}}>{formatAmt(s.totalAmount, dec)}</span>
+                    </div>
+                    <div className="lock-time">
+                      <div style={{fontSize:11,color:"var(--text-muted)",marginBottom:2}}>Boshlangan</div>
+                      <div>{formatDate(s.startTime)}</div>
+                    </div>
+                    <div className="lock-time">
+                      <div style={{fontSize:11,color:"var(--text-muted)",marginBottom:2}}>Tugagan</div>
+                      <div>{formatDate(s.endTime)}</div>
+                    </div>
+                    <div>
+                      <span className={"status-badge " + (st === 1 ? "withdrawn" : "emergency")}>
+                        <span className="status-dot" />{statusLabel}
+                      </span>
+                    </div>
+                    <div />
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </>
     );
-  }
+  };
 
-  return (
-    <>
-      {/* Token tarix */}
-      {historyLocks.length > 0 && (
-        <>
-          <h2 style={{fontSize:16,fontWeight:700,marginBottom:16}}>
-            {t("vaultTokenHistory")}
-            <span style={{marginLeft:8,fontSize:12,color:"var(--text-muted)",fontFamily:"var(--font-mono)",fontWeight:400}}>
-              {historyLocks.length}{t("vaultCount")}
-            </span>
-          </h2>
-          <div className="lock-list" style={{marginBottom:32}}>
-            {historyLocks.map(lock => {
-              const token = TOKEN_BY_ADDR[lock.token?.toLowerCase()];
-              const sym = token?.symbol || "???";
-              const dec = token?.decimals || 18;
-              const st = Number(lock.status);
-              const statusLabel = st === 1 ? "Yechildi" : "Emergency";
-              const statusClass = st === 1 ? "withdrawn" : "emergency";
-              return (
-                <div key={lock.id} className="lock-row" style={{opacity:0.75}}>
-                  <div className="lock-id">#{lock.id}</div>
-                  <div>
-                    <span className={"token-badge " + sym.toLowerCase()}>{sym}</span>
-                    <span className="lock-amount" style={{marginLeft:10}}>{formatAmt(lock.amount, dec)}</span>
-                  </div>
-                  <div className="lock-time">
-                    <div style={{fontSize:11,color:"var(--text-muted)",marginBottom:2}}>{t("vaultDeposited")}</div>
-                    <div>{formatDate(lock.depositTime)}</div>
-                  </div>
-                  <div className="lock-time">
-                    <div style={{fontSize:11,color:"var(--text-muted)",marginBottom:2}}>{t("vaultUnlockDate")}</div>
-                    <div>{formatDate(lock.unlockTimestamp)}</div>
-                  </div>
-                  <div>
-                    <span className={"status-badge " + statusClass}>
-                      <span className="status-dot" />{statusLabel}
-                    </span>
-                  </div>
-                  <div />
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-
-      {/* NFT tarix */}
-      {historyNFTLocks.length > 0 && (
-        <>
-          <h2 style={{fontSize:16,fontWeight:700,marginBottom:16}}>
-            {t("vaultNFTHistory")}
-            <span style={{marginLeft:8,fontSize:12,color:"var(--text-muted)",fontFamily:"var(--font-mono)",fontWeight:400}}>
-              {historyNFTLocks.length}{t("vaultCount")}
-            </span>
-          </h2>
-          <div className="lock-list">
-            {historyNFTLocks.map(nft => {
-              const st = Number(nft.status);
-              const statusLabel = st === 1 ? "Yechildi" : st === 2 ? "Rebalanced" : "Emergency";
-              const statusClass = st === 1 ? "withdrawn" : st === 2 ? "emergency" : "emergency";
-              return (
-                <div key={nft.id} className="lock-row" style={{opacity:0.75}}>
-                  <div className="lock-id">#{nft.id}</div>
-                  <div>
-                    <span className="token-badge" style={{background:"rgba(99,102,241,0.12)",color:"#818cf8"}}>
-                      {POOL[Number(nft.poolType)] || "LP"} NFT
-                    </span>
-                    <span style={{marginLeft:10,fontSize:12,color:"var(--text-secondary)",fontFamily:"var(--font-mono)"}}>
-                      #{Number(nft.tokenId)}
-                    </span>
-                  </div>
-                  <div className="lock-time">
-                    <div style={{fontSize:11,color:"var(--text-muted)",marginBottom:2}}>{t("vaultDeposited")}</div>
-                    <div>{formatDate(nft.depositTime)}</div>
-                  </div>
-                  <div className="lock-time">
-                    <div style={{fontSize:11,color:"var(--text-muted)",marginBottom:2}}>{t("vaultUnlockDate")}</div>
-                    <div>{formatDate(nft.unlockTimestamp)}</div>
-                  </div>
-                  <div>
-                    <span className={"status-badge " + statusClass}>
-                      <span className="status-dot" />{statusLabel}
-                    </span>
-                  </div>
-                  <div />
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-
-      {/* Stream tarix */}
-      {finishedStreams.length > 0 && (
-        <>
-          <h2 style={{fontSize:16,fontWeight:700,marginBottom:16}}>
-            Stream tarixi
-            <span style={{marginLeft:8,fontSize:12,color:"var(--text-muted)",fontFamily:"var(--font-mono)",fontWeight:400}}>
-              {finishedStreams.length}
-            </span>
-          </h2>
-          <div className="lock-list">
-            {finishedStreams.map(s => {
-              const token = TOKEN_BY_ADDR[s.token?.toLowerCase()];
-              const sym = token?.symbol || "???";
-              const dec = token?.decimals || 18;
-              const st = Number(s.status);
-              const statusLabel = st === 1 ? "Tugagan" : "Emergency";
-              return (
-                <div key={`s-${s.id}`} className="lock-row" style={{opacity:0.75}}>
-                  <div className="lock-id">S#{s.id}</div>
-                  <div>
-                    <span className={"token-badge " + sym.toLowerCase()}>{sym}</span>
-                    <span className="lock-amount" style={{marginLeft:10}}>{formatAmt(s.totalAmount, dec)}</span>
-                  </div>
-                  <div className="lock-time">
-                    <div style={{fontSize:11,color:"var(--text-muted)",marginBottom:2}}>Boshlangan</div>
-                    <div>{formatDate(s.startTime)}</div>
-                  </div>
-                  <div className="lock-time">
-                    <div style={{fontSize:11,color:"var(--text-muted)",marginBottom:2}}>Tugagan</div>
-                    <div>{formatDate(s.endTime)}</div>
-                  </div>
-                  <div>
-                    <span className={"status-badge " + (st === 1 ? "withdrawn" : "emergency")}>
-                      <span className="status-dot" />{statusLabel}
-                    </span>
-                  </div>
-                  <div />
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-    </>
-  );
-};
-
-  // в”Ђв”Ђ Boshqalar uchun oddiy view в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+  // ── Oddiy foydalanuvchi view ─────────────────────────────────────────────────
   if (!isOwner) {
     const publicLocks = locks.filter(l => {
       const token = TOKEN_BY_ADDR[l.token?.toLowerCase()];
-      return token?.symbol === "DUR" || token?.symbol === "BLT";
+      return token?.symbol === "DUR";
     });
     const activePub = publicLocks.filter(l => Number(l.status) === 0);
 
@@ -1450,7 +1502,7 @@ const countdown = (unlockTs, status) => {
             </div>
           </div>
 
-          {/* Balanslar - faqat DUR va BLT */}
+          {/* Balanslar - faqat DUR */}
           {balances && (
             <div className="card" style={{marginBottom:24}}>
               <div className="card-header">
@@ -1460,8 +1512,8 @@ const countdown = (unlockTs, status) => {
                 </div>
               </div>
               <div className="balance-grid">
-                {[TOKENS.DUR, TOKENS.BLT].map(tk => {
-                  const bal = tk.symbol === "DUR" ? balances.durBalance : balances.bltBalance;
+                {[TOKENS.DUR].map(tk => {
+                  const bal = balances.durBalance;
                   return (
                     <div className="balance-item" key={tk.symbol}>
                       <span className={"token-badge " + tk.symbol.toLowerCase()}>{tk.symbol}</span>
@@ -1550,7 +1602,6 @@ const countdown = (unlockTs, status) => {
           ) : (
             <div className="lock-list">
               {activeNFTLocks.map(nft => {
-                const poolLabel = Number(nft.poolType) === 0 ? "BLT/USDC" : "DUR/USDC";
                 const liq = Number(nft.liquidity);
                 const cd = countdown(nft.unlockTimestamp, 0);
                 const isUnlocked = now >= Number(nft.unlockTimestamp);
@@ -1559,7 +1610,7 @@ const countdown = (unlockTs, status) => {
                     <div className="lock-id">#{nft.id}</div>
                     <div>
                       <span className="token-badge" style={{background:"rgba(99,102,241,0.12)",color:"#818cf8"}}>
-                        {poolLabel} LP
+                        DUR/USDC LP
                       </span>
                       <span style={{marginLeft:8,fontSize:11,color:"var(--text-muted)",fontFamily:"var(--font-mono)"}}>
                         #{Number(nft.tokenId)}
@@ -1635,7 +1686,7 @@ const countdown = (unlockTs, status) => {
     );
   }
 
-  // в”Ђв”Ђ Owner view в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+  // ── Owner view ───────────────────────────────────────────────────────────────
   const TABS = [
     { id: "statistika", label: t("vaultTabStatistika"), icon: <Shield size={15} /> },
     { id: "locklar",    label: t("vaultTabLocklar"),    icon: <Lock size={15} /> },
@@ -1643,7 +1694,7 @@ const countdown = (unlockTs, status) => {
     { id: "tarix",      label: t("vaultTabTarix"),      icon: <Search size={15} /> },
     { id: "kiritish",   label: t("vaultTabKiritish"),   icon: <ArrowDownToLine size={15} /> },
     { id: "stream",     label: "Stream",                   icon: <Zap size={15} /> },
-    
+    { id: "sozlamalar", label: t("vaultSettings") || "Sozlamalar", icon: <RefreshCw size={15} /> },
   ];
 
   return (
@@ -1682,14 +1733,9 @@ const countdown = (unlockTs, status) => {
           {activeTab === "tarix" && renderTarix()}
           {activeTab === "kiritish" && renderKiritish()}
           {activeTab === "stream" && renderStream()}
-          
+          {activeTab === "sozlamalar" && renderSozlamalar()}
         </div>
       </div>
     </>
   );
 }
-
-
-
-
-
