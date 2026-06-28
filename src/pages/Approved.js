@@ -706,14 +706,24 @@ toast.success(t('approvedClaimDefaultSuccess') || 'Default claim muvaffaqiyatli 
               </button>
             )}
             {isBuyer && time.expired && listing.isCollateral && (
-  <button
-    className="btn btn-warning"
-    disabled={actionLoading === `claim-${id}`}
-    onClick={() => doClaimDefault(listing)}
-    style={{ marginTop: '8px' }}
-  >
-    Ortiqcha garovni qaytarish (Claim)
-  </button>
+  <>
+    <button
+      className="btn btn-warning"
+      disabled={actionLoading === `claim-${id}`}
+      onClick={() => {
+        const ok = window.confirm(
+          "Diqqat: \"Ortiqcha garovni qaytarish\" ni bossangiz, to'lov qilinmaydi va sotuvchi qarz miqdoricha garovni oladi. Eng muhimi — bu sotuvchi bilan yiqqan Business Level (BL) ballingiz 0 ga tushadi.\n\nAgar BL ni saqlamoqchi bo'lsangiz, buning o'rniga \"To'lov qilish\" ni tanlang.\n\nDavom etasizmi?"
+        );
+        if (ok) doClaimDefault(listing);
+      }}
+      style={{ marginTop: '8px' }}
+    >
+      Ortiqcha garovni qaytarish (Claim)
+    </button>
+    <div style={{ fontSize: '11px', color: 'var(--warning)', maxWidth: '220px', textAlign: 'right', marginTop: '4px' }}>
+      Eslatma: bu BL ballingizni 0 ga tushiradi.
+    </div>
+  </>
 )}
 
                         {isSeller && time.expired && (
