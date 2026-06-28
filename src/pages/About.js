@@ -24,7 +24,7 @@ export default function About() {
           Umumiy tamoyillar
         </h2>
         <ul style={{ lineHeight: 1.8, paddingLeft: '20px', color: 'var(--text-secondary)' }}>
-          <li><strong>Ownersiz va o‘zgarmas:</strong> Kontraktda admin, owner yoki upgrade yo‘q. OP mainnet tarmog'ida deploy qilingan, hech kim hech qachon o‘zgartira olmaydi. Noto‘g‘ri yuborilgan tokenlarni qaytarib bo‘lmaydi.</li>
+          <li><strong>Ownersiz va o‘zgarmas:</strong> Kontraktda admin, owner yoki upgrade yo‘q. Arbitrum One tarmog‘ida deploy qilingan, hech kim hech qachon o‘zgartira olmaydi. Noto‘g‘ri yuborilgan tokenlarni qaytarib bo‘lmaydi.</li>
           <li><strong>Hammasi ochiq:</strong> Barcha listinglar, narxlar va holatlar zanjirda shaffof. Hech qanday yashirin imtiyoz yo‘q.</li>
           <li><strong>Islomiy tamoyillar:</strong> Garovli savdoda faqat qarz miqdoricha garov olinadi, ortiqchasi xaridorga qaytariladi (rahn). Foiz (ribo) yo‘q, jarima yo‘q.</li>
         </ul>
@@ -37,8 +37,8 @@ export default function About() {
           Garovli savdo
         </h2>
         <ul style={{ lineHeight: 1.8, paddingLeft: '20px', color: 'var(--text-secondary)' }}>
-          <li><strong>Garov tokenlari:</strong> Faqat WBTC va WETH qabul qilinadi. </li>
-          <li><strong>Kim e'lon bera oladi?</strong> Sotuvchi ham, xaridor ham garovli e'lon yaratishi mumkin. Xaridor e'lon vaqtida garovni kontraktga o‘tkazadi.Sotuvchi e'lon vaqtida DUR tokenini kontraktga o'tkazadi.</li>
+          <li><strong>Garov tokenlari:</strong> Faqat WBTC va WETH qabul qilinadi.</li>
+          <li><strong>Kim e'lon bera oladi?</strong> Sotuvchi ham, xaridor ham garovli e'lon yaratishi mumkin. Xaridor e'lon vaqtida garovni kontraktga o‘tkazadi. Sotuvchi e'lon vaqtida DUR tokenini kontraktga o'tkazadi.</li>
           <li><strong>Narxlar:</strong> Garov narxi e'lon vaqtida Chainlink orqali olinadi va butun savdo davomida o‘zgarmaydi. So‘nggi 48 soat ichida narx yangilanmagan bo‘lsa, zaxira mexanizmi ishga tushadi.</li>
           <li><strong>To‘lov:</strong> Xaridor USDC bilan istalgan vaqtda to‘lov qilishi mumkin — muddatidan oldin ham, kechikib ham. To‘lov amalga oshgach, garov qaytariladi va xaridor BL ball oladi.</li>
           <li><strong>Default (to‘lov qilinmasa):</strong> Muddati o‘tgan garovli listing uchun <strong>sotuvchi yoki xaridor</strong> “claim” (da'vo) qilishi mumkin. Sotuvchi faqat qarz miqdoricha garov oladi, qolgani xaridorga qaytariladi.</li>
@@ -61,7 +61,7 @@ export default function About() {
             </ul>
           </li>
           <li><strong>Qanday ishlaydi?</strong> Xaridor garovsiz listing joylaydi va BL band qilinadi. Sotuvchi tasdiqlagach, DUR xaridorga o‘tkaziladi. Xaridor muddatida to‘lov qilsa, BL yana oshadi.</li>
-          <li><strong>To‘lov qilinmasa:</strong> Xaridorning sotuvchi bilan bo‘lgan BL nolga tushadi, qora ro‘yxatga kiradi va yangi garovsiz e'lon bera olmaydi. Qora ro‘yxatdan chiqish uchun <strong>Pay After Default</strong> orqali qarzni USDC da to‘lash kerak (BL qayta tiklanmaydi, lekin garovsiz amalyot kilish imkoniyati qayta tiklanadi qaytadi).</li>
+          <li><strong>To‘lov qilinmasa:</strong> Xaridorning sotuvchi bilan bo‘lgan BL nolga tushadi, qora ro‘yxatga kiradi va yangi garovsiz e'lon bera olmaydi. Qora ro‘yxatdan chiqish uchun <strong>Pay After Default</strong> orqali qarzni USDC da to‘lash kerak (BL qayta tiklanmaydi, lekin garovsiz amaliyot qilish imkoniyati qaytadi).</li>
           <li><strong>BL cheklovi:</strong> Bitta sotuvchiga nisbatan umumiy faol garovsiz qarz BL ning 10% idan oshmasligi kerak. Bu xavfni cheklaydi.</li>
         </ul>
       </section>
@@ -87,76 +87,22 @@ export default function About() {
           Narx manbasi (Oracle)
         </h2>
         <ul style={{ lineHeight: 1.8, paddingLeft: '20px', color: 'var(--text-secondary)' }}>
-          <li><strong>Chainlink:</strong> Barcha narxlar Optimism tarmog‘idagi Chainlink WBTC/USD va ETH/USD feed'laridan olinadi.</li>
-          <li><strong>L2 Sequencer himoyasi:</strong> Agar Optimism sequencer'i ishlamay qolsa, barcha narxga bog‘liq amallar to‘xtatiladi. Sequencer tiklangach, 1 soatlik kutish davri mavjud.</li>
+          <li><strong>Chainlink:</strong> Barcha narxlar Arbitrum One tarmog‘idagi Chainlink WBTC/USD va ETH/USD feed'laridan olinadi.</li>
+          <li><strong>L2 Sequencer himoyasi:</strong> Agar Arbitrum sequencer'i ishlamay qolsa, barcha narxga bog‘liq amallar to‘xtatiladi. Sequencer tiklangach, 1 soatlik kutish davri mavjud.</li>
           <li><strong>Zaxira narx:</strong> Agar Chainlink uzoq muddat ishlamasa (48 soatdan ko‘proq), listingda saqlangan zaxira narxdan foydalaniladi. Bu narxni har kim yangilab turishi mumkin (refreshSnapshot).</li>
         </ul>
       </section>
 
-      {/* 6. Tokenlar */}
+      {/* 6. Manzillar — to'liq ro'yxat Tokenomics sahifasida */}
       <section className="card" style={{ padding: '24px', marginBottom: '20px' }}>
-        <h2 style={{ fontSize: '1.3rem', marginBottom: '16px' }}>
-          Tokenlar va manzillar (Optimism)
+        <h2 style={{ fontSize: '1.3rem', marginBottom: '12px' }}>
+          Tarmoq va manzillar
         </h2>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid var(--border)' }}>
-              <th style={{ textAlign: 'left', padding: '8px' }}>Token</th>
-              <th style={{ textAlign: 'left', padding: '8px' }}>Roli</th>
-              <th style={{ textAlign: 'left', padding: '8px' }}>Manzil</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr style={{ borderBottom: '1px solid var(--border)' }}>
-              <td style={{ padding: '8px', fontWeight: 600 }}>DUR</td>
-              <td style={{ padding: '8px' }}>Savdo qilinadigan aktiv</td>
-              <td style={{ padding: '8px', fontFamily: 'monospace', fontSize: '0.8rem' }}>0xf2f471dd1fBD278e54a81af7D5a22E3a38eA43Ff</td>
-            </tr>
-            <tr style={{ borderBottom: '1px solid var(--border)' }}>
-              <td style={{ padding: '8px', fontWeight: 600 }}>USDC</td>
-              <td style={{ padding: '8px' }}>To‘lov vositasi</td>
-              <td style={{ padding: '8px', fontFamily: 'monospace', fontSize: '0.8rem' }}>0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85</td>
-            </tr>
-            <tr style={{ borderBottom: '1px solid var(--border)' }}>
-              <td style={{ padding: '8px', fontWeight: 600 }}>WBTC</td>
-              <td style={{ padding: '8px' }}>Garov</td>
-              <td style={{ padding: '8px', fontFamily: 'monospace', fontSize: '0.8rem' }}>0x68f180fcCe6836688e9084f035309E29Bf0A2095</td>
-            </tr>
-            <tr style={{ borderBottom: '1px solid var(--border)' }}>
-              <td style={{ padding: '8px', fontWeight: 600 }}>WETH</td>
-              <td style={{ padding: '8px' }}>Garov</td>
-              <td style={{ padding: '8px', fontFamily: 'monospace', fontSize: '0.8rem' }}>0x4200000000000000000000000000000000000006</td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
-
-      {/* 7. Kontraktlar */}
-      <section className="card" style={{ padding: '24px', marginBottom: '20px' }}>
-        <h2 style={{ fontSize: '1.3rem', marginBottom: '16px' }}>
-          Kontrakt manzillari (Optimism)
-        </h2>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid var(--border)' }}>
-              <th style={{ textAlign: 'left', padding: '8px' }}>Kontrakt</th>
-              <th style={{ textAlign: 'left', padding: '8px' }}>Maqsadi</th>
-              <th style={{ textAlign: 'left', padding: '8px' }}>Manzil</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr style={{ borderBottom: '1px solid var(--border)' }}>
-              <td style={{ padding: '8px', fontWeight: 600 }}>CreditSale</td>
-              <td style={{ padding: '8px' }}>Asosiy kredit savdo kontrakti</td>
-              <td style={{ padding: '8px', fontFamily: 'monospace', fontSize: '0.8rem' }}>0x0DB46B238f6d63cbDA691fb39179816E36750524</td>
-            </tr>
-            <tr style={{ borderBottom: '1px solid var(--border)' }}>
-              <td style={{ padding: '8px', fontWeight: 600 }}>Vault</td>
-              <td style={{ padding: '8px' }}>DUR token vaqtli qulflash (lock) kontrakti</td>
-              <td style={{ padding: '8px', fontFamily: 'monospace', fontSize: '0.8rem' }}>0xaB7B9E2d539Bbcd6a8Bde434ab481D192DDC2Ba5</td>
-            </tr>
-          </tbody>
-        </table>
+        <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: '8px' }}>
+          NasiyaSale <strong>Arbitrum One</strong> (Chain ID 42161) tarmog‘ida ishlaydi.
+          Barcha token va kontrakt manzillari — DUR, USDC, WBTC, WETH, CreditSale va Vault —
+          <strong> Tokenomics</strong> sahifasida to‘liq keltirilgan va Arbiscan havolalari bilan tekshirilishi mumkin.
+        </p>
       </section>
     </div>
   );

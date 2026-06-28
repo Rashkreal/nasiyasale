@@ -1,19 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import { useLang } from '../hooks/useLang';
-import { ExternalLink, Copy, Check, TrendingUp, Lock, Coins, BarChart3 } from 'lucide-react';
+import { ExternalLink, Copy, Check, Coins, BarChart3, RefreshCw } from 'lucide-react';
 
-// ─── Konstantalar ─────────────────────────────────────────────────────────────
-const RPC = "https://mainnet.optimism.io";
+// ─── Konstantalar (Arbitrum One) ───────────────────────────────────────────────
+const RPC = "https://arb1.arbitrum.io/rpc";
 
-const DUR_ADDRESS         = "0xf2f471dd1fBD278e54a81af7D5a22E3a38eA43Ff";
-const USDC_ADDRESS        = "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85";
-const CREDITSALE_ADDRESS  = "0x0DB46B238f6d63cbDA691fb39179816E36750524";
+// Uniswap V4 — DUR jonli narxi uchun (Vault kontraktidan o'qilgan)
+const STATE_VIEW   = "0x76Fd297e2D437cd7f76d50F01AfE6160f86e9990";
+const DUR_POOL_ID  = "0x3c9073128da676c6e7e916fdbfcc18a2e08c09e672d01b69913fb68c44fae1cd";
+const STATE_VIEW_ABI = [
+  "function getSlot0(bytes32 poolId) view returns (uint160 sqrtPriceX96, int24 tick, uint24 protocolFee, uint24 lpFee)"
+];
+
+// Token va kontrakt manzillari (zanjirdan tasdiqlangan)
+const DUR_ADDRESS        = "0x92E1EbD0Cfac092047AB4a69B6E6a8ECA0687e26";
+const USDC_ADDRESS       = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831";
+const WBTC_ADDRESS       = "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f";
+const WETH_ADDRESS       = "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1";
+const CREDITSALE_ADDRESS = "0x4Ec109B091ca3364116c516C9c681069758D2157";
+const VAULT_ADDRESS      = "0x334ABa8643C7B7C97d5CeF5b73991e2af7D43462";
 
 const TOTAL_SUPPLY  = 100_000_000;
-const LOCKED_AMOUNT = 90_000_000;
-const LOCKED_PCT    = 90;
-const FREE_AMOUNT   = TOTAL_SUPPLY - LOCKED_AMOUNT;
+
+const Q192 = BigInt(2) ** BigInt(192);
 
 // ─── Yordamchilar ─────────────────────────────────────────────────────────────
 function fmtNum(n, digits = 2) {
@@ -30,7 +40,19 @@ function fmtUSD(n) {
   return "$" + n.toFixed(2);
 }
 
-function AddrChip({ addr, label }) {
+// DUR jonli narxi: Uniswap V4 sqrtPriceX96 dan (DUR currency0, USDC currency1)
+// DUR=18 dec, USDC=6 dec. price = (sqrtP^2 * 10^12 / 2^192) [USDC/DUR]
+function priceFromSqrt(sqrtP) {
+  try {
+    const s = BigInt(sqrtP.toString());
+    const num = s * s * (10n ** 12n) * (10n ** 6n);
+    return Number(num / Q192) / 1e6;
+  } catch {
+    return 0;
+  }
+}
+
+function AddrChip({ addr, label, isToken }) {
   const [copied, setCopied] = React.useState(false);
   const copy = () => {
     navigator.clipboard.writeText(addr);
@@ -38,6 +60,9 @@ function AddrChip({ addr, label }) {
     setTimeout(() => setCopied(false), 2000);
   };
   const short = addr.slice(0, 8) + "..." + addr.slice(-6);
+  const base = isToken
+    ? "https://arbiscan.io/token/"
+    : "https://arbiscan.io/address/";
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 8,
@@ -49,7 +74,7 @@ function AddrChip({ addr, label }) {
       <button onClick={copy} style={{ background: 'none', border: 'none', cursor: 'pointer', color: copied ? 'var(--success)' : 'var(--text-muted)', display: 'flex', padding: 0 }}>
         {copied ? <Check size={13} color="var(--success)" /> : <Copy size={13} />}
       </button>
-      <a href={"https://optimistic.etherscan.io/address/" + addr} target="_blank" rel="noreferrer"
+      <a href={base + addr} target="_blank" rel="noreferrer"
         style={{ color: 'var(--text-muted)', display: 'flex' }}>
         <ExternalLink size={13} />
       </a>
@@ -61,20 +86,17 @@ function AddrChip({ addr, label }) {
 function TokenCard({ symbol, color, price, loading, t }) {
   const priceUSD  = price || 0;
   const totalMcap = TOTAL_SUPPLY * priceUSD;
-  const circMcap  = FREE_AMOUNT  * priceUSD;
 
   return (
     <div style={{
       background: 'var(--bg-card)', border: `1px solid ${color}30`,
       borderRadius: 'var(--radius)', padding: 24, position: 'relative', overflow: 'hidden',
     }}>
-      {/* Rang effekti */}
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0, height: 3,
         background: `linear-gradient(90deg, ${color}, ${color}88)`,
       }} />
 
-      {/* Token nomi */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
         <div style={{
           width: 44, height: 44, borderRadius: 12,
@@ -85,7 +107,7 @@ function TokenCard({ symbol, color, price, loading, t }) {
         </div>
         <div>
           <div style={{ fontWeight: 700, fontSize: 20, fontFamily: 'Space Mono, monospace' }}>{symbol}</div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Optimism Mainnet</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Arbitrum One</div>
         </div>
         <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Narx</div>
@@ -95,54 +117,16 @@ function TokenCard({ symbol, color, price, loading, t }) {
         </div>
       </div>
 
-      {/* Statistika grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <div className="stat-card" style={{ padding: 14 }}>
           <div className="stat-label">{t("tokenTotalSupply")}</div>
           <div className="stat-value" style={{ fontSize: 20 }}>{fmtNum(TOTAL_SUPPLY, 0)}</div>
-          <div className="stat-sub">{symbol}</div>
-        </div>
-        <div className="stat-card" style={{ padding: 14 }}>
-          <div className="stat-label">{t("tokenCirculating")}</div>
-          <div className="stat-value" style={{ fontSize: 20, color: 'var(--success)' }}>{fmtNum(FREE_AMOUNT, 0)}</div>
-          <div className="stat-sub">{symbol} · {100 - LOCKED_PCT}%</div>
+          <div className="stat-sub">{symbol} · fixed</div>
         </div>
         <div className="stat-card" style={{ padding: 14 }}>
           <div className="stat-label">Total Market Cap</div>
           <div className="stat-value" style={{ fontSize: 18 }}>{loading ? "..." : fmtUSD(totalMcap)}</div>
           <div className="stat-sub">{t("tokenTotalSupply")} × {t("tokenPrice")}</div>
-        </div>
-        <div className="stat-card" style={{ padding: 14 }}>
-          <div className="stat-label">Circulating Market Cap</div>
-          <div className="stat-value" style={{ fontSize: 18, color: 'var(--accent-bright)' }}>{loading ? "..." : fmtUSD(circMcap)}</div>
-          <div className="stat-sub">{t("tokenCirculating")} × {t("tokenPrice")}</div>
-        </div>
-      </div>
-
-      {/* Lock progress bar */}
-      <div style={{
-        background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-        borderRadius: 10, padding: 14,
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600 }}>
-            <Lock size={14} color={color} />
-            {t("tokenLocked")}
-          </div>
-          <div style={{ fontFamily: 'Space Mono, monospace', fontSize: 13, fontWeight: 700, color }}>
-            {LOCKED_PCT}% · {fmtNum(LOCKED_AMOUNT, 0)} {symbol}
-          </div>
-        </div>
-        <div style={{ height: 8, background: 'var(--border)', borderRadius: 4, overflow: 'hidden' }}>
-          <div style={{
-            width: LOCKED_PCT + "%", height: '100%', borderRadius: 4,
-            background: `linear-gradient(90deg, ${color}, ${color}88)`,
-            transition: 'width 1s ease',
-          }} />
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, color: 'var(--text-muted)' }}>
-          <span>{t('tokenLocked')}: {fmtNum(LOCKED_AMOUNT, 0)}</span>
-          <span>{t('tokenCirculating')}: {fmtNum(FREE_AMOUNT, 0)}</span>
         </div>
       </div>
     </div>
@@ -155,34 +139,37 @@ export default function Tokenomics() {
   const [durPrice, setDurPrice] = useState(null);
   const [loading,  setLoading]  = useState(true);
 
-  useEffect(() => {
-    const fetchPrices = async () => {
-      setLoading(true);
-      try {
-        const provider = new ethers.JsonRpcProvider(RPC);
-        // DUR narxi — statik $0.01
-        setDurPrice(0.01);
-      } catch (e) {
-        console.error("Price fetch error:", e);
-        setDurPrice(0.01);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchPrices = async () => {
+    setLoading(true);
+    try {
+      const provider = new ethers.JsonRpcProvider(RPC, undefined, { batchMaxCount: 1 });
+      const sv = new ethers.Contract(STATE_VIEW, STATE_VIEW_ABI, provider);
+      const [sqrtP] = await sv.getSlot0(DUR_POOL_ID);
+      const price = priceFromSqrt(sqrtP);
+      setDurPrice(price > 0 ? price : null);
+    } catch (e) {
+      console.error("DUR narx o'qishda xato:", e);
+      setDurPrice(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchPrices();
-  }, []);
+  useEffect(() => { fetchPrices(); }, []);
 
   return (
     <div>
       {/* Header */}
-      <div className="page-header">
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <h1 className="page-title">Tokenomics</h1>
           <p className="page-subtitle">
             DUR token haqida to'liq ma'lumot — taklif, lock va bozor qiymati
           </p>
         </div>
+        <button className="btn btn-outline btn-sm" onClick={fetchPrices} disabled={loading}>
+          <RefreshCw size={14} /> {t('vaultRefresh')}
+        </button>
       </div>
 
       {/* Token kartochkasi */}
@@ -190,30 +177,21 @@ export default function Tokenomics() {
         <TokenCard symbol="DUR" color="var(--dur-color)" price={durPrice} loading={loading} t={t} />
       </div>
 
-      {/* Umumiy tokenomics */}
+      {/* Umumiy taklif */}
       <p className="section-title">{t("tokenDistribution")}</p>
       <div className="card" style={{ marginBottom: 28 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
-          <div style={{ textAlign: 'center', padding: 16 }}>
-            <div style={{ fontSize: 36, fontWeight: 700, fontFamily: 'Space Mono, monospace', color: 'var(--accent-bright)' }}>90%</div>
-            <div style={{ fontWeight: 600, marginBottom: 4 }}>{t("tokenLocked")}</div>
-            <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-              80M — 10+ yilga<br />10M — 3 yilga
-            </div>
-          </div>
-          <div style={{ textAlign: 'center', padding: 16, borderLeft: '1px solid var(--border)', borderRight: '1px solid var(--border)' }}>
-            <div style={{ fontSize: 36, fontWeight: 700, fontFamily: 'Space Mono, monospace', color: 'var(--success)' }}>10%</div>
-            <div style={{ fontWeight: 600, marginBottom: 4 }}>{t("tokenCirculating")}</div>
-            <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-              Likvidlik va savdo<br />uchun mavjud
-            </div>
-          </div>
-          <div style={{ textAlign: 'center', padding: 16 }}>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ textAlign: 'center', padding: '8px 16px' }}>
             <div style={{ fontSize: 36, fontWeight: 700, fontFamily: 'Space Mono, monospace', color: 'var(--warning)' }}>100M</div>
             <div style={{ fontWeight: 600, marginBottom: 4 }}>{t("tokenTotalSupply")}</div>
             <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-              Har bir token uchun<br />o'zgarmas
+              O'zgarmas — mint funksiyasi yo'q
             </div>
+          </div>
+          <div style={{ flex: 1, minWidth: 240, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+            DUR jami taklifi <strong>100,000,000</strong> — qat'iy belgilangan va ko'paytirib bo'lmaydi.
+            Taklifning lock, likvidlik va erkin qismlarga aniq taqsimoti yakunlanmoqda;
+            tasdiqlangach, zanjirdagi lock tranzaksiyalari bilan birga shu yerda yangilanadi.
           </div>
         </div>
       </div>
@@ -237,11 +215,24 @@ export default function Tokenomics() {
               orqali amalga oshiriladi. Hech qanday vositachi yoki boshqaruvchi talab etilmaydi.
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              <div className="badge badge-accent">Optimism Mainnet</div>
+              <div className="badge badge-accent">Arbitrum One</div>
               <div className="badge badge-success">Decentralized</div>
               <div className="badge badge-muted">No Admin</div>
               <div className="badge badge-muted">Onchain</div>
+              <div className="badge badge-muted">Uniswap V4</div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Kontrakt manzillari */}
+      <p className="section-title">Smart Kontraktlar</p>
+      <div className="card" style={{ marginBottom: 28 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <AddrChip addr={CREDITSALE_ADDRESS} label="CreditSale" />
+          <AddrChip addr={VAULT_ADDRESS}      label="PrivateTimeLockVault" />
+          <div style={{ marginTop: 4, padding: '8px 12px', background: 'var(--bg-secondary)', borderRadius: 8, fontSize: 12, color: 'var(--text-muted)' }}>
+            Tarmoq: <strong style={{ color: 'var(--text-secondary)' }}>Arbitrum One</strong> · Chain ID: <strong style={{ color: 'var(--text-secondary)' }}>42161</strong>
           </div>
         </div>
       </div>
@@ -250,11 +241,12 @@ export default function Tokenomics() {
       <p className="section-title">{t("tokenAddresses")}</p>
       <div className="card">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <AddrChip addr={DUR_ADDRESS}        label="DUR" />
-          <AddrChip addr={USDC_ADDRESS}       label="USDC" />
-          <AddrChip addr={CREDITSALE_ADDRESS} label="CreditSale" />
+          <AddrChip addr={DUR_ADDRESS}  label="DUR"  isToken />
+          <AddrChip addr={USDC_ADDRESS} label="USDC" isToken />
+          <AddrChip addr={WBTC_ADDRESS} label="WBTC (garov)" isToken />
+          <AddrChip addr={WETH_ADDRESS} label="WETH (garov)" isToken />
           <div style={{ marginTop: 4, padding: '8px 12px', background: 'var(--bg-secondary)', borderRadius: 8, fontSize: 12, color: 'var(--text-muted)' }}>
-            Tarmoq: <strong style={{ color: 'var(--text-secondary)' }}>Optimism Mainnet</strong> · Chain ID: <strong style={{ color: 'var(--text-secondary)' }}>10</strong>
+            Tarmoq: <strong style={{ color: 'var(--text-secondary)' }}>Arbitrum One</strong> · Chain ID: <strong style={{ color: 'var(--text-secondary)' }}>42161</strong>
           </div>
         </div>
       </div>

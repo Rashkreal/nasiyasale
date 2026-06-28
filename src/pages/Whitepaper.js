@@ -1,34 +1,28 @@
 import React from 'react';
 import { FileText, Lock, Coins, Shield, Map, AlertTriangle, ExternalLink, BarChart3 } from 'lucide-react';
 
-// ─── Ma'lumotlar ─────────────────────────────────────────────────────────────
-const DUR_ADDRESS    = "0xf2f471dd1fBD278e54a81af7D5a22E3a38eA43Ff";
-const CREDITSALE_ADDR = "0x0DB46B238f6d63cbDA691fb39179816E36750524";
-const VAULT_ADDR     = "0xaB7B9E2d539Bbcd6a8Bde434ab481D192DDC2Ba5";
+// ─── Ma'lumotlar (Arbitrum One, zanjirdan tasdiqlangan) ──────────────────────
+const DUR_ADDRESS     = "0x92E1EbD0Cfac092047AB4a69B6E6a8ECA0687e26";
+const CREDITSALE_ADDR = "0x4Ec109B091ca3364116c516C9c681069758D2157";
+const VAULT_ADDR      = "0x334ABa8643C7B7C97d5CeF5b73991e2af7D43462";
 
-const streamLocks = [
-  { amount: "50,000,000 DUR", duration: "10 years", tx: "0x0888f53725f79b6d269bdb27578d0af37d4d1461558fdcb1dc74a835c9fab1ff" },
-  { amount: "5,000,000 DUR",  duration: "5 years",  tx: "0xab89c87f424f444324964dab175c4f05af062b63a32140bbeaab7ff2c9fa5759" },
-  { amount: "1,000,000 DUR",  duration: "1 year",   tx: "0xc1826b080995c078254fb3446481fa496143cd57b3b5527570f3a879b784fb3d" },
+// Likvidlik strategiyasi — diapazonlar (1–5 rejalashtirilgan, 6–10 proyeksiya).
+// Har bir diapazon narxni 2x oshiradi, ~7,000 USDC, DUR har safar ~yarmiga kamayadi.
+const liquidityRanges = [
+  { n: 1,  range: "$0.01 → $0.02",  dur: "448,100", usdc: "7,400", kind: "planned" },
+  { n: 2,  range: "$0.02 → $0.04",  dur: "249,500", usdc: "7,000", kind: "planned" },
+  { n: 3,  range: "$0.04 → $0.08",  dur: "125,000", usdc: "7,000", kind: "planned" },
+  { n: 4,  range: "$0.08 → $0.16",  dur: "62,700",  usdc: "7,000", kind: "planned" },
+  { n: 5,  range: "$0.16 → $0.32",  dur: "31,100",  usdc: "7,000", kind: "planned" },
+  { n: 6,  range: "$0.32 → $0.64",  dur: "15,550",  usdc: "7,000", kind: "projected" },
+  { n: 7,  range: "$0.64 → $1.28",  dur: "7,775",   usdc: "7,000", kind: "projected" },
+  { n: 8,  range: "$1.28 → $2.56",  dur: "3,888",   usdc: "7,000", kind: "projected" },
+  { n: 9,  range: "$2.56 → $5.12",  dur: "1,944",   usdc: "7,000", kind: "projected" },
+  { n: 10, range: "$5.12 → $10.24", dur: "972",     usdc: "7,000", kind: "projected" },
 ];
 
-const lpLocks = [
-  { amount: "1,000,000", duration: "1 year",  tx: "0xa4495a8651773fda363be9a0d4f688d14099041bd6299510d2e28fab40411425" },
-  { amount: "2,000,000", duration: "2 years", tx: "0x8cb4b575c863639b8cf596ec33c6442a29c82c3fdae185acb5ff01202ae01294" },
-  { amount: "3,000,000", duration: "3 years", tx: "0xd1df6ebc5504ed1b63e82d95f876cb9c6bf93709ea6d8c6daadc996b7d73b4b5" },
-  { amount: "4,000,000", duration: "4 years", tx: "0x1849f4cce69fce149af5003eb119cb41e372bd508595267103a5b6b7b9801d52" },
-];
-
-const allocation = [
-  { label: "Streaming locks",   amount: "56,000,000", share: "56%", note: "Locked in Vault, releases linearly over 1–10 years" },
-  { label: "Locked liquidity",  amount: "10,000,000", share: "10%", note: "LP locked 1–4 years" },
-  { label: "Active liquidity",  amount: "10,000,000", share: "10%", note: "Provided in Uniswap pool for open trading" },
-  { label: "Free / circulating",amount: "24,000,000", share: "24%", note: "Available for trading" },
-];
-
-const short = (a) => a.slice(0, 8) + "…" + a.slice(-6);
-const txUrl = (h) => "https://optimistic.etherscan.io/tx/" + h;
-const addrUrl = (a) => "https://optimistic.etherscan.io/address/" + a;
+const short  = (a) => a.slice(0, 8) + "…" + a.slice(-6);
+const addrUrl = (a) => "https://arbiscan.io/address/" + a;
 
 const wpStyles = `
 .wp-wrap { max-width: 880px; margin: 0 auto; font-family: var(--font-sans, "DM Sans", sans-serif); line-height: 1.7; }
@@ -54,7 +48,7 @@ const wpStyles = `
 }
 .wp-table th { color: var(--text-muted, #4a5568); font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
 .wp-table td { color: var(--text-secondary, #8892a8); }
-.wp-table td.mono, .wp-table a.mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+.wp-table td.mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
 .wp-addr {
   display: inline-flex; align-items: center; gap: 6px;
   font-family: 'JetBrains Mono', monospace; font-size: 12px;
@@ -63,6 +57,11 @@ const wpStyles = `
 .wp-addr:hover { text-decoration: underline; }
 .wp-list { color: var(--text-secondary, #8892a8); padding-left: 20px; margin-bottom: 12px; }
 .wp-list li { margin-bottom: 6px; }
+.wp-pending {
+  display: inline-block; font-size: 11px; font-weight: 600;
+  color: var(--warning, #f59e0b); background: rgba(245,158,11,0.1);
+  border: 1px solid rgba(245,158,11,0.25); border-radius: 999px; padding: 2px 8px;
+}
 .wp-disclaimer {
   background: var(--bg-card, #1a1f2e); border: 1px solid var(--border, #2a3040);
   border-radius: 12px; padding: 18px 20px; font-size: 13px; color: var(--text-secondary, #8892a8);
@@ -80,7 +79,7 @@ export default function Whitepaper() {
         <div className="wp-hero">
           <FileText size={40} className="wp-icon" style={{ margin: "0 auto" }} />
           <h1>NasiyaSale Whitepaper</h1>
-          <div className="wp-sub">Version 1.0 · 2026 · Optimism Mainnet</div>
+          <div className="wp-sub">Version 1.0 · 2026 · Arbitrum One</div>
         </div>
 
         {/* 1. Introduction */}
@@ -89,7 +88,7 @@ export default function Whitepaper() {
           <p>
             NasiyaSale is a decentralized platform for buying and selling the DUR token on a
             deferred-payment ("nasiya") basis. All trades are executed through autonomous smart
-            contracts on Optimism Mainnet, with no intermediary, custodian, or administrator
+            contracts on Arbitrum One, with no intermediary, custodian, or administrator
             controlling user funds.
           </p>
           <p>
@@ -162,8 +161,8 @@ export default function Whitepaper() {
 
           <h3>3.3 Collateral system</h3>
           <ul className="wp-list">
-            <li>Accepted collateral: USDC, USDT, BLT, WBTC, WETH</li>
-            <li>Collateral prices are snapshotted to protect against flash-loan manipulation</li>
+            <li>Accepted collateral: WBTC and WETH</li>
+            <li>Collateral prices are read from Chainlink and snapshotted at listing time to protect against flash-loan manipulation</li>
             <li>Payments are made in USDC directly to the seller — the contract never custodies payment</li>
           </ul>
 
@@ -203,91 +202,103 @@ export default function Whitepaper() {
         <div className="wp-section">
           <h2><BarChart3 size={20} className="wp-icon" /> 5. Tokenomics</h2>
           <p>Total DUR supply: <strong>100,000,000</strong> (fixed, no further minting possible).</p>
-          <table className="wp-table">
-            <thead><tr><th>Allocation</th><th>Amount</th><th>Share</th><th>Status</th></tr></thead>
-            <tbody>
-              {allocation.map((a) => (
-                <tr key={a.label}>
-                  <td style={{ color: "var(--text-primary)" }}>{a.label}</td>
-                  <td className="mono">{a.amount}</td>
-                  <td className="mono" style={{ color: "var(--accent)" }}>{a.share}</td>
-                  <td>{a.note}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
           <ul className="wp-list">
             <li><strong>No airdrop or free distribution.</strong> Anyone who wants DUR buys it on the open Uniswap market.</li>
             <li><strong>Price grows only through trading.</strong> There is no artificial price mechanism.</li>
-            <li>All locks are verifiable on-chain (see below).</li>
+            <li>A portion of supply is intended to be placed in non-cancellable Vault locks; any such locks will be verifiable on-chain once executed (see Security &amp; Locks).</li>
           </ul>
           <div className="wp-note">
-            BLT is a separate token used only as collateral on the platform. It is not part of DUR
-            tokenomics and is not described as locked in this document.
+            The exact split of the fixed 100,000,000 supply across locks, liquidity, and free float
+            is being finalized. This section will be updated with the confirmed breakdown — and its
+            on-chain lock transactions — once those amounts are set and executed on Arbitrum One.
           </div>
         </div>
 
-        {/* 6. Security & Locks */}
+        {/* 6. Liquidity Strategy */}
         <div className="wp-section">
-          <h2><Shield size={20} className="wp-icon" /> 6. Security &amp; Locks</h2>
+          <h2><BarChart3 size={20} className="wp-icon" /> 6. Liquidity Strategy</h2>
           <p>
-            To reduce supply concentration and demonstrate long-term commitment, 56% of total DUR
-            supply has been placed in non-cancellable streaming locks, and liquidity has been locked.
-            All actions are verifiable on Optimism Mainnet.
+            DUR/USDC liquidity is seeded gradually using concentrated Uniswap V4 positions.
+            Liquidity is added range by range; each range spans a price doubling and is split
+            into 10 segments, with each segment raising the price by roughly 1%.
+          </p>
+          <ul className="wp-list">
+            <li>Each range is filled with approximately <strong>7,000 USDC</strong> (the first range ~7,400).</li>
+            <li>As the price rises, the DUR placed in each successive range roughly <strong>halves</strong>, because the same USDC buys less DUR at a higher price.</li>
+            <li>The goal is orderly, gradual price discovery — no sudden spikes or dumps.</li>
+          </ul>
+          <table className="wp-table">
+            <thead><tr><th>Range</th><th>Price band</th><th>DUR (~)</th><th>USDC (~)</th><th>Status</th></tr></thead>
+            <tbody>
+              {liquidityRanges.map((r) => (
+                <tr key={r.n}>
+                  <td className="mono">{r.n}</td>
+                  <td className="mono">{r.range}</td>
+                  <td className="mono">{r.dur}</td>
+                  <td className="mono">{r.usdc}</td>
+                  <td>
+                    <span className="wp-pending" style={r.kind === "projected" ? { color: "var(--text-muted, #4a5568)", background: "rgba(120,130,150,0.1)", borderColor: "var(--border, #2a3040)" } : {}}>
+                      {r.kind === "planned" ? "Planned" : "Projected"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p>
+            Ranges 1–5 are the concrete seeding plan; ranges 6–10 are a projection of the same
+            rule (price doubling, ~7,000 USDC per range, DUR halving). Through range 10 this seeds
+            roughly <strong>946,500 DUR</strong> (~0.95% of total supply) paired with about
+            <strong> 70,400 USDC</strong>, carrying the price from $0.01 toward ~$10.
+          </p>
+          <div className="wp-note">
+            This seeding is a bootstrap mechanism, not a permanent price control. The cycle can
+            continue into further ranges, but each new range needs progressively less DUR. Planned
+            seeding stops once organic, community-supplied liquidity is deep enough for the open
+            market to set the DUR price on its own.
+          </div>
+        </div>
+
+        {/* 7. Security & Locks */}
+        <div className="wp-section">
+          <h2><Shield size={20} className="wp-icon" /> 7. Security &amp; Locks</h2>
+          <p>
+            NasiyaSale uses a dedicated Vault contract to lock tokens and liquidity for fixed terms,
+            reducing supply concentration and demonstrating long-term commitment. Any lock placed in
+            the Vault is publicly verifiable on Arbitrum One.
           </p>
 
-          <h3>6.1 DUR supply streaming locks (56,000,000 DUR)</h3>
-          <table className="wp-table">
-            <thead><tr><th>Amount</th><th>Duration</th><th>Transaction</th></tr></thead>
-            <tbody>
-              {streamLocks.map((l) => (
-                <tr key={l.tx}>
-                  <td className="mono">{l.amount}</td>
-                  <td>{l.duration}</td>
-                  <td><a className="wp-addr" href={txUrl(l.tx)} target="_blank" rel="noreferrer">{l.tx.slice(0,10)}… <ExternalLink size={12} /></a></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="wp-note">
+            <strong>Status:</strong> Specific lock amounts and durations are being finalized and are
+            not yet executed. Once each lock transaction is submitted on Arbitrum One, this section
+            will list it with its Arbiscan transaction link so anyone can verify it independently.
+          </div>
 
-          <h3>6.2 Locked liquidity (10,000,000)</h3>
-          <table className="wp-table">
-            <thead><tr><th>Amount</th><th>Duration</th><th>Transaction</th></tr></thead>
-            <tbody>
-              {lpLocks.map((l) => (
-                <tr key={l.tx}>
-                  <td className="mono">{l.amount}</td>
-                  <td>{l.duration}</td>
-                  <td><a className="wp-addr" href={txUrl(l.tx)} target="_blank" rel="noreferrer">{l.tx.slice(0,10)}… <ExternalLink size={12} /></a></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <h3>6.3 The Vault contract</h3>
+          <h3>7.1 The Vault contract</h3>
           <ul className="wp-list">
             <li>Address: <a className="wp-addr" href={addrUrl(VAULT_ADDR)} target="_blank" rel="noreferrer">{short(VAULT_ADDR)} <ExternalLink size={12} /></a></li>
-            <li>Streaming locks release linearly over time and cannot be cancelled once created.</li>
+            <li>Streaming locks release linearly over time and cannot be cancelled once created. An optional cliff lets a lock release nothing until a chosen start date, then vest linearly to its end date.</li>
+            <li>Fixed-term locks hold tokens until a chosen unlock time, after which they can be withdrawn.</li>
             <li>An emergency-withdraw path exists only 48 hours after a lock's unlock time.</li>
             <li>Lock status is publicly visible on the Vault page of this site.</li>
           </ul>
         </div>
 
-        {/* 7. Roadmap */}
+        {/* 8. Roadmap */}
         <div className="wp-section">
-          <h2><Map size={20} className="wp-icon" /> 7. Roadmap</h2>
+          <h2><Map size={20} className="wp-icon" /> 8. Roadmap</h2>
           <p>The following are planned directions, not guarantees:</p>
           <ul className="wp-list">
+            <li><strong>Finalize and execute supply &amp; liquidity locks.</strong> Set the supply breakdown, place the locks on Arbitrum One, and publish their transaction links here.</li>
             <li><strong>Independent security audit.</strong> The more complex contracts (NasiyaSale and Vault) are intended to undergo professional third-party audit before any wider public launch.</li>
             <li><strong>Islamic finance review.</strong> Seek formal review and, if granted, certification from a qualified Islamic finance scholar or board regarding the interest-free trade model.</li>
-            <li><strong>Multi-chain expansion.</strong> Explore deploying the contracts on additional networks (e.g. Arbitrum), with network-specific parameters.</li>
             <li><strong>Continued decentralization.</strong> Further distribute DUR over time so that supply is held more widely.</li>
           </ul>
         </div>
 
-        {/* 8. Disclaimer */}
+        {/* 9. Disclaimer */}
         <div className="wp-section">
-          <h2><AlertTriangle size={20} className="wp-icon" /> 8. Disclaimer</h2>
+          <h2><AlertTriangle size={20} className="wp-icon" /> 9. Disclaimer</h2>
           <div className="wp-disclaimer">
             <ul style={{ paddingLeft: 18, margin: 0 }}>
               <li>This document is informational and does not constitute financial, legal, or religious advice.</li>
@@ -300,7 +311,7 @@ export default function Whitepaper() {
         </div>
 
         <div style={{ textAlign: "center", padding: "24px 0", color: "var(--text-muted, #4a5568)", fontSize: 12, borderTop: "1px solid var(--border, #2a3040)" }}>
-          NasiyaSale · Optimism Mainnet · nasiyasale.vercel.app
+          NasiyaSale · Arbitrum One · nasiyasale.vercel.app
         </div>
 
       </div>
