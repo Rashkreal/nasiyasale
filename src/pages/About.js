@@ -38,7 +38,7 @@ export default function About() {
         </h2>
         <ul style={{ lineHeight: 1.8, paddingLeft: '20px', color: 'var(--text-secondary)' }}>
           <li><strong>Garov tokenlari:</strong> Faqat WBTC va WETH qabul qilinadi.</li>
-          <li><strong>Kim e'lon bera oladi?</strong> Sotuvchi ham, xaridor ham garovli e'lon yaratishi mumkin. Xaridor e'lon vaqtida garovni kontraktga o‘tkazadi. Sotuvchi e'lon vaqtida DUR tokenini kontraktga o'tkazadi.</li>
+          <li><strong>Kim e'lon bera oladi?</strong> Sotuvchi ham, xaridor ham garovli e'lon joylashi mumkin. Xaridor e'lon vaqtida garovni kontraktga o‘tkazadi. Sotuvchi e'lon vaqtida DUR tokenini kontraktga o'tkazadi.</li>
           <li><strong>Narxlar:</strong> Garov narxi e'lon vaqtida Chainlink orqali olinadi va butun savdo davomida o‘zgarmaydi. So‘nggi 48 soat ichida narx yangilanmagan bo‘lsa, zaxira mexanizmi ishga tushadi.</li>
           <li><strong>To‘lov:</strong> Xaridor USDC bilan istalgan vaqtda to‘lov qilishi mumkin — muddatidan oldin ham, kechikib ham. To‘lov amalga oshgach, garov qaytariladi va xaridor BL ball oladi.</li>
           <li><strong>Default (to‘lov qilinmasa):</strong> Muddati o‘tgan garovli listing uchun <strong>sotuvchi yoki xaridor</strong> “claim” (da'vo) qilishi mumkin. Sotuvchi faqat qarz miqdoricha garov oladi, qolgani xaridorga qaytariladi.</li>

@@ -748,7 +748,7 @@ toast.success(t('approvedClaimDefaultSuccess') || 'Default claim muvaffaqiyatli 
                   textAlign: 'right'
                 }}
               >
-                Buyer blacklistga tushgan.
+                Muddati o'tdi. Default claim qilsangiz, buyer qora ro'yxatga tushadi.
               </div>
             )}
           </div>
@@ -915,7 +915,9 @@ toast.success(t('approvedClaimDefaultSuccess') || 'Default claim muvaffaqiyatli 
               <Clock size={12} />
               {listing.isCollateral
                 ? "Garov sellerga o'tadi, buyer blacklistga tushmaydi."
-                : "Buyer blacklistga tushgan."}
+                : (Number(listing.status) === 7
+                    ? "Buyer blacklistga tushgan."
+                    : "Muddati o'tdi — default claim qilinishi kutilmoqda.")}
             </div>
           </div>
 
@@ -927,7 +929,7 @@ toast.success(t('approvedClaimDefaultSuccess') || 'Default claim muvaffaqiyatli 
               alignItems: 'flex-end'
             }}
           >
-            {isBuyer && !listing.isCollateral && (
+            {isBuyer && !listing.isCollateral && Number(listing.status) === 7 && (
               <button
                 className="btn btn-success"
                 disabled={actionLoading === `after-${id}`}
@@ -948,6 +950,19 @@ toast.success(t('approvedClaimDefaultSuccess') || 'Default claim muvaffaqiyatli 
                 )}
                 Qarzni to‘lab qora ro‘yxatdan chiqish
               </button>
+            )}
+
+            {isBuyer && !listing.isCollateral && Number(listing.status) !== 7 && (
+              <div
+                style={{
+                  fontSize: '11px',
+                  color: 'var(--text-muted)',
+                  maxWidth: '240px',
+                  textAlign: 'right'
+                }}
+              >
+                Muddati o'tdi. Seller default claim qilmaguncha to'lov kutilmoqda.
+              </div>
             )}
 
             {isBuyer && listing.isCollateral && (
@@ -972,7 +987,9 @@ toast.success(t('approvedClaimDefaultSuccess') || 'Default claim muvaffaqiyatli 
                   textAlign: 'right'
                 }}
               >
-                Default claim bajarilgan.
+                {Number(listing.status) === 7
+                  ? "Default claim bajarilgan."
+                  : "Muddati o'tdi — bu listingni \"Faol shartnomalar\" bo'limidan default claim qiling."}
               </div>
             )}
           </div>

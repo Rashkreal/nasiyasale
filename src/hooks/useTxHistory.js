@@ -50,7 +50,7 @@ export function useTxHistory(provider, account) {
       addTx({
         id: Date.now(),
         type: 'ListingCreated',
-        label: "E'lon yaratildi",
+        label: "E'lon joylandi",
         listingId: Number(listingId),
         durAmount: ethers.formatUnits(durAmount, 18),
         priceUSDC: ethers.formatUnits(priceUSDC, 6),

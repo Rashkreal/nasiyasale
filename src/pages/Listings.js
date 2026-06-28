@@ -573,7 +573,7 @@ const txPromise = contract.connect(signer).approveListing(listingId, chosenToken
     toast.error('Narx farqi ruxsat etilgan cheklovdan oshib ketdi.');
   }
     if (e?.data === '0x206c1a42') {
-    toast.error('BL zaxirangiz yetarli emas. Mavjud qarzingizni toʻlang yoki kichikroq miqdorda listing yarating.');
+    toast.error('BL zaxirangiz yetarli emas. Mavjud qarzingizni toʻlang yoki kichikroq miqdorda listing joylang.');
   }
   throw e;
 });

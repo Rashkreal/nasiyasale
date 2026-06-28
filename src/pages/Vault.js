@@ -786,7 +786,7 @@ export default function Vault() {
     }
     toast.loading("Stream lock...", { id: "depositStream" });
     await (await v.depositStream(token.address, amtRaw, startTs, endTs)).wait();
-    toast.success("Stream yaratildi!", { id: "depositStream" });
+    toast.success("Stream tuzildi!", { id: "depositStream" });
     setStreamAmount(""); setStreamStartDays(""); setStreamEndDays("");
   });
 
@@ -1162,7 +1162,7 @@ export default function Vault() {
       )}
       {isOwner && (
         <div className="card" style={{marginTop:24}}>
-          <div className="card-title" style={{marginBottom:16}}>Yangi stream yaratish</div>
+          <div className="card-title" style={{marginBottom:16}}>Yangi stream tuzish</div>
           <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"flex-end"}}>
             <select className="form-input" style={{width:120}} value={streamToken} onChange={e => setStreamToken(e.target.value)}>
               {TOKEN_LIST.map(t => <option key={t.symbol} value={t.symbol}>{t.symbol}</option>)}
@@ -1172,7 +1172,7 @@ export default function Vault() {
             <input className="input" type="number" min="1" placeholder="Tugash (kun)" value={streamEndDays} onChange={e => setStreamEndDays(e.target.value)} style={{width:120}} />
             <button className="btn btn-primary" onClick={handleDepositStream} disabled={!!txLoading.depositStream}>
               {txLoading.depositStream ? <div className="spinner" style={{width:14,height:14}}/> : <Lock size={13}/>}
-              Stream yaratish
+              Stream tuzish
             </button>
           </div>
           <div style={{fontSize:11,color:"var(--text-muted)",marginTop:8,lineHeight:1.5}}>
