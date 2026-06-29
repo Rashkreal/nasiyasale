@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 import { useWeb3 } from "../hooks/useWeb3";
 import { useLang } from "../hooks/useLang";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Lock, Unlock, AlertTriangle, RefreshCw, Search, Zap, Shield, ArrowDownToLine } from "lucide-react";
+import { Lock, Unlock, AlertTriangle, RefreshCw, Search, Zap, Shield, ArrowDownToLine, Copy } from "lucide-react";
 
 // ─── Konstantalar (Arbitrum One) ────────────────────────────────────────────
 const VAULT_ADDRESS    = "0x334ABa8643C7B7C97d5CeF5b73991e2af7D43462";
