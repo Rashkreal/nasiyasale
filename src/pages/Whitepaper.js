@@ -3,7 +3,7 @@ import { FileText, Lock, Coins, Shield, Map, AlertTriangle, ExternalLink, BarCha
 
 // ─── Ma'lumotlar (Arbitrum One, zanjirdan tasdiqlangan) ──────────────────────
 const DUR_ADDRESS     = "0x92E1EbD0Cfac092047AB4a69B6E6a8ECA0687e26";
-const CREDITSALE_ADDR = "0x4Ec109B091ca3364116c516C9c681069758D2157";
+const CREDITSALE_ADDR = "0x61a011ca9a21Ec4073fA7E20448cbec86958B182";
 const VAULT_ADDR      = "0x334ABa8643C7B7C97d5CeF5b73991e2af7D43462";
 
 // Likvidlik strategiyasi — diapazonlar (1–5 rejalashtirilgan, 6–10 proyeksiya).
