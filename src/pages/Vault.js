@@ -1140,6 +1140,14 @@ export default function Vault() {
                   <div style={{fontSize:13,color:"var(--text-primary)",fontFamily:"var(--font-mono)"}}>{formatAmt(BigInt(s.totalAmount) - BigInt(s.withdrawnAmount), dec)} {sym}</div>
                   <div style={{fontSize:11,color:"var(--text-muted)",marginTop:6}}>Yechish mumkin</div>
                   <div style={{fontSize:13,color:"var(--success)"}}>{formatAmt(withdrawable, dec)} {sym}</div>
+                  {!isEmergencyReady && s.ti && Number(s.ti.secondsToEmergency) > 0 && (
+                    <div style={{fontSize:10,color:"var(--warning)",marginTop:6}}>
+                      Emergency: {emergencyCountdown(s.ti.secondsToEmergency)}
+                    </div>
+                  )}
+                  {isEmergencyReady && (
+                    <div style={{fontSize:10,color:"#ef4444",marginTop:6}}>Emergency tayyor</div>
+                  )}
                 </div>
                 <div className="lock-actions">
                   {isOwner && BigInt(withdrawable) > 0n && (
