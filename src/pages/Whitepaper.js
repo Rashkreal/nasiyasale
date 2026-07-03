@@ -205,12 +205,12 @@ export default function Whitepaper() {
           <ul className="wp-list">
             <li><strong>No airdrop or free distribution.</strong> Anyone who wants DUR buys it on the open Uniswap market.</li>
             <li><strong>Price grows only through trading.</strong> There is no artificial price mechanism.</li>
-            <li>50% of supply (50,000,000 DUR) is locked in a non-cancellable Vault stream with a 5-year cliff and 10-year full vesting — verifiable on-chain (see Security &amp; Locks).</li>
+            <li>80% of supply (80,000,000 DUR) is locked in two non-cancellable Vault streams — 30,000,000 DUR vesting between years 3 and 5, and 50,000,000 DUR vesting between years 5 and 10 — verifiable on-chain (see Security &amp; Locks).</li>
           </ul>
           <div className="wp-note">
-            The exact split of the fixed 100,000,000 supply across locks, liquidity, and free float
-            is being finalized. This section will be updated with the confirmed breakdown — and its
-            on-chain lock transactions — once those amounts are set and executed on Arbitrum One.
+            Confirmed breakdown: 80% locked in Vault streams (see Security &amp; Locks for the
+            on-chain transactions), with the remaining 20,000,000 DUR (20%) covering liquidity
+            seeding and free float.
           </div>
         </div>
 
@@ -269,9 +269,9 @@ export default function Whitepaper() {
           </p>
 
           <div className="wp-note">
-            <strong>Status:</strong> The first supply lock has been executed on Arbitrum One and is
-            listed below with its transaction link. Additional locks, if any, will be appended here
-            once executed.
+            <strong>Status:</strong> Two supply locks totalling 80,000,000 DUR (80% of supply) have
+            been executed on Arbitrum One and are listed below with their transaction links.
+            Additional locks, if any, will be appended here once executed.
           </div>
 
           <h3>7.1 The Vault contract</h3>
@@ -285,6 +285,15 @@ export default function Whitepaper() {
 
           <h3>7.2 Executed locks</h3>
           <ul className="wp-list">
+            <li>
+              <strong>30,000,000 DUR (30% of total supply) — streaming lock with a 3-year cliff.</strong>{' '}
+              Nothing unlocks before 2 July 2029; the locked amount then vests linearly until
+              2 July 2031 — ending exactly when the 50M lock's cliff opens, so the two locks form
+              one continuous, gradually decreasing release schedule.{' '}
+              <a className="wp-addr" href="https://arbiscan.io/tx/0x458fcc0e61186a3d66e1b23ccbdb5b576065864400e98655580c4c4508b5f229" target="_blank" rel="noreferrer">
+                Deposit transaction <ExternalLink size={12} />
+              </a>
+            </li>
             <li>
               <strong>50,000,000 DUR (50% of total supply) — streaming lock with a 5-year cliff.</strong>{' '}
               Nothing unlocks before 2 July 2031; the locked amount then vests linearly until
