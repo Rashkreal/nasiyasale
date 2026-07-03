@@ -205,7 +205,7 @@ export default function Whitepaper() {
           <ul className="wp-list">
             <li><strong>No airdrop or free distribution.</strong> Anyone who wants DUR buys it on the open Uniswap market.</li>
             <li><strong>Price grows only through trading.</strong> There is no artificial price mechanism.</li>
-            <li>A portion of supply is intended to be placed in non-cancellable Vault locks; any such locks will be verifiable on-chain once executed (see Security &amp; Locks).</li>
+            <li>50% of supply (50,000,000 DUR) is locked in a non-cancellable Vault stream with a 5-year cliff and 10-year full vesting — verifiable on-chain (see Security &amp; Locks).</li>
           </ul>
           <div className="wp-note">
             The exact split of the fixed 100,000,000 supply across locks, liquidity, and free float
@@ -269,9 +269,9 @@ export default function Whitepaper() {
           </p>
 
           <div className="wp-note">
-            <strong>Status:</strong> Specific lock amounts and durations are being finalized and are
-            not yet executed. Once each lock transaction is submitted on Arbitrum One, this section
-            will list it with its Arbiscan transaction link so anyone can verify it independently.
+            <strong>Status:</strong> The first supply lock has been executed on Arbitrum One and is
+            listed below with its transaction link. Additional locks, if any, will be appended here
+            once executed.
           </div>
 
           <h3>7.1 The Vault contract</h3>
@@ -281,6 +281,20 @@ export default function Whitepaper() {
             <li>Fixed-term locks hold tokens until a chosen unlock time, after which they can be withdrawn.</li>
             <li>An emergency-withdraw path exists only 48 hours after a lock's unlock time.</li>
             <li>Lock status is publicly visible on the Vault page of this site.</li>
+          </ul>
+
+          <h3>7.2 Executed locks</h3>
+          <ul className="wp-list">
+            <li>
+              <strong>50,000,000 DUR (50% of total supply) — streaming lock with a 5-year cliff.</strong>{' '}
+              Nothing unlocks before 2 July 2031; the locked amount then vests linearly until
+              30 June 2036. The stream cannot be cancelled, and even the emergency path only opens
+              48 hours after the end date — the tokens are provably out of circulation for the
+              full term.{' '}
+              <a className="wp-addr" href="https://arbiscan.io/tx/0xa3c81c00229dbd1eed74447218c32c052286fde65b50dfbaabd1b8deef0d0339" target="_blank" rel="noreferrer">
+                Deposit transaction <ExternalLink size={12} />
+              </a>
+            </li>
           </ul>
         </div>
 
