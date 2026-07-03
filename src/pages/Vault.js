@@ -1424,7 +1424,23 @@ export default function Vault() {
                         <span className="status-dot" />{statusLabel}
                       </span>
                     </div>
-                    <div />
+                    {(st === 1 || st === 3) ? (
+                      <div style={{fontSize:11,lineHeight:1.5}}>
+                        <div style={{color:"var(--warning)",marginBottom:4}}>
+                          NFT withdrawal manzilida. MetaMask ga import qiling:
+                        </div>
+                        <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+                          <span style={{color:"var(--text-muted)",minWidth:60}}>Kontrakt:</span>
+                          <span style={{fontFamily:"var(--font-mono)",color:"var(--text-secondary)"}}>{POSITION_MANAGER.slice(0,8)}...{POSITION_MANAGER.slice(-6)}</span>
+                          <button onClick={() => { navigator.clipboard.writeText(POSITION_MANAGER); toast.success("Kontrakt nusxalandi"); }} style={{background:"none",border:"none",cursor:"pointer",color:"var(--text-muted)",padding:0,display:"flex"}} title="Nusxalash"><Copy size={13} /></button>
+                        </div>
+                        <div style={{display:"flex",alignItems:"center",gap:6}}>
+                          <span style={{color:"var(--text-muted)",minWidth:60}}>Token ID:</span>
+                          <span style={{fontFamily:"var(--font-mono)",color:"var(--text-secondary)"}}>{Number(nft.tokenId)}</span>
+                          <button onClick={() => { navigator.clipboard.writeText(String(Number(nft.tokenId))); toast.success("Token ID nusxalandi"); }} style={{background:"none",border:"none",cursor:"pointer",color:"var(--text-muted)",padding:0,display:"flex"}} title="Nusxalash"><Copy size={13} /></button>
+                        </div>
+                      </div>
+                    ) : <div />}
                   </div>
                 );
               })}
