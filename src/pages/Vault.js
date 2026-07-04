@@ -12,6 +12,12 @@ const OWNER_ADDRESS    = "0x0e86d8afaa0B77D732d89BD5ceC3dC9003b321dA";
 const POSITION_MANAGER = "0xd88F38F930b7952f2DB2432Cb002E7abbF3dD869";
 const RPC              = "https://rpc.ankr.com/arbitrum/e531710028d0852baae1e1de9993017d4025b2d30d21d0ac5f812150724416b5";
 const RPC_BACKUP       = "https://arb1.arbitrum.io/rpc";
+// Har stream ID uchun uning deposit tranzaksiyasi (Whitepaper'dagi bilan bir xil)
+const STREAM_TX = {
+  2: "0xa3c81c00229dbd1eed74447218c32c052286fde65b50dfbaabd1b8deef0d0339",
+  3: "0x458fcc0e61186a3d66e1b23ccbdb5b576065864400e98655580c4c4508b5f229",
+  4: "0x792897db1db0b9627d77fd4565329b5ba98e05350993d3948a5da88ddee88410",
+};
 
 const TOKENS = {
   DUR:  { address: "0x92E1EbD0Cfac092047AB4a69B6E6a8ECA0687e26", decimals: 18, symbol: "DUR",  name: "Durvodik"         },
@@ -1124,7 +1130,10 @@ export default function Vault() {
             const isEmergencyReady = s.ti?.isEmergencyReady || false;
             return (
               <div key={s.id} className="lock-row">
-                <div className="lock-id">#{s.id}</div>
+                <div>
+                  <div className="lock-id">#{s.id}</div>
+                  {STREAM_TX[Number(s.id)] && (<a href={"https://arbiscan.io/tx/" + STREAM_TX[Number(s.id)]} target="_blank" rel="noreferrer" style={{fontSize:10,color:"var(--text-muted)",textDecoration:"underline"}}>Tekshirish</a>)}
+                </div>
                 <div>
                   <span className={"token-badge " + sym.toLowerCase()}>{sym}</span>
                   <span className="lock-amount" style={{marginLeft:10}}>{formatAmt(s.totalAmount, dec)}</span>
@@ -1683,7 +1692,10 @@ export default function Vault() {
                 const withdrawable = s.ti?.withdrawable || 0n;
                 return (
                   <div key={s.id} className="lock-row">
-                    <div className="lock-id">#{s.id}</div>
+                    <div>
+                  <div className="lock-id">#{s.id}</div>
+                  {STREAM_TX[Number(s.id)] && (<a href={"https://arbiscan.io/tx/" + STREAM_TX[Number(s.id)]} target="_blank" rel="noreferrer" style={{fontSize:10,color:"var(--text-muted)",textDecoration:"underline"}}>Tekshirish</a>)}
+                </div>
                     <div>
                       <span className={"token-badge " + sym.toLowerCase()}>{sym}</span>
                       <span className="lock-amount" style={{marginLeft:10}}>{formatAmt(s.totalAmount, dec)}</span>
