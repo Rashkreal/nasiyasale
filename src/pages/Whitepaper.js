@@ -205,11 +205,11 @@ export default function Whitepaper() {
           <ul className="wp-list">
             <li><strong>No airdrop or free distribution.</strong> Anyone who wants DUR buys it on the open Uniswap market.</li>
             <li><strong>Price grows only through trading.</strong> There is no artificial price mechanism.</li>
-            <li>80% of supply (80,000,000 DUR) is locked in two non-cancellable Vault streams — 30,000,000 DUR vesting between years 3 and 5, and 50,000,000 DUR vesting between years 5 and 10 — verifiable on-chain (see Security &amp; Locks).</li>
+            <li>95% of supply (95,000,000 DUR) is locked in three non-cancellable Vault streams — 15,000,000 DUR vesting between years 2 and 3, 30,000,000 DUR vesting between years 3 and 5, and 50,000,000 DUR vesting between years 5 and 10 — verifiable on-chain (see Security &amp; Locks).</li>
           </ul>
           <div className="wp-note">
-            Confirmed breakdown: 80% locked in Vault streams (see Security &amp; Locks for the
-            on-chain transactions), with the remaining 20,000,000 DUR (20%) covering liquidity
+            Confirmed breakdown: 95% locked in Vault streams (see Security &amp; Locks for the
+            on-chain transactions), with the remaining 5,000,000 DUR (5%) covering liquidity
             seeding and free float.
           </div>
         </div>
@@ -220,7 +220,7 @@ export default function Whitepaper() {
           <p>
             DUR/USDC liquidity is seeded gradually using concentrated Uniswap V4 positions.
             Liquidity is added range by range; each range spans a price doubling and is split
-            into 10 segments, with each segment raising the price by roughly 1%.
+            into 10 segments; each segment moves the price a few percent, such that a roughly $100 trade shifts the price by about 1%.
           </p>
           <ul className="wp-list">
             <li>Each range is filled with approximately <strong>7,000 USDC</strong> (the first range ~7,400).</li>
@@ -269,7 +269,7 @@ export default function Whitepaper() {
           </p>
 
           <div className="wp-note">
-            <strong>Status:</strong> Two supply locks totalling 80,000,000 DUR (80% of supply) have
+            <strong>Status:</strong> Three supply locks totalling 95,000,000 DUR (95% of supply) have
             been executed on Arbitrum One and are listed below with their transaction links.
             Additional locks, if any, will be appended here once executed.
           </div>
@@ -285,6 +285,15 @@ export default function Whitepaper() {
 
           <h3>7.2 Executed locks</h3>
           <ul className="wp-list">
+            <li>
+              <strong>15,000,000 DUR (15% of total supply) — streaming lock with a 2-year cliff.</strong>{' '}
+              Nothing unlocks before 3 July 2028; the locked amount then vests linearly until
+              3 July 2029 — ending exactly when the 30M lock's cliff opens, extending the
+              continuous release schedule one step earlier.{' '}
+              <a className="wp-addr" href="https://arbiscan.io/tx/0x792897db1db0b9627d77fd4565329b5ba98e05350993d3948a5da88ddee88410" target="_blank" rel="noreferrer">
+                Deposit transaction <ExternalLink size={12} />
+              </a>
+            </li>
             <li>
               <strong>30,000,000 DUR (30% of total supply) — streaming lock with a 3-year cliff.</strong>{' '}
               Nothing unlocks before 2 July 2029; the locked amount then vests linearly until

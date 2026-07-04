@@ -4,7 +4,7 @@
 
 Likvidlik **markazlashtirilgan (concentrated) diapazonlarda** bosqichma-bosqich kiritiladi.
 Har bir diapazon narxni **2 baravar** oshiradi va **10 ta segment**ga bo'linadi;
-har bir segment narxni taxminan **1%** ga ko'taradi.
+har bir segment narxni bir necha foizga ko'taradi; natijada taxminan **100 USDC**lik savdo narxni **~1%** suradi.
 
 Qoida:
 - Har bir diapazonga taxminan **7,000 USDC** kiritiladi (1-diapazon ~7,400).
