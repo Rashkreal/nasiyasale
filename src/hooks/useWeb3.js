@@ -253,6 +253,14 @@ export function Web3Provider({ children }) {
       });
       wcProviderRef.current = wc;
       walletTypeRef.current = 'walletconnect';
+      // Eski sessiya (Optimism davridan qolgan) Arbitrum'ni o'z ichiga olmasa,
+      // uzamiz - aks holda MetaMask ochiladi-yu, ulanish so'rovi chiqmaydi.
+      try {
+        const sessChains = wc.session?.namespaces?.eip155?.chains || [];
+        if (wc.session && !sessChains.includes('eip155:42161')) {
+          await wc.disconnect();
+        }
+      } catch {}
       await wc.enable();
       const accounts = wc.accounts;
       if (!accounts || accounts.length === 0) {
