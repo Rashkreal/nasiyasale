@@ -190,8 +190,18 @@ export default function Tokenomics() {
           </div>
           <div style={{ flex: 1, minWidth: 240, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
             DUR jami taklifi <strong>100,000,000</strong> — qat'iy belgilangan va ko'paytirib bo'lmaydi.
-            Taklifning lock, likvidlik va erkin qismlarga aniq taqsimoti yakunlanmoqda;
-            tasdiqlangach, zanjirdagi lock tranzaksiyalari bilan birga shu yerda yangilanadi.
+            Taqsimot tasdiqlangan: <strong>99% Vault'da qulflangan</strong>, 1% likvidlik va muomala uchun.
+            <div style={{ marginTop: 10 }}>
+              <div>• <strong>50M (50%)</strong> — stream, 5-yildan 10-yilgacha ochiladi</div>
+              <div>• <strong>30M (30%)</strong> — stream, 3-yildan 5-yilgacha ochiladi</div>
+              <div>• <strong>15M (15%)</strong> — stream, 2-yildan 3-yilgacha ochiladi</div>
+              <div>• <strong>4M (4%)</strong> — muddatli lock, 2026-yil sentabrgacha</div>
+              <div>• <strong>1M (1%)</strong> — likvidlik va erkin muomala</div>
+            </div>
+            <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-muted)' }}>
+              Har bir lock'ning zanjirdagi tranzaksiya havolasi Whitepaper'ning
+              "Security &amp; Locks" bo'limida keltirilgan.
+            </div>
           </div>
         </div>
       </div>
