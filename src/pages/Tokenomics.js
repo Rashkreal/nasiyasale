@@ -22,6 +22,8 @@ const CREDITSALE_ADDRESS = "0x61a011ca9a21Ec4073fA7E20448cbec86958B182";
 const VAULT_ADDRESS      = "0x334ABa8643C7B7C97d5CeF5b73991e2af7D43462";
 
 const TOTAL_SUPPLY  = 100_000_000;
+// 99M Vault'da qulflangan (95M stream + 4M muddatli lock) — muomalada 1M
+const CIRCULATING_SUPPLY = 1_000_000;
 
 const Q192 = BigInt(2) ** BigInt(192);
 
@@ -86,6 +88,7 @@ function AddrChip({ addr, label, isToken }) {
 function TokenCard({ symbol, color, price, loading, t }) {
   const priceUSD  = price || 0;
   const totalMcap = TOTAL_SUPPLY * priceUSD;
+  const circMcap = CIRCULATING_SUPPLY * priceUSD;
 
   return (
     <div style={{
@@ -124,7 +127,12 @@ function TokenCard({ symbol, color, price, loading, t }) {
           <div className="stat-sub">{symbol} · fixed</div>
         </div>
         <div className="stat-card" style={{ padding: 14 }}>
-          <div className="stat-label">Total Market Cap</div>
+          <div className="stat-label">Muomaladagi Market Cap</div>
+          <div className="stat-value" style={{ fontSize: 18 }}>{loading ? "..." : fmtUSD(circMcap)}</div>
+          <div className="stat-sub">1M muomalada · 99M qulflangan</div>
+        </div>
+        <div className="stat-card" style={{ padding: 14 }}>
+          <div className="stat-label">FDV (to'liq qiymat)</div>
           <div className="stat-value" style={{ fontSize: 18 }}>{loading ? "..." : fmtUSD(totalMcap)}</div>
           <div className="stat-sub">{t("tokenTotalSupply")} × {t("tokenPrice")}</div>
         </div>
