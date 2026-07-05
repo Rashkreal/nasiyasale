@@ -272,7 +272,7 @@ if ((status === 7 || (status === 4 && isExpired)) && !item.isCollateral && (buye
     const tid = toast.loading(t('clPaymentProcessing'));
 
     try {
-      // 1) Tarmoq Optimism ekanligini tasdiqlash
+      // 1) Tarmoq Arbitrum ekanligini tasdiqlash
       await ensureCorrectChain();
 
       // 2) USDC approve (ensureApproval ichida polling bor — allowance
@@ -306,7 +306,7 @@ if ((status === 7 || (status === 4 && isExpired)) && !item.isCollateral && (buye
         tid,
         [
           [10000, "Blockchain'da tasdiqlanmoqda..."],
-          [40000, "Optimism tarmog'i band bo'lishi mumkin..."],
+          [40000, "Arbitrum tarmog'i band bo'lishi mumkin..."],
         ]
       );
 
@@ -387,7 +387,7 @@ if ((status === 7 || (status === 4 && isExpired)) && !item.isCollateral && (buye
         tid,
         [
           [10000, "Blockchain'da tasdiqlanmoqda..."],
-          [40000, "Optimism tarmog'i band bo'lishi mumkin..."],
+          [40000, "Arbitrum tarmog'i band bo'lishi mumkin..."],
         ]
       );
 
@@ -479,7 +479,7 @@ toast.success(t('approvedClaimDefaultSuccess') || 'Default claim muvaffaqiyatli 
         tid,
         [
           [10000, "Blockchain'da tasdiqlanmoqda..."],
-          [40000, "Optimism tarmog'i band bo'lishi mumkin..."],
+          [40000, "Arbitrum tarmog'i band bo'lishi mumkin..."],
         ]
       );
 

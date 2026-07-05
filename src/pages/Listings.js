@@ -300,9 +300,9 @@ function getFriendlyTxError(e, fallback) {
   if (
     rawLower.includes('wrong network') ||
     rawLower.includes('unsupported chain') ||
-    (rawLower.includes('chain') && rawLower.includes('optimism'))
+    (rawLower.includes('chain') && rawLower.includes('arbitrum'))
   ) {
-    return 'Optimism Mainnet tarmog\u2018iga o\u2018ting.';
+    return 'Arbitrum Mainnet tarmog\u2018iga o\u2018ting.';
   }
 
   if (reason) {
@@ -600,7 +600,7 @@ const txPromise = contract.connect(signer).approveListing(listingId, chosenToken
         toastId,
         [
           [10000, "Blockchain'da tasdiqlanmoqda..."],
-          [40000, "Optimism tarmog'i band bo'lishi mumkin..."],
+          [40000, "Arbitrum tarmog'i band bo'lishi mumkin..."],
         ]
       );
 

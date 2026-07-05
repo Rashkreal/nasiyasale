@@ -431,7 +431,7 @@ priceRaw
         tid,
         [
           [10000, "Blockchain'da tasdiqlanmoqda..."],
-          [40000, "Hali kutilmoqda — Optimism tarmog'i band bo'lishi mumkin"],
+          [40000, "Hali kutilmoqda — Arbitrum tarmog'i band bo'lishi mumkin"],
         ]
       );
 
@@ -517,7 +517,7 @@ priceRaw
       } else if (msg.includes('zero collateral')) {
         m = t('clZeroCollateral') || 'Garov miqdori 0 bo\u2018lib qoldi.';
       } else if (msg.includes('wrong network') || msg.includes('unsupported chain')) {
-        m = 'Optimism Mainnet tarmog\u2018iga o\u2018ting.';
+        m = 'Arbitrum Mainnet tarmog\u2018iga o\u2018ting.';
       } else if (msg.includes('total bl limit') || msg.includes('bl low')) {
         m = "BL yetarli emas. Garovsiz e'lon uchun bo'sh BL limitingiz yetmayapti.";
       } else if (msg.includes('blacklist')) {

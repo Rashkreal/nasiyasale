@@ -32,7 +32,7 @@ export default function Dashboard() {
     let c = contract || readOnlyContract;
     if (!c) {
       try {
-        const p = new ethers.JsonRpcProvider('https://optimism.publicnode.com');
+        const p = new ethers.JsonRpcProvider('https://rpc.ankr.com/arbitrum/e531710028d0852baae1e1de9993017d4025b2d30d21d0ac5f812150724416b5');
         c = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, p);
       } catch { setLoading(false); return; }
     }

@@ -19,7 +19,7 @@ function shortAddr(addr) {
 }
 
 export default function Layout({ children }) {
-  const { account, disconnect, isCorrectNetwork, walletType, switchToOptimism } = useWeb3();
+  const { account, disconnect, isCorrectNetwork, walletType, switchToArbitrum } = useWeb3();
   const VAULT_OWNER = "0x0e86d8afaa0B77D732d89BD5ceC3dC9003b321dA";
   const isOwner = account?.toLowerCase() === VAULT_OWNER.toLowerCase();
   const location = useLocation();
@@ -180,7 +180,7 @@ export default function Layout({ children }) {
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               {!isCorrectNetwork && (
-                <button onClick={switchToOptimism} className="network-warn-btn">
+                <button onClick={switchToArbitrum} className="network-warn-btn">
                   <AlertTriangle size={12} /> <span className="desktop-only">{t('wrongNetwork')}</span>
                 </button>
               )}

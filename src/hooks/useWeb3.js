@@ -96,7 +96,7 @@ export function Web3Provider({ children }) {
     }
   }, []);
 
-  const requestSwitchToOptimism = useCallback(async (walletProvider) => {
+  const requestSwitchToArbitrum = useCallback(async (walletProvider) => {
     try {
       await walletProvider.request({
         method: 'wallet_switchEthereumChain',
@@ -118,11 +118,11 @@ export function Web3Provider({ children }) {
           });
           return true;
         } catch (addError) {
-          toast.error("Optimism tarmog'ini qo'shish rad etildi");
+          toast.error("Arbitrum tarmog'ini qo'shish rad etildi");
           return false;
         }
       }
-      toast.error("Optimism tarmog'iga o'tish rad etildi");
+      toast.error("Arbitrum tarmog'iga o'tish rad etildi");
       return false;
     }
   }, []);
@@ -168,24 +168,24 @@ export function Web3Provider({ children }) {
       if (chainId !== ARBITRUM_ONE.chainId) setChainId(ARBITRUM_ONE.chainId);
       return true;
     }
-    const tid = toast.loading(`Wallet ${currentChainId} tarmog'ida. Optimism'ga o'tkazilmoqda...`);
+    const tid = toast.loading(`Wallet ${currentChainId} tarmog'ida. Arbitrum'ga o'tkazilmoqda...`);
     openWalletForRequest();
-    const switched = await requestSwitchToOptimism(provider);
+    const switched = await requestSwitchToArbitrum(provider);
     if (!switched) {
-      toast.error("Optimism Mainnet'ga o'ting", { id: tid });
-      throw new Error("Optimism Mainnet'ga o'ting");
+      toast.error("Arbitrum Mainnet'ga o'ting", { id: tid });
+      throw new Error("Arbitrum Mainnet'ga o'ting");
     }
     await new Promise((r) => setTimeout(r, 800));
     const newChainId = await provider.request({ method: 'eth_chainId' });
     const newCid = parseInt(newChainId, 16);
     setChainId(newCid);
     if (newCid !== ARBITRUM_ONE.chainId) {
-      toast.error("Wallet hali ham Optimism'da emas. Qo'lda o'ting.", { id: tid });
-      throw new Error("Wallet hali ham Optimism'da emas");
+      toast.error("Wallet hali ham Arbitrum'da emas. Qo'lda o'ting.", { id: tid });
+      throw new Error("Wallet hali ham Arbitrum'da emas");
     }
-    toast.success("Optimism'ga o'tildi", { id: tid });
+    toast.success("Arbitrum'ga o'tildi", { id: tid });
     return true;
-  }, [provider, chainId, requestSwitchToOptimism, openWalletForRequest]);
+  }, [provider, chainId, requestSwitchToArbitrum, openWalletForRequest]);
 
   const connectMetaMask = useCallback(async () => {
     setConnecting(true);
@@ -212,7 +212,7 @@ export function Web3Provider({ children }) {
       setTokens(tokenContracts);
 
       if (numCid !== ARBITRUM_ONE.chainId) {
-        const switched = await requestSwitchToOptimism(window.ethereum);
+        const switched = await requestSwitchToArbitrum(window.ethereum);
         if (switched) {
           await new Promise((r) => setTimeout(r, 500));
           const newS = await new ethers.BrowserProvider(window.ethereum).getSigner();
@@ -236,7 +236,7 @@ export function Web3Provider({ children }) {
     } finally {
       setConnecting(false);
     }
-  }, [initContracts, fetchBalances, requestSwitchToOptimism]);
+  }, [initContracts, fetchBalances, requestSwitchToArbitrum]);
 
   const connectWalletConnect = useCallback(async () => {
     setConnecting(true);
@@ -274,7 +274,7 @@ export function Web3Provider({ children }) {
       setTokens(tokenContracts);
 
       if (numCid !== ARBITRUM_ONE.chainId) {
-        const switched = await requestSwitchToOptimism(wc);
+        const switched = await requestSwitchToArbitrum(wc);
         if (switched) {
           await new Promise((r) => setTimeout(r, 500));
           const newS = await new ethers.BrowserProvider(wc).getSigner();
@@ -298,7 +298,7 @@ export function Web3Provider({ children }) {
     } finally {
       setConnecting(false);
     }
-  }, [initContracts, fetchBalances, requestSwitchToOptimism]);
+  }, [initContracts, fetchBalances, requestSwitchToArbitrum]);
 
   const disconnect = useCallback(async (options = {}) => {
     if (disconnectingRef.current) return;
@@ -495,7 +495,7 @@ export function Web3Provider({ children }) {
         ensureApproval,
         revokeAllApprovals,
         ensureCorrectChain,
-        switchToOptimism: requestSwitchToOptimism,
+        switchToArbitrum: requestSwitchToArbitrum,
         openWalletForRequest,
         resetWalletConnection,
         isReadOnly: walletType === 'readonly',

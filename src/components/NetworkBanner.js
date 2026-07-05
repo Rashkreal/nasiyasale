@@ -3,7 +3,7 @@ import { useWeb3 } from '../hooks/useWeb3';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 export default function NetworkBanner() {
-  const { account, isCorrectNetwork, switchToOptimism, chainId } = useWeb3();
+  const { account, isCorrectNetwork, switchToArbitrum, chainId } = useWeb3();
 
   if (!account || isCorrectNetwork) return null;
 
@@ -17,10 +17,10 @@ export default function NetworkBanner() {
     }}>
       <AlertTriangle size={16} />
       <span>
-        Noto'g'ri tarmoq (Chain ID: {chainId}). NasiyaSale faqat Optimism Mainnet da ishlaydi.
+        Noto'g'ri tarmoq (Chain ID: {chainId}). NasiyaSale faqat Arbitrum Mainnet da ishlaydi.
       </span>
       <button
-        onClick={switchToOptimism}
+        onClick={switchToArbitrum}
         style={{
           background: 'white', color: 'var(--danger)',
           border: 'none', borderRadius: '6px',
@@ -29,7 +29,7 @@ export default function NetworkBanner() {
           display: 'flex', alignItems: 'center', gap: '4px'
         }}
       >
-        <RefreshCw size={12} /> Optimism ga o'tish
+        <RefreshCw size={12} /> Arbitrum ga o'tish
       </button>
     </div>
   );
