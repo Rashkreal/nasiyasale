@@ -274,8 +274,16 @@ export function Web3Provider({ children }) {
       setProvider(wc);
       setWalletType('walletconnect');
 
-      const cid = await wc.request({ method: 'eth_chainId' });
-      const numCid = parseInt(cid, 16);
+      let cid = await wc.request({ method: 'eth_chainId' });
+      let numCid = parseInt(cid, 16);
+      if (numCid !== ARBITRUM_ONE.chainId) {
+        // Majburan Arbitrum: wallet'dan so'ramasdan WC sessiyasini 42161 ga o'rnatamiz
+        try {
+          wc.setDefaultChain('eip155:42161');
+          cid = await wc.request({ method: 'eth_chainId' });
+          numCid = parseInt(cid, 16);
+        } catch {}
+      }
       setChainId(numCid);
 
       const { tokenContracts } = initContracts(s);
