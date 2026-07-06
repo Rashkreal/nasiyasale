@@ -162,6 +162,14 @@ export function Web3Provider({ children }) {
   }, []);
 
   const ensureCorrectChain = useCallback(async () => {
+    // WalletConnect (mobil): tranzaksiya setDefaultChain tufayli baribir
+    // Arbitrum'ga yo'naltiriladi. MetaMask mobil WC orqali tarmoq
+    // almashtirishni ishonchli bajarmaydi, shuning uchun bu yerda
+    // majburlamaymiz - to'g'ridan-to'g'ri davom etamiz.
+    if (walletTypeRef.current === 'walletconnect') {
+      if (chainId !== ARBITRUM_ONE.chainId) setChainId(ARBITRUM_ONE.chainId);
+      return true;
+    }
     if (!provider) throw new Error('Provider topilmadi');
     const currentChainId = await provider.request({ method: 'eth_chainId' });
     if (parseInt(currentChainId, 16) === ARBITRUM_ONE.chainId) {
