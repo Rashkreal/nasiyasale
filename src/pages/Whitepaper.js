@@ -9,7 +9,7 @@ const VAULT_ADDR      = "0x334ABa8643C7B7C97d5CeF5b73991e2af7D43462";
 // Likvidlik strategiyasi — diapazonlar (1–5 rejalashtirilgan, 6–10 proyeksiya).
 // Har bir diapazon narxni 2x oshiradi, ~7,000 USDC, DUR har safar ~yarmiga kamayadi.
 const liquidityRanges = [
-  { n: 1,  range: "$0.01 → $0.02",  dur: "448,100", usdc: "7,400", kind: "planned" },
+  { n: 1,  range: "$0.01 → $0.02",  dur: "448,100", usdc: "7,400", kind: "seeding" },
   { n: 2,  range: "$0.02 → $0.04",  dur: "249,500", usdc: "7,000", kind: "planned" },
   { n: 3,  range: "$0.04 → $0.08",  dur: "125,000", usdc: "7,000", kind: "planned" },
   { n: 4,  range: "$0.08 → $0.16",  dur: "62,700",  usdc: "7,000", kind: "planned" },
@@ -237,14 +237,26 @@ export default function Whitepaper() {
                   <td className="mono">{r.dur}</td>
                   <td className="mono">{r.usdc}</td>
                   <td>
-                    <span className="wp-pending" style={r.kind === "projected" ? { color: "var(--text-muted, #4a5568)", background: "rgba(120,130,150,0.1)", borderColor: "var(--border, #2a3040)" } : {}}>
-                      {r.kind === "planned" ? "Planned" : "Projected"}
+                    <span className="wp-pending" style={
+                      r.kind === "seeding" ? { color: "#22c55e", background: "rgba(34,197,94,0.12)", borderColor: "rgba(34,197,94,0.3)" }
+                      : r.kind === "projected" ? { color: "var(--text-muted, #4a5568)", background: "rgba(120,130,150,0.1)", borderColor: "var(--border, #2a3040)" }
+                      : {}
+                    }>
+                      {r.kind === "seeding" ? "Seeding" : r.kind === "planned" ? "Planned" : "Projected"}
                     </span>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          <p>
+            <strong>Live status:</strong> seeding of range 1 has begun — the first tranche is a live
+            concentrated DUR/USDC position in the 0.3% Uniswap V4 pool at the $0.01 price level.
+            Further tranches will extend it across the full range.{' '}
+            <a className="wp-addr" href="https://arbiscan.io/token/0xd88F38F930b7952f2DB2432Cb002E7abbF3dD869?a=184527" target="_blank" rel="noreferrer">
+              Position #184527 <ExternalLink size={12} />
+            </a>
+          </p>
           <p>
             Ranges 1–5 are the concrete seeding plan; ranges 6–10 are a projection of the same
             rule (price doubling, ~7,000 USDC per range, DUR halving). Through range 10 this seeds
