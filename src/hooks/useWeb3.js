@@ -244,8 +244,10 @@ export function Web3Provider({ children }) {
       const WalletConnectProvider = (await import('@walletconnect/ethereum-provider')).default;
       const wc = await WalletConnectProvider.init({
         projectId: WC_PROJECT_ID,
-        chains: [42161],
-        optionalChains: [],
+        // Arbitrum'ni OPTIONAL qilamiz: MetaMask mobil "required" notanish
+        // tarmoqli ulanish so'rovini indamay tashlab yuboradi. optionalChains
+        // bilan so'rov normal ko'rinadi va ulanish ochiladi.
+        optionalChains: [42161],
         showQrModal: true,
         rpcMap: {
           42161: 'https://arb1.arbitrum.io/rpc',
@@ -253,14 +255,12 @@ export function Web3Provider({ children }) {
       });
       wcProviderRef.current = wc;
       walletTypeRef.current = 'walletconnect';
-      // Eski sessiya (Optimism davridan qolgan) Arbitrum'ni o'z ichiga olmasa,
-      // uzamiz - aks holda MetaMask ochiladi-yu, ulanish so'rovi chiqmaydi.
+
+      // Eski/mos kelmaydigan sessiya qolgan bo'lsa, uni uzib toza boshlaymiz.
       try {
-        const sessChains = wc.session?.namespaces?.eip155?.chains || [];
-        if (wc.session && !sessChains.includes('eip155:42161')) {
-          await wc.disconnect();
-        }
+        if (wc.session) await wc.disconnect();
       } catch {}
+
       await wc.enable();
       const accounts = wc.accounts;
       if (!accounts || accounts.length === 0) {
@@ -268,45 +268,23 @@ export function Web3Provider({ children }) {
         return;
       }
       const addr = ethers.getAddress(accounts[0]);
+
+      // Sessiya ochilgach, WC provider'ini Arbitrum'ga yo'naltiramiz. Bu
+      // wallet'dan tarmoq almashtirishni SO'RAMAYDI - shunchaki barcha
+      // o'qish/yozishni 42161 RPC'siga yo'naltiradi.
+      try { wc.setDefaultChain('eip155:42161'); } catch {}
+
       const s = await new ethers.BrowserProvider(wc).getSigner();
       setSigner(s);
       setAccount(addr);
       setProvider(wc);
       setWalletType('walletconnect');
-
-      let cid = await wc.request({ method: 'eth_chainId' });
-      let numCid = parseInt(cid, 16);
-      if (numCid !== ARBITRUM_ONE.chainId) {
-        // Majburan Arbitrum: wallet'dan so'ramasdan WC sessiyasini 42161 ga o'rnatamiz
-        try {
-          wc.setDefaultChain('eip155:42161');
-          cid = await wc.request({ method: 'eth_chainId' });
-          numCid = parseInt(cid, 16);
-        } catch {}
-      }
-      setChainId(numCid);
+      setChainId(ARBITRUM_ONE.chainId);
 
       const { tokenContracts } = initContracts(s);
       setTokens(tokenContracts);
+      await fetchBalances(addr, tokenContracts);
 
-      if (numCid !== ARBITRUM_ONE.chainId) {
-        const switched = await requestSwitchToArbitrum(wc);
-        if (switched) {
-          await new Promise((r) => setTimeout(r, 500));
-          const newS = await new ethers.BrowserProvider(wc).getSigner();
-          setSigner(newS);
-          const newCid = await wc.request({ method: 'eth_chainId' });
-          const nc = parseInt(newCid, 16);
-          setChainId(nc);
-          if (nc === ARBITRUM_ONE.chainId) {
-            const { tokenContracts: tc } = initContracts(newS);
-            setTokens(tc);
-            await fetchBalances(addr, tc);
-          }
-        }
-      } else {
-        await fetchBalances(addr, tokenContracts);
-      }
       toast.success('WalletConnect ulandi!');
     } catch (e) {
       console.error('WalletConnect ulanish xatosi:', e);
@@ -314,7 +292,7 @@ export function Web3Provider({ children }) {
     } finally {
       setConnecting(false);
     }
-  }, [initContracts, fetchBalances, requestSwitchToArbitrum]);
+  }, [initContracts, fetchBalances]);
 
   const disconnect = useCallback(async (options = {}) => {
     if (disconnectingRef.current) return;
