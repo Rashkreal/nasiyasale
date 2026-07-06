@@ -3,9 +3,16 @@ import { useWeb3 } from '../hooks/useWeb3';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 export default function NetworkBanner() {
-  const { account, isCorrectNetwork, switchToArbitrum, chainId } = useWeb3();
+  const { account, isCorrectNetwork, switchToArbitrum, chainId, walletType } = useWeb3();
 
   if (!account || isCorrectNetwork) return null;
+
+  // WalletConnect (mobil) bilan ulanganda tranzaksiyalar baribir Arbitrum'ga
+  // yo'naltiriladi (setDefaultChain), va MetaMask mobil WC orqali tarmoq
+  // almashtirishni ishonchli ko'rsatmaydi. Shuning uchun bu holatda banner
+  // ko'rsatmaymiz - u faqat foydalanuvchini chalg'itadi. Banner faqat
+  // injekt qilingan wallet (masofaviy MetaMask kengaytmasi) uchun qoladi.
+  if (walletType === 'walletconnect') return null;
 
   return (
     <div style={{
@@ -17,7 +24,7 @@ export default function NetworkBanner() {
     }}>
       <AlertTriangle size={16} />
       <span>
-        Noto'g'ri tarmoq (Chain ID: {chainId}). NasiyaSale faqat Arbitrum Mainnet da ishlaydi.
+        Noto'g'ri tarmoq (Chain ID: {chainId}). NasiyaSale faqat Arbitrum One da ishlaydi.
       </span>
       <button
         onClick={switchToArbitrum}

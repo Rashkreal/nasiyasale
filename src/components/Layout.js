@@ -179,7 +179,7 @@ export default function Layout({ children }) {
             </button>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              {!isCorrectNetwork && (
+              {!isCorrectNetwork && walletType !== 'walletconnect' && (
                 <button onClick={switchToArbitrum} className="network-warn-btn">
                   <AlertTriangle size={12} /> <span className="desktop-only">{t('wrongNetwork')}</span>
                 </button>
