@@ -269,9 +269,35 @@ export function Web3Provider({ children }) {
       }
       const addr = ethers.getAddress(accounts[0]);
 
-      // Sessiya ochilgach, WC provider'ini Arbitrum'ga yo'naltiramiz. Bu
-      // wallet'dan tarmoq almashtirishni SO'RAMAYDI - shunchaki barcha
-      // o'qish/yozishni 42161 RPC'siga yo'naltiradi.
+      // Ulangan zahoti, wallet hali MetaMask kontekstida turganda, uni
+      // Arbitrum'ga o'tkazamiz. Aks holda keyin tranzaksiya yuborilganda
+      // MetaMask boshqa tarmoqda bo'lib, tasdiq deeplink'i chiqmaydi.
+      let realCid = parseInt(await wc.request({ method: 'eth_chainId' }), 16);
+      if (realCid !== ARBITRUM_ONE.chainId) {
+        try {
+          await wc.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0xa4b1' }],
+          });
+        } catch (err) {
+          // Arbitrum qo'shilmagan bo'lsa - qo'shib, keyin o'tkazamiz
+          if (err?.code === 4902 || String(err?.message || '').includes('Unrecognized')) {
+            try {
+              await wc.request({
+                method: 'wallet_addEthereumChain',
+                params: [{
+                  chainId: '0xa4b1',
+                  chainName: 'Arbitrum One',
+                  nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+                  rpcUrls: ['https://arb1.arbitrum.io/rpc'],
+                  blockExplorerUrls: ['https://arbiscan.io'],
+                }],
+              });
+            } catch {}
+          }
+        }
+        try { realCid = parseInt(await wc.request({ method: 'eth_chainId' }), 16); } catch {}
+      }
       try { wc.setDefaultChain('eip155:42161'); } catch {}
 
       const s = await new ethers.BrowserProvider(wc).getSigner();
@@ -279,7 +305,7 @@ export function Web3Provider({ children }) {
       setAccount(addr);
       setProvider(wc);
       setWalletType('walletconnect');
-      setChainId(ARBITRUM_ONE.chainId);
+      setChainId(realCid);
 
       const { tokenContracts } = initContracts(s);
       setTokens(tokenContracts);
