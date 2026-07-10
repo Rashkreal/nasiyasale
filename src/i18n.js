@@ -3,7 +3,7 @@ export const translations = {
   // ── O'zbek lotin ──────────────────────────────────────────
   uz: {
     appName: "NasiyaSale",
-    network: "OP Mainnet",
+    network: "Arbitrum One",
     // ── Vault ──────────────────────────────────────────────────
     vaultTitle: "Vault",
     vaultOwnerPanel: "Owner paneli faol",
@@ -463,7 +463,7 @@ export const translations = {
   // ── O'zbek Kiril ──────────────────────────────────────────
   kr: {
     appName: "NasiyaSale",
-    network: "OP Mainnet",
+    network: "Arbitrum One",
     // ── Vault ──────────────────────────────────────────────────
     vaultTitle: "Vault",
     vaultOwnerPanel: "Owner панели фаол",
@@ -1343,7 +1343,7 @@ export const translations = {
   },
   en: {
     appName: "NasiyaSale",
-    network: "OP Mainnet",
+    network: "Arbitrum One",
     // ── Vault ──────────────────────────────────────────────────
     vaultTitle: "Vault",
     vaultOwnerPanel: "Owner panel active",
