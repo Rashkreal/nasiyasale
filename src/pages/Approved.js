@@ -1105,7 +1105,7 @@ toast.success(t('approvedClaimDefaultSuccess') || 'Default claim muvaffaqiyatli 
           <div className="card" style={{ textAlign: 'center', padding: '32px' }}>
             <CheckCircle size={32} color="var(--text-muted)" style={{ marginBottom: 12 }} />
             <p style={{ color: 'var(--text-secondary)' }}>
-              Unpaid Uncollateralized Contracts yo'q.
+              No unpaid uncollateralized contracts.
             </p>
           </div>
         ) : (
