@@ -999,7 +999,7 @@ toast.success(t('approvedClaimDefaultSuccess') || 'Default claim muvaffaqiyatli 
               >
                 {Number(listing.status) === 7
                   ? "Default claim bajarilgan."
-                  : "Expired — claim this listing's default from the "Active Contracts" section."}
+                  : "Expired — claim this listing's default from the \"Active Contracts\" section."}
               </div>
             )}
           </div>
