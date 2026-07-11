@@ -600,10 +600,10 @@ priceRaw
 {isCollateralType && (
   <div className="card" style={{ marginBottom: '16px', padding: '20px' }}>
     <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '8px' }}>
-      Narx farqi cheklovi (sizning cheklovingiz)
+      Price Deviation Limit (your tolerance)
     </div>
     <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-      Tasdiqlash vaqtida narx shu foizdan ko'p farqlansa, tranzaksiya bekor qilinadi.
+      If the price differs by more than this at approval time, the transaction reverts.
     </div>
     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
       {[0.01, 0.05, 0.1, 0.5, 1, 3, 5, 10, 20].map(pct => (
@@ -627,15 +627,15 @@ priceRaw
     </div>
   </div>
 )}
-          {/* Qo'shimcha garov buffer */}
+          {/* Extra Collateral Buffer buffer */}
           {isCollateralType && (
             <div className="card" style={{ marginBottom: '16px', padding: '20px' }}>
               <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '8px' }}>
-                Qo'shimcha garov
+                Extra Collateral Buffer
               </div>
 
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                0-20%. Garov qiymatini tanlangan foizga oshiradi.
+                0-20%. Increases the collateral value by the selected percentage.
               </div>
 
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
