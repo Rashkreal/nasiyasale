@@ -197,7 +197,7 @@ export function Web3Provider({ children }) {
 
   const connectMetaMask = useCallback(async () => {
     setConnecting(true);
-    const tid = toast.loading('MetaMask ulanmoqda...');
+    const tid = toast.loading('Connecting MetaMask...');
     try {
       if (!window.ethereum) {
         toast.error('MetaMask topilmadi.', { id: tid });

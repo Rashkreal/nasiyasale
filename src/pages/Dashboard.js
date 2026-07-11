@@ -103,12 +103,12 @@ export default function Dashboard() {
         <div className="stat-card" style={{ position: 'relative' }}>
           <div className="stat-label">
             <Wifi size={12} style={{ display: 'inline', marginRight: 4, color: 'var(--success)' }} />
-            Onlayn foydalanuvchilar
+            Online Users
           </div>
           <div className="stat-value" style={{ color: 'var(--success)' }}>
             {onlineCount}
           </div>
-          <div className="stat-sub">Hozir saytda</div>
+          <div className="stat-sub">Currently active</div>
 
           {/* Owner uchun — batafsil ma'lumot */}
           {isOwner && onlineUsers.length > 0 && (
