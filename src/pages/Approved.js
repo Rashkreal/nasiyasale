@@ -999,7 +999,7 @@ toast.success(t('approvedClaimDefaultSuccess') || 'Default claim muvaffaqiyatli 
               >
                 {Number(listing.status) === 7
                   ? "Default claim bajarilgan."
-                  : "Muddati o'tdi — bu listingni \"Faol shartnomalar\" bo'limidan default claim qiling."}
+                  : "Expired — claim this listing's default from the "Active Contracts" section."}
               </div>
             )}
           </div>
@@ -1055,7 +1055,7 @@ toast.success(t('approvedClaimDefaultSuccess') || 'Default claim muvaffaqiyatli 
 
       <div style={{ marginBottom: '28px' }}>
         <h2 style={{ fontSize: '18px', marginBottom: '12px' }}>
-          Faol shartnomalar
+          Active Contracts
         </h2>
 
         {loading ? (
@@ -1085,7 +1085,7 @@ toast.success(t('approvedClaimDefaultSuccess') || 'Default claim muvaffaqiyatli 
 
       <div>
         <h2 style={{ fontSize: '18px', marginBottom: '12px' }}>
-          Garovsiz to‘lanmagan shartnomalar
+          Unpaid Uncollateralized Contracts
         </h2>
 
         {defaultLoading ? (
@@ -1105,7 +1105,7 @@ toast.success(t('approvedClaimDefaultSuccess') || 'Default claim muvaffaqiyatli 
           <div className="card" style={{ textAlign: 'center', padding: '32px' }}>
             <CheckCircle size={32} color="var(--text-muted)" style={{ marginBottom: 12 }} />
             <p style={{ color: 'var(--text-secondary)' }}>
-              Garovsiz to‘lanmagan shartnomalar yo'q.
+              Unpaid Uncollateralized Contracts yo'q.
             </p>
           </div>
         ) : (
