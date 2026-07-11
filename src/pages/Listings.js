@@ -1400,7 +1400,7 @@ const txPromise = contract.connect(signer).approveListing(listingId, chosenToken
                           : <XCircle size={13} />
                         }
 
-                        Bekor qilish
+                        Cancel
                       </button>
                     )}
                   </div>
