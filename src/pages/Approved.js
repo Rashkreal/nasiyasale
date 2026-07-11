@@ -574,7 +574,7 @@ toast.success(t('approvedClaimDefaultSuccess') || 'Default claim muvaffaqiyatli 
                   }`
                 }}
               >
-                {listing.isCollateral ? 'Garovli' : 'Garovsiz'}
+                {listing.isCollateral ? 'Collateral' : 'No Collateral'}
               </span>
 
               {listing.isCollateral && (
@@ -831,7 +831,7 @@ toast.success(t('approvedClaimDefaultSuccess') || 'Default claim muvaffaqiyatli 
                   }`
                 }}
               >
-                {listing.isCollateral ? 'Garovli' : 'Garovsiz'}
+                {listing.isCollateral ? 'Collateral' : 'No Collateral'}
               </span>
 
               {isBuyer && (

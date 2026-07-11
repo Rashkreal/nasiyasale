@@ -837,8 +837,8 @@ const txPromise = contract.connect(signer).approveListing(listingId, chosenToken
         >
           {[
             { key: 'all', label: t('filterAll') || 'Barchasi' },
-            { key: 'collateral', label: 'Garovli' },
-            { key: 'nocollateral', label: 'Garovsiz' }
+            { key: 'collateral', label: 'Collateral' },
+            { key: 'nocollateral', label: 'No Collateral' }
           ].map(f => (
             <button
               key={f.key}
@@ -1204,7 +1204,7 @@ const txPromise = contract.connect(signer).approveListing(listingId, chosenToken
                             color: 'var(--text-muted)'
                           }}
                         >
-                          Contractdagi garov:
+                          Collateral in contract:
                         </span>
 
                         <span

@@ -485,9 +485,9 @@ export function Web3Provider({ children }) {
         const tx = await withTimeout(
           tokenWithSigner.connect(signer).approve(CONTRACT_ADDRESS, 0),
           90000,
-          `${tokenKey} bekor qilish oynasi chiqmadi`
+          `${tokenKey} cancel window did not open`
         );
-        await withTimeout(tx.wait(), 90000, `${tokenKey} bekor qilish tasdiqlanmadi`);
+        await withTimeout(tx.wait(), 90000, `${tokenKey} cancel not confirmed`);
         revoked++;
       } catch (e) {
         failed.push(tokenKey);
