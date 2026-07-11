@@ -543,7 +543,7 @@ export default function Listings() {
       const chosenKey = chosenTokens[listingId];
 
       if (!chosenKey) {
-        toast.error('Garov tokenini tanlang!');
+        toast.error('Select a collateral token!');
         return;
       }
 
@@ -1108,7 +1108,7 @@ const txPromise = contract.connect(signer).approveListing(listingId, chosenToken
                           }}
                         >
                           <Lock size={11} color="var(--warning)" />
-                          E'lon paytidagi narx bo'yicha garov miqdorlari:
+                          Collateral amounts at listing-time price:
                         </div>
                         
                         <div
@@ -1181,7 +1181,7 @@ const txPromise = contract.connect(signer).approveListing(listingId, chosenToken
                           }}
                         >
                           <AlertCircle size={10} />
-                          Narxlar e'lon berilgan vaqtda lock qilingan — hozirgi bozor narxidan farq qilishi mumkin
+                          Prices were locked when the listing was created — may differ from the current market price
                         </div>
                       </div>
                     )}
@@ -1259,7 +1259,7 @@ const txPromise = contract.connect(signer).approveListing(listingId, chosenToken
                             color: 'var(--text-muted)'
                           }}
                         >
-                          Garov tokenini tanlang:
+                          Select collateral token:
                         </div>
 
                         <div
