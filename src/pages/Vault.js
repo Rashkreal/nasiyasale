@@ -1132,7 +1132,7 @@ export default function Vault() {
               <div key={s.id} className="lock-row">
                 <div>
                   <div className="lock-id">#{s.id}</div>
-                  {STREAM_TX[Number(s.id)] && (<a href={"https://arbiscan.io/tx/" + STREAM_TX[Number(s.id)]} target="_blank" rel="noreferrer" style={{fontSize:10,color:"var(--text-muted)",textDecoration:"underline"}}>Tekshirish</a>)}
+                  {STREAM_TX[Number(s.id)] && (<a href={"https://arbiscan.io/tx/" + STREAM_TX[Number(s.id)]} target="_blank" rel="noreferrer" style={{fontSize:10,color:"var(--text-muted)",textDecoration:"underline"}}>Verify</a>)}
                 </div>
                 <div>
                   <span className={"token-badge " + sym.toLowerCase()}>{sym}</span>
@@ -1694,7 +1694,7 @@ export default function Vault() {
                   <div key={s.id} className="lock-row">
                     <div>
                   <div className="lock-id">#{s.id}</div>
-                  {STREAM_TX[Number(s.id)] && (<a href={"https://arbiscan.io/tx/" + STREAM_TX[Number(s.id)]} target="_blank" rel="noreferrer" style={{fontSize:10,color:"var(--text-muted)",textDecoration:"underline"}}>Tekshirish</a>)}
+                  {STREAM_TX[Number(s.id)] && (<a href={"https://arbiscan.io/tx/" + STREAM_TX[Number(s.id)]} target="_blank" rel="noreferrer" style={{fontSize:10,color:"var(--text-muted)",textDecoration:"underline"}}>Verify</a>)}
                 </div>
                     <div>
                       <span className={"token-badge " + sym.toLowerCase()}>{sym}</span>
