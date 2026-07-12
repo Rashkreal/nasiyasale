@@ -228,9 +228,9 @@ export default function Tokenomics() {
           <div>
             <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 8 }}>NasiyaSale</div>
             <p style={{ color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.7, marginBottom: 12 }}>
-              NasiyaSale — DUR tokenini nasiya asosida sotish va sotib olish uchun
-              ishlab chiqilgan markazlashmagan platforma. Barcha savdolar smart kontrakt
-              orqali amalga oshiriladi. Hech qanday vositachi yoki boshqaruvchi talab etilmaydi.
+              NasiyaSale is a decentralized platform for buying and selling the DUR token
+              on a deferred-payment (nasiya) basis. All trades are executed via smart
+              contracts, with no intermediary or administrator required.
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               <div className="badge badge-accent">Arbitrum One</div>
@@ -244,13 +244,13 @@ export default function Tokenomics() {
       </div>
 
       {/* Kontrakt manzillari */}
-      <p className="section-title">Smart Kontraktlar</p>
+      <p className="section-title">Smart Contracts</p>
       <div className="card" style={{ marginBottom: 28 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <AddrChip addr={CREDITSALE_ADDRESS} label="CreditSale" />
           <AddrChip addr={VAULT_ADDRESS}      label="PrivateTimeLockVault" />
           <div style={{ marginTop: 4, padding: '8px 12px', background: 'var(--bg-secondary)', borderRadius: 8, fontSize: 12, color: 'var(--text-muted)' }}>
-            Tarmoq: <strong style={{ color: 'var(--text-secondary)' }}>Arbitrum One</strong> · Chain ID: <strong style={{ color: 'var(--text-secondary)' }}>42161</strong>
+            Network: <strong style={{ color: 'var(--text-secondary)' }}>Arbitrum One</strong> · Chain ID: <strong style={{ color: 'var(--text-secondary)' }}>42161</strong>
           </div>
         </div>
       </div>
@@ -261,10 +261,10 @@ export default function Tokenomics() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <AddrChip addr={DUR_ADDRESS}  label="DUR"  isToken />
           <AddrChip addr={USDC_ADDRESS} label="USDC" isToken />
-          <AddrChip addr={WBTC_ADDRESS} label="WBTC (garov)" isToken />
-          <AddrChip addr={WETH_ADDRESS} label="WETH (garov)" isToken />
+          <AddrChip addr={WBTC_ADDRESS} label="WBTC (collateral)" isToken />
+          <AddrChip addr={WETH_ADDRESS} label="WETH (collateral)" isToken />
           <div style={{ marginTop: 4, padding: '8px 12px', background: 'var(--bg-secondary)', borderRadius: 8, fontSize: 12, color: 'var(--text-muted)' }}>
-            Tarmoq: <strong style={{ color: 'var(--text-secondary)' }}>Arbitrum One</strong> · Chain ID: <strong style={{ color: 'var(--text-secondary)' }}>42161</strong>
+            Network: <strong style={{ color: 'var(--text-secondary)' }}>Arbitrum One</strong> · Chain ID: <strong style={{ color: 'var(--text-secondary)' }}>42161</strong>
           </div>
         </div>
       </div>
