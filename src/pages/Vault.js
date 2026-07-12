@@ -1625,7 +1625,7 @@ export default function Vault() {
 
           {/* NFT Locklar — oddiy foydalanuvchi uchun */}
           <h2 style={{fontSize:16,fontWeight:700,marginBottom:16,marginTop:32}}>
-            NFT (LP) locklar
+            NFT (LP) Locks
             <span style={{marginLeft:8,fontSize:12,color:"var(--text-muted)",fontFamily:"var(--font-mono)",fontWeight:400}}>
               {activeNFTLocks.length}{t("vaultCount")}
             </span>
@@ -1676,7 +1676,7 @@ export default function Vault() {
           )}
           {/* Streamlar — barcha foydalanuvchilar uchun (faqat ko'rish) */}
           <h2 style={{fontSize:16,fontWeight:700,marginBottom:16,marginTop:32}}>
-            Streamlar
+            Streams
             <span style={{marginLeft:8,fontSize:12,color:"var(--text-muted)",fontFamily:"var(--font-mono)",fontWeight:400}}>
               {streams.filter(s => Number(s.status) === 0).length}{t("vaultCount")}
             </span>
