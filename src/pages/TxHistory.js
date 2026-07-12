@@ -260,7 +260,7 @@ export default function TxHistory() {
         <div>
           <h1 className="page-title">{t('txTitle') || 'Transaction History'}</h1>
           <p className="page-subtitle">
-            Oxirgi 20 ta amal shu browser ichida saqlanadi. RPC log scan ishlatilmaydi.
+            The last 20 actions are stored in this browser. RPC log scanning is not used.
           </p>
         </div>
 
@@ -311,7 +311,7 @@ export default function TxHistory() {
       )}
 
       <div>
-        <h2 className="section-title">Browser tarixi</h2>
+        <h2 className="section-title">Browser History</h2>
         {renderList(items, 'local')}
       </div>
     </div>
