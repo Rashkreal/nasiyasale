@@ -67,10 +67,10 @@ export default function Snapshot() {
       <div className="page-header">
         <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <RefreshCw size={22} />
-          Snapshot (zaxira narx)
+          Snapshot (Fallback Price)
         </h1>
         <p className="page-subtitle">
-          Tasdiqlangan garovli listing uchun lock narx va zaxira narxni ko'rish va yangilash.
+          View and refresh the locked price and fallback price for an approved collateralized listing.
         </p>
       </div>
 
@@ -85,7 +85,7 @@ export default function Snapshot() {
             style={{ flex: '1 1 150px' }}
           />
           <button className="btn btn-primary" onClick={fetchSnapshot} disabled={snapshotLoading}>
-            {snapshotLoading ? '...' : <><Search size={14} /> Ko'rish</>}
+            {snapshotLoading ? '...' : <><Search size={14} /> View</>}
           </button>
         </div>
 
