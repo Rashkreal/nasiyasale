@@ -1116,7 +1116,7 @@ export default function Vault() {
   const renderStream = () => (
     <>
       <div className="page-header" style={{marginBottom:16}}>
-        <h2 style={{fontSize:16,fontWeight:700}}>Streamlar</h2>
+        <h2 style={{fontSize:16,fontWeight:700}}>Streams</h2>
       </div>
       {streams.filter(s => Number(s.status) === 0).length === 0 ? (
         <div className="empty-state"><Zap size={40}/><p>Faol stream yoq</p></div>
@@ -1141,13 +1141,13 @@ export default function Vault() {
                 <div className="lock-time">
                   <div style={{fontSize:11,color:"var(--text-muted)",marginBottom:2}}>Boshlanish</div>
                   <div>{formatDate(s.startTime)}</div>
-                  <div style={{fontSize:11,color:"var(--text-muted)",marginBottom:2,marginTop:6}}>Tugash</div>
+                  <div style={{fontSize:11,color:"var(--text-muted)",marginBottom:2,marginTop:6}}>Ends</div>
                   <div>{formatDate(s.endTime)}</div>
                 </div>
                 <div>
-                  <div style={{fontSize:11,color:"var(--text-muted)"}}>Qolgan</div>
+                  <div style={{fontSize:11,color:"var(--text-muted)"}}>Remaining</div>
                   <div style={{fontSize:13,color:"var(--text-primary)",fontFamily:"var(--font-mono)"}}>{formatAmt(BigInt(s.totalAmount) - BigInt(s.withdrawnAmount), dec)} {sym}</div>
-                  <div style={{fontSize:11,color:"var(--text-muted)",marginTop:6}}>Yechish mumkin</div>
+                  <div style={{fontSize:11,color:"var(--text-muted)",marginTop:6}}>Withdrawable</div>
                   <div style={{fontSize:13,color:"var(--success)"}}>{formatAmt(withdrawable, dec)} {sym}</div>
                   {!isEmergencyReady && s.ti && Number(s.ti.secondsToEmergency) > 0 && (
                     <div style={{fontSize:10,color:"var(--warning)",marginTop:6}}>
@@ -1701,13 +1701,13 @@ export default function Vault() {
                       <span className="lock-amount" style={{marginLeft:10}}>{formatAmt(s.totalAmount, dec)}</span>
                     </div>
                     <div className="lock-time">
-                      <div style={{fontSize:11,color:"var(--text-muted)",marginBottom:2}}>Tugash</div>
+                      <div style={{fontSize:11,color:"var(--text-muted)",marginBottom:2}}>Ends</div>
                       <div>{formatDate(s.endTime)}</div>
                     </div>
                     <div>
-                      <div style={{fontSize:11,color:"var(--text-muted)"}}>Qolgan</div>
+                      <div style={{fontSize:11,color:"var(--text-muted)"}}>Remaining</div>
                       <div style={{fontSize:13,color:"var(--text-primary)",fontFamily:"var(--font-mono)"}}>{formatAmt(BigInt(s.totalAmount) - BigInt(s.withdrawnAmount), dec)} {sym}</div>
-                      <div style={{fontSize:11,color:"var(--text-muted)",marginTop:6}}>Yechish mumkin</div>
+                      <div style={{fontSize:11,color:"var(--text-muted)",marginTop:6}}>Withdrawable</div>
                       <div style={{fontSize:13,color:"var(--success)"}}>{formatAmt(withdrawable, dec)} {sym}</div>
                     </div>
                     <div />

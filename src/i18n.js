@@ -7,6 +7,8 @@ export const translations = {
     // ── Vault ──────────────────────────────────────────────────
     vaultTitle: "Vault",
     vaultOwnerPanel: "Owner paneli faol",
+    vaultInfo: "Vaqtli qulflangan tokenlar va LP pozitsiyalari ushbu kontraktda saqlanadi. Yechish yoki favqulodda yechishda ular qat'iy belgilangan yechish manziliga yuboriladi",
+    vaultWithdrawalAddr: "— boshqa hech qanday manzilga emas.",
     vaultRefresh: "Yangilash",
     vaultActiveLocks: "Faol locklar",
     vaultNFTLocks: "NFT locklar",
@@ -483,6 +485,8 @@ export const translations = {
     // ── Vault ──────────────────────────────────────────────────
     vaultTitle: "Vault",
     vaultOwnerPanel: "Owner панели фаол",
+    vaultInfo: "Вақтли қулфланган токенлар ва LP позициялари ушбу контрактда сақланади. Ечиш ёки favqulodda ечишда улар қатъий белгиланган ечиш манзилига юборилади",
+    vaultWithdrawalAddr: "— бошқа ҳеч қандай манзилга эмас.",
     vaultRefresh: "Янгилаш",
     vaultActiveLocks: "Фаол локлар",
     vaultNFTLocks: "NFT локлар",
@@ -939,6 +943,8 @@ export const translations = {
     // ── Vault ──────────────────────────────────────────────────
     vaultTitle: "Vault",
     vaultOwnerPanel: "Панель владельца активна",
+    vaultInfo: "Токены и LP-позиции с временной блокировкой хранятся в этом контракте. При выводе или экстренном выводе они отправляются на фиксированный адрес вывода",
+    vaultWithdrawalAddr: "— и никуда более.",
     vaultRefresh: "Обновить",
     vaultActiveLocks: "Активные локи",
     vaultNFTLocks: "NFT локи",
@@ -1395,6 +1401,8 @@ export const translations = {
     // ── Vault ──────────────────────────────────────────────────
     vaultTitle: "Vault",
     vaultOwnerPanel: "Owner panel active",
+    vaultInfo: "Time-locked tokens and LP positions are held by this contract. On withdrawal or emergency, they are sent to the fixed withdrawal address",
+    vaultWithdrawalAddr: "— never any other address.",
     vaultRefresh: "Refresh",
     vaultActiveLocks: "Active locks",
     vaultNFTLocks: "NFT locks",
