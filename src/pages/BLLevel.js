@@ -118,7 +118,7 @@ export default function BLLevel() {
           onClick={() => setBuyerAddr(account)}
           style={{ fontSize: '11px', padding: '2px 8px', marginTop: '4px' }}
         >
-          👤 Mening manzilim
+          {'👤 ' + (t('blMyAddr') || 'Mening manzilim')}
         </button>
           </div>
           <div className="input-group" style={{ flex: '1 1 200px' }}>
@@ -136,7 +136,7 @@ export default function BLLevel() {
           onClick={() => setSellerAddr(account)}
           style={{ fontSize: '11px', padding: '2px 8px', marginTop: '4px' }}
         >
-          👤 Mening manzilim
+          {'👤 ' + (t('blMyAddr') || 'Mening manzilim')}
         </button>
           </div>
           <button
