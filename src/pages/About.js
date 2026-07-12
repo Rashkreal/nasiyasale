@@ -10,73 +10,73 @@ export default function About() {
       <div className="page-header">
         <h1 className="page-title">
           <Info size={24} style={{ marginRight: '10px' }} />
-          NasiyaSale haqida
+          About NasiyaSale
         </h1>
         <p className="page-subtitle">
-          DUR tokeni uchun markazlashmagan, ownersiz nasiya bozori
+          A decentralized, ownerless deferred-payment marketplace for the DUR token
         </p>
       </div>
 
-      {/* 1. Umumiy tamoyillar */}
+      {/* 1. General Principles */}
       <section className="card" style={{ padding: '24px', marginBottom: '20px' }}>
         <h2 style={{ fontSize: '1.3rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Shield size={22} color="var(--accent-bright)" />
-          Umumiy tamoyillar
+          General Principles
         </h2>
         <ul style={{ lineHeight: 1.8, paddingLeft: '20px', color: 'var(--text-secondary)' }}>
-          <li><strong>Ownersiz va o‘zgarmas:</strong> Kontraktda admin, owner yoki upgrade yo‘q. Arbitrum One tarmog‘ida deploy qilingan, hech kim hech qachon o‘zgartira olmaydi. Noto‘g‘ri yuborilgan tokenlarni qaytarib bo‘lmaydi.</li>
-          <li><strong>Hammasi ochiq:</strong> Barcha listinglar, narxlar va holatlar zanjirda shaffof. Hech qanday yashirin imtiyoz yo‘q.</li>
-          <li><strong>Islomiy tamoyillar:</strong> Garovli savdoda faqat qarz miqdoricha garov olinadi, ortiqchasi xaridorga qaytariladi (rahn). Foiz (ribo) yo‘q, jarima yo‘q.</li>
+          <li><strong>Ownerless and immutable:</strong> The contract has no admin, owner, or upgrade path. It is deployed on Arbitrum One and can never be changed by anyone. Tokens sent to the wrong address cannot be recovered.</li>
+          <li><strong>Everything is open:</strong> All listings, prices, and statuses are transparent on-chain. There are no hidden privileges.</li>
+          <li><strong>Islamic principles:</strong> In collateralized trades, only the debt-equivalent amount of collateral is taken; any surplus is returned to the buyer (rahn). No interest (riba), no penalties.</li>
         </ul>
       </section>
 
-      {/* 2. Garovli savdo */}
+      {/* 2. Collateralized Trading */}
       <section className="card" style={{ padding: '24px', marginBottom: '20px' }}>
         <h2 style={{ fontSize: '1.3rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Lock size={22} color="var(--warning)" />
-          Garovli savdo
+          Collateralized Trading
         </h2>
         <ul style={{ lineHeight: 1.8, paddingLeft: '20px', color: 'var(--text-secondary)' }}>
-          <li><strong>Garov tokenlari:</strong> Faqat WBTC va WETH qabul qilinadi.</li>
-          <li><strong>Kim e'lon bera oladi?</strong> Sotuvchi ham, xaridor ham garovli e'lon joylashi mumkin. Xaridor e'lon vaqtida garovni kontraktga o‘tkazadi. Sotuvchi e'lon vaqtida DUR tokenini kontraktga o'tkazadi.</li>
-          <li><strong>Narxlar:</strong> Garov narxi e'lon vaqtida Chainlink orqali olinadi va butun savdo davomida o‘zgarmaydi. So‘nggi 48 soat ichida narx yangilanmagan bo‘lsa, zaxira mexanizmi ishga tushadi.</li>
-          <li><strong>To‘lov:</strong> Xaridor USDC bilan istalgan vaqtda to‘lov qilishi mumkin — muddatidan oldin ham, kechikib ham. To‘lov amalga oshgach, garov qaytariladi va xaridor BL ball oladi.</li>
-          <li><strong>Default (to‘lov qilinmasa):</strong> Muddati o‘tgan garovli listing uchun <strong>sotuvchi yoki xaridor</strong> “claim” (da'vo) qilishi mumkin. Sotuvchi faqat qarz miqdoricha garov oladi, qolgani xaridorga qaytariladi.</li>
-          <li><strong>Qo‘shimcha garov buferi:</strong> E'lon beruvchi garov qiymatini 0–20% gacha oshirib qo‘yishi mumkin, bu narx o‘zgarishidan himoyalaydi.</li>
+          <li><strong>Collateral tokens:</strong> Only WBTC and WETH are accepted.</li>
+          <li><strong>Who can post a listing?</strong> Both the seller and the buyer can post a collateralized listing. The buyer transfers collateral to the contract when posting. The seller transfers DUR to the contract when posting.</li>
+          <li><strong>Prices:</strong> The collateral price is taken from Chainlink at listing time and stays locked for the whole trade. If the price hasn't updated in the last 48 hours, a fallback mechanism kicks in.</li>
+          <li><strong>Payment:</strong> The buyer can pay in USDC at any time — early or late. Once paid, the collateral is returned and the buyer earns BL points.</li>
+          <li><strong>Default (if unpaid):</strong> For an overdue collateralized listing, <strong>either the seller or the buyer</strong> can "claim" it. The seller receives only the debt-equivalent amount of collateral; the rest is returned to the buyer.</li>
+          <li><strong>Extra collateral buffer:</strong> The listing creator can increase the collateral value by 0-20%, which protects against price movement.</li>
         </ul>
       </section>
 
-      {/* 3. Garovsiz savdo */}
+      {/* 3. Uncollateralized Trading */}
       <section className="card" style={{ padding: '24px', marginBottom: '20px' }}>
         <h2 style={{ fontSize: '1.3rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Users size={22} color="var(--success)" />
-          Garovsiz savdo (BL asosida)
+          Uncollateralized Trading (BL-based)
         </h2>
         <ul style={{ lineHeight: 1.8, paddingLeft: '20px', color: 'var(--text-secondary)' }}>
-          <li><strong>Business Level (BL):</strong> Garovsiz savdo faqat yetarli BL ballga ega xaridorlar uchun. BL ball vaqt o‘tishi bilan muvaffaqiyatli to‘lovlar orqali yig‘iladi.</li>
-          <li><strong>BL hisobi:</strong>
+          <li><strong>Business Level (BL):</strong> Uncollateralized trading is only available to buyers with sufficient BL points. BL points accumulate over time through successful payments.</li>
+          <li><strong>BL accounting:</strong>
             <ul>
-              <li>Garovli savdoda: DUR miqdorining 10% i BL sifatida qo‘shiladi.</li>
-              <li>Garovsiz savdoda: DUR miqdorining 100% i BL sifatida qo‘shiladi (yuqori xavf uchun mukofot).</li>
+              <li>In collateralized trades: 10% of the DUR amount is added as BL.</li>
+              <li>In uncollateralized trades: 100% of the DUR amount is added as BL (a reward for the higher risk).</li>
             </ul>
           </li>
-          <li><strong>Qanday ishlaydi?</strong> Xaridor garovsiz listing joylaydi va BL band qilinadi. Sotuvchi tasdiqlagach, DUR xaridorga o‘tkaziladi. Xaridor muddatida to‘lov qilsa, BL yana oshadi.</li>
-          <li><strong>To‘lov qilinmasa:</strong> Xaridorning sotuvchi bilan bo‘lgan BL nolga tushadi, qora ro‘yxatga kiradi va yangi garovsiz e'lon bera olmaydi. Qora ro‘yxatdan chiqish uchun <strong>Pay After Default</strong> orqali qarzni USDC da to‘lash kerak (BL qayta tiklanmaydi, lekin garovsiz amaliyot qilish imkoniyati qaytadi).</li>
-          <li><strong>BL cheklovi:</strong> Bitta sotuvchiga nisbatan umumiy faol garovsiz qarz BL ning 10% idan oshmasligi kerak. Bu xavfni cheklaydi.</li>
+          <li><strong>How does it work?</strong> The buyer posts an uncollateralized listing and BL is reserved. Once the seller approves, DUR is transferred to the buyer. If the buyer pays on time, BL increases further.</li>
+          <li><strong>If unpaid:</strong> The buyer's BL with that seller resets to zero, they're blacklisted, and can't post new uncollateralized listings. To get off the blacklist, the debt must be repaid in USDC via <strong>Pay After Default</strong> (BL is not restored, but the ability to trade uncollateralized returns).</li>
+          <li><strong>BL limit:</strong> Total active uncollateralized debt with a single seller cannot exceed 10x their BL. This caps the risk.</li>
         </ul>
       </section>
 
-      {/* 4. Narx farqi himoyasi */}
+      {/* 4. Price Deviation Protection */}
       <section className="card" style={{ padding: '24px', marginBottom: '20px' }}>
         <h2 style={{ fontSize: '1.3rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <TrendingUp size={22} color="var(--info)" />
-          Narx farqi himoyasi (anti-flash-loan)
+          Price Deviation Protection (anti-flash-loan)
         </h2>
         <ul style={{ lineHeight: 1.8, paddingLeft: '20px', color: 'var(--text-secondary)' }}>
-          <li><strong>E'lon beruvchi cheklovi:</strong> Har bir garovli listingda e'lon beruvchi maksimal narx og‘ish foizini belgilaydi (0.01% – 20%). Bu qiymat listing kartasida “chek: X.XX%” ko‘rinishida aks etadi.</li>
-          <li><strong>Avtomatik himoya:</strong> Tasdiqlash vaqtida Chainlink'dan olingan jonli narx, e'lon paytidagi narx bilan solishtiriladi. Agar farq belgilangan foizdan oshsa, kontrakt tranzaksiyani avtomatik rad etadi.</li>
-          <li><strong>Default chegara:</strong> Agar tomonlardan biri aniq foiz kiritmasa, kontrakt avtomatik 2% cheklovni qo‘llaydi.</li>
-          <li><strong>Ikki tomonlama:</strong> Tasdiqlovchi ham o‘z limitini belgilashi mumkin. Ikkala limitdan qaysi biri qattiqroq bo‘lsa, o‘sha amal qiladi.</li>
+          <li><strong>Listing creator's limit:</strong> For every collateralized listing, the creator sets a maximum price deviation percentage (0.01%-20%). This value appears on the listing card as "limit: X.XX%".</li>
+          <li><strong>Automatic protection:</strong> At approval time, the live price from Chainlink is compared against the price at listing time. If the difference exceeds the set percentage, the contract automatically reverts the transaction.</li>
+          <li><strong>Default threshold:</strong> If either party doesn't specify an exact percentage, the contract automatically applies a 2% limit.</li>
+          <li><strong>Two-sided:</strong> The approver can also set their own limit. Whichever of the two limits is stricter is the one that applies.</li>
         </ul>
       </section>
 
@@ -84,24 +84,24 @@ export default function About() {
       <section className="card" style={{ padding: '24px', marginBottom: '20px' }}>
         <h2 style={{ fontSize: '1.3rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Zap size={22} color="var(--accent-bright)" />
-          Narx manbasi (Oracle)
+          Price Source (Oracle)
         </h2>
         <ul style={{ lineHeight: 1.8, paddingLeft: '20px', color: 'var(--text-secondary)' }}>
-          <li><strong>Chainlink:</strong> Barcha narxlar Arbitrum One tarmog‘idagi Chainlink WBTC/USD va ETH/USD feed'laridan olinadi.</li>
-          <li><strong>L2 Sequencer himoyasi:</strong> Agar Arbitrum sequencer'i ishlamay qolsa, barcha narxga bog‘liq amallar to‘xtatiladi. Sequencer tiklangach, 1 soatlik kutish davri mavjud.</li>
-          <li><strong>Zaxira narx:</strong> Agar Chainlink uzoq muddat ishlamasa (48 soatdan ko‘proq), listingda saqlangan zaxira narxdan foydalaniladi. Bu narxni har kim yangilab turishi mumkin (refreshSnapshot).</li>
+          <li><strong>Chainlink:</strong> All prices are sourced from Chainlink's WBTC/USD and ETH/USD feeds on Arbitrum One.</li>
+          <li><strong>L2 Sequencer protection:</strong> If the Arbitrum sequencer goes down, all price-dependent actions are paused. Once the sequencer recovers, there's a 1-hour grace period.</li>
+          <li><strong>Fallback price:</strong> If Chainlink is down for an extended period (more than 48 hours), the fallback price stored on the listing is used. Anyone can refresh this price (refreshSnapshot).</li>
         </ul>
       </section>
 
-      {/* 6. Manzillar — to'liq ro'yxat Tokenomics sahifasida */}
+      {/* 6. Addresses — full list on the Tokenomics page */}
       <section className="card" style={{ padding: '24px', marginBottom: '20px' }}>
         <h2 style={{ fontSize: '1.3rem', marginBottom: '12px' }}>
-          Tarmoq va manzillar
+          Network and Addresses
         </h2>
         <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: '8px' }}>
-          NasiyaSale <strong>Arbitrum One</strong> (Chain ID 42161) tarmog‘ida ishlaydi.
-          Barcha token va kontrakt manzillari — DUR, USDC, WBTC, WETH, CreditSale va Vault —
-          <strong> Tokenomics</strong> sahifasida to‘liq keltirilgan va Arbiscan havolalari bilan tekshirilishi mumkin.
+          NasiyaSale runs on <strong>Arbitrum One</strong> (Chain ID 42161).
+          All token and contract addresses — DUR, USDC, WBTC, WETH, CreditSale, and Vault —
+          are listed in full on the <strong>Tokenomics</strong> page and can be verified via Arbiscan links.
         </p>
       </section>
     </div>
