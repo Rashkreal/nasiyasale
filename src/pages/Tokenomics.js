@@ -127,12 +127,12 @@ function TokenCard({ symbol, color, price, loading, t }) {
           <div className="stat-sub">{symbol} · fixed</div>
         </div>
         <div className="stat-card" style={{ padding: 14 }}>
-          <div className="stat-label">Muomaladagi Market Cap</div>
+          <div className="stat-label">Circulating Market Cap</div>
           <div className="stat-value" style={{ fontSize: 18 }}>{loading ? "..." : fmtUSD(circMcap)}</div>
-          <div className="stat-sub">1M muomalada · 99M qulflangan</div>
+          <div className="stat-sub">1M circulating · 99M locked</div>
         </div>
         <div className="stat-card" style={{ padding: 14 }}>
-          <div className="stat-label">FDV (to'liq qiymat)</div>
+          <div className="stat-label">FDV (fully diluted)</div>
           <div className="stat-value" style={{ fontSize: 18 }}>{loading ? "..." : fmtUSD(totalMcap)}</div>
           <div className="stat-sub">{t("tokenTotalSupply")} × {t("tokenPrice")}</div>
         </div>
@@ -172,7 +172,7 @@ export default function Tokenomics() {
         <div>
           <h1 className="page-title">Tokenomics</h1>
           <p className="page-subtitle">
-            DUR token haqida to'liq ma'lumot — taklif, lock va bozor qiymati
+            Full details on DUR token — supply, locks, and market value
           </p>
         </div>
         <button className="btn btn-outline btn-sm" onClick={fetchPrices} disabled={loading}>
@@ -193,22 +193,22 @@ export default function Tokenomics() {
             <div style={{ fontSize: 36, fontWeight: 700, fontFamily: 'Space Mono, monospace', color: 'var(--warning)' }}>100M</div>
             <div style={{ fontWeight: 600, marginBottom: 4 }}>{t("tokenTotalSupply")}</div>
             <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-              O'zgarmas — mint funksiyasi yo'q
+              Immutable — no mint function
             </div>
           </div>
           <div style={{ flex: 1, minWidth: 240, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
-            DUR jami taklifi <strong>100,000,000</strong> — qat'iy belgilangan va ko'paytirib bo'lmaydi.
-            Taqsimot tasdiqlangan: <strong>99% Vault'da qulflangan</strong>, 1% likvidlik va muomala uchun.
+            Total DUR supply is <strong>100,000,000</strong> — fixed and cannot be increased.
+            Distribution is confirmed: <strong>99% locked in the Vault</strong>, 1% for liquidity and circulation.
             <div style={{ marginTop: 10 }}>
-              <div>• <strong>50M (50%)</strong> — stream, 5-yildan 10-yilgacha ochiladi</div>
-              <div>• <strong>30M (30%)</strong> — stream, 3-yildan 5-yilgacha ochiladi</div>
-              <div>• <strong>15M (15%)</strong> — stream, 2-yildan 3-yilgacha ochiladi</div>
-              <div>• <strong>4M (4%)</strong> — muddatli lock, 2026-yil sentabrgacha</div>
-              <div>• <strong>1M (1%)</strong> — likvidlik va erkin muomala</div>
+              <div>• <strong>50M (50%)</strong> — stream, vests from year 5 to year 10</div>
+              <div>• <strong>30M (30%)</strong> — stream, vests from year 3 to year 5</div>
+              <div>• <strong>15M (15%)</strong> — stream, vests from year 2 to year 3</div>
+              <div>• <strong>4M (4%)</strong> — fixed-term lock, until September 2026</div>
+              <div>• <strong>1M (1%)</strong> — liquidity and free circulation</div>
             </div>
             <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-muted)' }}>
-              Har bir lock'ning zanjirdagi tranzaksiya havolasi Whitepaper'ning
-              "Security &amp; Locks" bo'limida keltirilgan.
+              Each lock's on-chain transaction link is listed in the Whitepaper's
+              "Security &amp; Locks" section.
             </div>
           </div>
         </div>
