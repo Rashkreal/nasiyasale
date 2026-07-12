@@ -113,7 +113,7 @@ function TokenCard({ symbol, color, price, loading, t }) {
           <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Arbitrum One</div>
         </div>
         <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Narx</div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Price</div>
           <div style={{ fontFamily: 'Space Mono, monospace', fontSize: 16, fontWeight: 700, color }}>
             {loading ? "..." : priceUSD > 0 ? "$" + priceUSD.toFixed(6) : "—"}
           </div>
