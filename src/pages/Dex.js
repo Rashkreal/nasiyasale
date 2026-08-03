@@ -32,7 +32,112 @@ const DEX_ABI = [
   'function DEFAULT_BUFFER_BPS() external view returns (uint16)',
   'event ListingPosted(uint256 indexed listingId, address indexed seller, uint256 durAmount, uint256 priceUSDC, uint256 paymentPeriodDays)',
   'event BuyOfferPosted(uint256 indexed offerId, address indexed buyer, uint256 durAmount, uint256 priceUSDC, uint256 paymentPeriodDays, uint256 garov)',
+  // Kontraktning BARCHA maxsus xatolari — buni to'liq qo'shmasak, ethers
+  // revert sababini "unknown custom error" deb chiqaradi, chunki uni qaysi
+  // ABI orqali dekod qilishni bilmaydi.
+  'error AlreadySwapped()',
+  'error BadChainlinkPrice()',
+  'error BadListingParams()',
+  'error BadPeriod()',
+  'error BadTokenId()',
+  'error BelowRequiredFloor(uint256 remainingValue, uint256 requiredValue)',
+  'error CannotApproveOwnListing()',
+  'error ChainlinkPriceUnderflow()',
+  'error CheckpointDeviationExceeded(uint256 prevPrice, uint256 currPrice)',
+  'error CheckpointGapNotElapsed(uint256 gap, uint256 required)',
+  'error CheckpointStale(uint256 age, uint256 maxAge)',
+  'error CheckpointTooSoon(uint256 nextAllowedAt)',
+  'error InsufficientCollateral()',
+  'error ListingNotPending()',
+  'error MustSwapDurFirst()',
+  'error NoCheckpointYet()',
+  'error NoPriceAvailable()',
+  'error NotBuyer()',
+  'error NotLiquidatable()',
+  'error NotPoolManager()',
+  'error NotSeller()',
+  'error NothingToSwap()',
+  'error PoolEmpty()',
+  'error PositionNotFound()',
+  'error PositionNotOpen()',
+  'error PriceTooHigh(uint256 narx, uint256 maxAllowed)',
+  'error SequencerDown()',
+  'error SequencerFeedDead()',
+  'error SequencerGracePeriod()',
+  'error StaleChainlinkPrice()',
+  'error StaleChainlinkRound()',
+  'error SwapWouldLeaveLiquidatable()',
+  'error TooLittleReceived(uint256 minOut, uint256 actualOut)',
+  'error ZeroAmount()',
 ];
+
+// Har bir xato nomi uchun tushunarli o'zbekcha xabar.
+const ERROR_MESSAGES = {
+  CannotApproveOwnListing: "O'zingiz joylagan e'lon/taklifni o'zingiz bajara olmaysiz — buni faqat boshqa hamyon amalga oshirishi mumkin",
+  ListingNotPending: "Bu e'lon/taklif allaqachon tasdiqlangan yoki bekor qilingan",
+  NoCheckpointYet: "Oracle hali umuman ishga tushirilmagan",
+  CheckpointStale: 'Narx eskirgan — avval "Narxni yangilash" tugmasini bosing',
+  CheckpointGapNotElapsed: "Checkpointlar orasida yetarli vaqt o'tmagan",
+  CheckpointTooSoon: "Hali erta — bir necha soniyadan keyin qayta urinib ko'ring",
+  CheckpointDeviationExceeded: "Narx juda keskin o'zgardi — birozdan keyin qayta urinib ko'ring",
+  PriceTooHigh: "Narx tannarxdan +10%dan oshib ketgan — narxni kamaytiring",
+  BadListingParams: "Miqdor yoki narx noto'g'ri kiritilgan",
+  BadPeriod: "To'lov muddati 1-30 kun oralig'ida bo'lishi kerak",
+  InsufficientCollateral: 'Garov yetarli emas',
+  BelowRequiredFloor: "Bu miqdorni olib qo'yish pozitsiyani xavfli holatga tashlaydi",
+  SwapWouldLeaveLiquidatable: "Bu swap pozitsiyani darhol likvidatsiyaga tashlab yuboradi — avval garov qo'shing",
+  NothingToSwap: 'Swap qilish uchun DUR qolmagan',
+  MustSwapDurFirst: "Avval DUR'ni USDC'ga swap qilish kerak",
+  AlreadySwapped: 'Garov allaqachon boshqa tokenga aylantirilgan',
+  PositionNotFound: 'Bunday pozitsiya topilmadi',
+  PositionNotOpen: 'Bu pozitsiya endi ochiq emas',
+  NotBuyer: 'Bu amalni faqat pozitsiya xaridori bajara oladi',
+  NotSeller: "Bu amalni faqat e'lon egasi bajara oladi",
+  NotLiquidatable: 'Bu pozitsiya hali likvidatsiya qilinishi mumkin emas',
+  ZeroAmount: "Miqdor 0 bo'lishi mumkin emas",
+  BadTokenId: "Noto'g'ri token tanlandi",
+  PoolEmpty: "Uniswap pool bo'sh yoki ishga tushirilmagan",
+  SequencerDown: "Arbitrum sequencer vaqtincha ishlamayapti — birozdan keyin urinib ko'ring",
+  SequencerGracePeriod: 'Sequencer yaqinda tiklandi — bir necha daqiqa kutish kerak',
+  SequencerFeedDead: "Sequencer holatini tekshirib bo'lmadi",
+  BadChainlinkPrice: "Narx manbasidan noto'g'ri ma'lumot keldi",
+  StaleChainlinkPrice: 'Narx manbasi eskirgan',
+  StaleChainlinkRound: "Narx manbasi to'liq yangilanmagan",
+  ChainlinkPriceUnderflow: 'Narx hisoblashda xato',
+  NoPriceAvailable: 'Hech qanday narx manbai topilmadi',
+  NotPoolManager: 'Ruxsatsiz chaqiruv',
+  TooLittleReceived: 'Swap natijasi kutilgandan kam — slippage juda yuqori',
+};
+
+// Xato dekodlash uchun alohida Interface — kontrakt instance kerak emas,
+// bu sof, tarmoqqa bog'liq bo'lmagan operatsiya.
+const DEX_INTERFACE = new ethers.Interface(DEX_ABI);
+
+/// Kontraktdan qaytgan xato ma'lumotini (mavjud bo'lsa) dekod qilib,
+/// tushunarli o'zbekcha xabarga aylantiradi.
+function translateContractError(e) {
+  const rawMsg = (e?.reason || e?.shortMessage || e?.message || '').toLowerCase();
+  if (rawMsg.includes('rejected') || rawMsg.includes('denied') || rawMsg.includes('user denied')) {
+    return 'Rad etildi';
+  }
+
+  const candidates = [e?.data, e?.error?.data, e?.info?.error?.data, e?.error?.error?.data];
+  for (const data of candidates) {
+    if (!data || typeof data !== 'string') continue;
+    try {
+      const parsed = DEX_INTERFACE.parseError(data);
+      if (parsed?.name) {
+        return ERROR_MESSAGES[parsed.name] || `Kontrakt xatosi: ${parsed.name}`;
+      }
+    } catch { /* bu joydan dekod bo'lmadi, keyingisini sinaymiz */ }
+  }
+
+  for (const [name, msg] of Object.entries(ERROR_MESSAGES)) {
+    if (rawMsg.includes(name.toLowerCase())) return msg;
+  }
+
+  return e?.reason || e?.shortMessage || "Noma'lum xatolik yuz berdi — birozdan keyin qayta urinib ko'ring";
+}
 
 // Bir xil ikkilamchi RPC naqshi — Vault.js'dagi bilan bir xil manzillar,
 // hamyon ulanmagan holatda ham (masalan sahifa ochilishida) narxni
@@ -92,8 +197,8 @@ async function ensureDexApproval(tokenKey, signer, account, amountRaw, openWalle
     await withWalletTimeout(tx.wait(), 90000, `${tokenKey} approval tasdiqlanmadi`);
     toast.success(`${tokenKey} ruxsat berildi`, { id: tid });
   } catch (e) {
-    const msg = (e?.message || '').toLowerCase();
-    toast.error(msg.includes('rejected') || msg.includes('denied') ? 'Ruxsat rad etildi' : 'Ruxsat olishda xato', { id: tid });
+    console.error('approval error:', e);
+    toast.error(translateContractError(e), { id: tid });
     throw e;
   }
 }
@@ -218,14 +323,7 @@ export default function Dex() {
       refreshOracle();
     } catch (e) {
       console.error('checkpoint error:', e);
-      const msg = (e?.reason || e?.shortMessage || e?.message || '').toLowerCase();
-      if (msg.includes('rejected') || msg.includes('denied')) {
-        toast.error('Rad etildi', { id: tid });
-      } else if (msg.includes('checkpointtoosoon')) {
-        toast.error("Hali erta — birozdan keyin qayta urinib ko'ring", { id: tid });
-      } else {
-        toast.error(e?.reason || e?.shortMessage || 'Xatolik yuz berdi', { id: tid });
-      }
+      toast.error(translateContractError(e), { id: tid });
     } finally {
       setCheckpointing(false);
     }
@@ -272,14 +370,7 @@ export default function Dex() {
       refreshOracle();
     } catch (e) {
       console.error('dex submit error:', e);
-      const msg = (e?.reason || e?.shortMessage || e?.message || '').toLowerCase();
-      if (msg.includes('rejected') || msg.includes('denied')) {
-        toast.error('Rad etildi', { id: tid });
-      } else if (msg.includes('nocheckpointyet')) {
-        toast.error("Oracle hali tayyor emas — birozdan keyin urinib ko'ring", { id: tid });
-      } else {
-        toast.error(e?.reason || e?.shortMessage || "Xatolik yuz berdi", { id: tid });
-      }
+      toast.error(translateContractError(e), { id: tid });
     } finally {
       setLoading(false);
     }
