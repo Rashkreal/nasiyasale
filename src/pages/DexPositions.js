@@ -260,10 +260,33 @@ export default function DexPositions() {
   //    yangi bo'lgani uchun bu amaliy jihatdan tez ishlaydi; kelajakda
   //    voqealar soni ko'payib ketsa, blok oralig'ini cheklash kerak
   //    bo'ladi.
-  const discoverPositionIds = useCallback(async (dex) => {
+  // Ko'p RPC provayderlar (Ankr jumladan) eth_getLogs so'rovida blok
+  // oralig'iga chegara qo'yadi (masalan 50 000 yoki 100 000 blok).
+  // Arbitrum'da bugungi blok raqami yuz millionlab bo'lgani uchun "blok
+  // 0'dan hozirgacha" so'rovi har doim rad etiladi. Shuning uchun avval
+  // KATTA (lekin oqilona) oraliqni sinaymiz, u rad etilsa — kichikroq
+  // oraliqqa qaytib qayta urinamiz. Kontrakt yangi deploy qilingani uchun
+  // butun tarixi ancha kichik oraliqqa sig'adi.
+  const queryFilterSafe = useCallback(async (dex, provider, filter) => {
+    const latest = await provider.getBlockNumber();
+    const ranges = [500_000, 50_000, 5_000]; // kamayib boruvchi urinishlar
+    let lastErr;
+    for (const range of ranges) {
+      const fromBlock = Math.max(0, latest - range);
+      try {
+        return await dex.queryFilter(filter, fromBlock, latest);
+      } catch (e) {
+        lastErr = e;
+        console.warn(`queryFilter ${range} blok bilan muvaffaqiyatsiz, kichikroq oraliq sinalmoqda...`, e);
+      }
+    }
+    throw lastErr;
+  }, []);
+
+  const discoverPositionIds = useCallback(async (dex, provider) => {
     const [approvedLogs, fulfilledLogs] = await Promise.all([
-      dex.queryFilter(dex.filters.ListingApproved(null, null, account), 0, 'latest'),
-      dex.queryFilter(dex.filters.BuyOfferFulfilled(), 0, 'latest'),
+      queryFilterSafe(dex, provider, dex.filters.ListingApproved(null, null, account)),
+      queryFilterSafe(dex, provider, dex.filters.BuyOfferFulfilled()),
     ]);
 
     const ids = new Set(approvedLogs.map((log) => log.args.positionId.toString()));
@@ -279,7 +302,7 @@ export default function DexPositions() {
     }
 
     return Array.from(ids);
-  }, [account]);
+  }, [account, queryFilterSafe]);
 
   const load = useCallback(async () => {
     if (!account) { setPositions([]); setLoading(false); return; }
@@ -291,7 +314,7 @@ export default function DexPositions() {
       const ready = await dex.isSafePriceAvailable();
       setOracleReady(ready);
 
-      const ids = await discoverPositionIds(dex);
+      const ids = await discoverPositionIds(dex, provider);
 
       const loaded = await Promise.all(
         ids.map(async (idStr) => {
