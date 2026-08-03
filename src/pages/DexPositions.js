@@ -273,28 +273,50 @@ export default function DexPositions() {
   // hujjatlashtirilmagan (5000 ham rad etilgani tasdiqlangan) — shuning
   // uchun taxmin qilish o'rniga, xato chiqqan segmentni avtomatik
   // maydalaymiz.
-  const fetchLogsInRange = useCallback(async (dex, filter, fromBlock, toBlock, tierIndex = 0) => {
-    const tiers = [500, 100];
-    if (tierIndex >= tiers.length) {
-      console.warn(`Blok ${fromBlock}-${toBlock} hech qanday oyna bilan o'qib bo'lmadi, o'tkazib yuborildi.`);
-      return [];
+  // Segmentlarni KETMA-KET emas, PARALLEL (bir vaqtda 10 tadan) so'raydi —
+  // 200 ta ketma-ket so'rov o'rniga 20 ta partiya, umumiy vaqtni
+  // taxminan 10 baravar qisqartiradi. Rad etilgan segment o'zi ichida
+  // kichikroq oynaga bo'linadi (500 → 100 blok).
+  const fetchSegment = useCallback(async (dex, filter, segFrom, segTo) => {
+    try {
+      return await dex.queryFilter(filter, segFrom, segTo);
+    } catch {
+      let results = [];
+      let subTo = segTo;
+      while (subTo >= segFrom) {
+        const subFrom = Math.max(segFrom, subTo - 100 + 1);
+        try {
+          const logs = await dex.queryFilter(filter, subFrom, subTo);
+          results = results.concat(logs);
+        } catch { /* bu kichik bo'lakni o'tkazib yuboramiz */ }
+        subTo = subFrom - 1;
+      }
+      return results;
     }
-    const window = tiers[tierIndex];
-    let results = [];
+  }, []);
+
+  const fetchLogsInRange = useCallback(async (dex, filter, fromBlock, toBlock) => {
+    const WINDOW = 500;
+    const CONCURRENCY = 10;
+
+    const segments = [];
     let segTo = toBlock;
     while (segTo >= fromBlock) {
-      const segFrom = Math.max(fromBlock, segTo - window + 1);
-      try {
-        const logs = await dex.queryFilter(filter, segFrom, segTo);
-        results = results.concat(logs);
-      } catch {
-        const sub = await fetchLogsInRange(dex, filter, segFrom, segTo, tierIndex + 1);
-        results = results.concat(sub);
-      }
+      const segFrom = Math.max(fromBlock, segTo - WINDOW + 1);
+      segments.push([segFrom, segTo]);
       segTo = segFrom - 1;
     }
+
+    let results = [];
+    for (let i = 0; i < segments.length; i += CONCURRENCY) {
+      const batch = segments.slice(i, i + CONCURRENCY);
+      const batchResults = await Promise.all(
+        batch.map(([segFrom, segTo]) => fetchSegment(dex, filter, segFrom, segTo))
+      );
+      results = results.concat(...batchResults);
+    }
     return results;
-  }, []);
+  }, [fetchSegment]);
 
   const queryFilterSafe = useCallback(async (dex, provider, filter) => {
     const latest = await provider.getBlockNumber();
