@@ -44,6 +44,7 @@ export default function Layout({ children }) {
     { to: '/vault', icon: Lock, label: 'Vault' },
     { to: '/dex', icon: ArrowLeftRight, label: 'DEX' },
     { to: '/dex-listings', icon: List, label: "DEX e'lonlar" },
+    { to: '/dex-positions', icon: Wallet, label: 'Pozitsiyalarim' },
     { to: '/tokenomics', icon: TrendingUp, label: 'Tokenomics' },
     { to: '/whitepaper', icon: FileText, label: 'Whitepaper' },
     { to: '/settings', icon: Settings, label: t('navSettings') || 'Sozlamalar' },

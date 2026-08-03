@@ -16,6 +16,7 @@ import About from './pages/About';
 import Vault from './pages/Vault';
 import Dex from './pages/Dex';
 import DexListings from './pages/DexListings';
+import DexPositions from './pages/DexPositions';
 import Tokenomics from './pages/Tokenomics';
 import Settings from './pages/Settings';
 import Whitepaper from './pages/Whitepaper';
@@ -44,6 +45,7 @@ export default function App() {
                 <Route path="/vault" element={<Vault />} />
                 <Route path="/dex" element={<Dex />} />
                 <Route path="/dex-listings" element={<DexListings />} />
+                <Route path="/dex-positions" element={<DexPositions />} />
                 <Route path="/tokenomics" element={<Tokenomics />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/whitepaper" element={<Whitepaper />} />
