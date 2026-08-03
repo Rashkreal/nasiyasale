@@ -445,7 +445,7 @@ export default function DexListings() {
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '20px 16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-        <h2 style={{ margin: 0 }}>DEX — e'lonlar</h2>
+        <h2 style={{ margin: 0 }}>P2P Market — e'lonlar</h2>
         <button className="btn btn-outline btn-sm" onClick={load} disabled={loading}>
           <RefreshCw size={14} className={loading ? 'spin' : ''} />
         </button>
