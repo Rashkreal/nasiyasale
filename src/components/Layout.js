@@ -9,7 +9,7 @@ import {
   LayoutDashboard, PlusSquare, List,
   CheckCircle, BarChart3, Zap, Clock,
   AlertTriangle, LogOut, Copy, Check, Info, Wallet, Menu, X, Sun, Moon, Lock, TrendingUp, Settings, FileText,
-  RefreshCw
+  RefreshCw, ArrowLeftRight
 } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 
@@ -42,6 +42,8 @@ export default function Layout({ children }) {
     { to: '/history', icon: Clock, label: t('navHistory') },
     { to: '/about', icon: Info, label: t('navAbout') || 'Haqida' },
     { to: '/vault', icon: Lock, label: 'Vault' },
+    { to: '/dex', icon: ArrowLeftRight, label: 'DEX' },
+    { to: '/dex-listings', icon: List, label: "DEX e'lonlar" },
     { to: '/tokenomics', icon: TrendingUp, label: 'Tokenomics' },
     { to: '/whitepaper', icon: FileText, label: 'Whitepaper' },
     { to: '/settings', icon: Settings, label: t('navSettings') || 'Sozlamalar' },

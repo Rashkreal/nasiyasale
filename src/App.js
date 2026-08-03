@@ -14,6 +14,8 @@ import BLLevel from './pages/BLLevel';
 import TxHistory from './pages/TxHistory';
 import About from './pages/About';
 import Vault from './pages/Vault';
+import Dex from './pages/Dex';
+import DexListings from './pages/DexListings';
 import Tokenomics from './pages/Tokenomics';
 import Settings from './pages/Settings';
 import Whitepaper from './pages/Whitepaper';
@@ -40,6 +42,8 @@ export default function App() {
                 <Route path="/history" element={<TxHistory />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/vault" element={<Vault />} />
+                <Route path="/dex" element={<Dex />} />
+                <Route path="/dex-listings" element={<DexListings />} />
                 <Route path="/tokenomics" element={<Tokenomics />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/whitepaper" element={<Whitepaper />} />
