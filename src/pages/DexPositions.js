@@ -267,21 +267,43 @@ export default function DexPositions() {
   // KATTA (lekin oqilona) oraliqni sinaymiz, u rad etilsa — kichikroq
   // oraliqqa qaytib qayta urinamiz. Kontrakt yangi deploy qilingani uchun
   // butun tarixi ancha kichik oraliqqa sig'adi.
+  // Rad etilgan diapazonni avtomatik kichikroq bo'laklarga bo'lib qayta
+  // sinaydi (1000 → 200 → 50 blok), har bir bo'lakni alohida so'raydi va
+  // natijalarni birlashtiradi. RPC provayderning haqiqiy chegarasi
+  // hujjatlashtirilmagan (5000 ham rad etilgani tasdiqlangan) — shuning
+  // uchun taxmin qilish o'rniga, xato chiqqan segmentni avtomatik
+  // maydalaymiz.
+  const fetchLogsInRange = useCallback(async (dex, filter, fromBlock, toBlock, tierIndex = 0) => {
+    const tiers = [500, 100];
+    if (tierIndex >= tiers.length) {
+      console.warn(`Blok ${fromBlock}-${toBlock} hech qanday oyna bilan o'qib bo'lmadi, o'tkazib yuborildi.`);
+      return [];
+    }
+    const window = tiers[tierIndex];
+    let results = [];
+    let segTo = toBlock;
+    while (segTo >= fromBlock) {
+      const segFrom = Math.max(fromBlock, segTo - window + 1);
+      try {
+        const logs = await dex.queryFilter(filter, segFrom, segTo);
+        results = results.concat(logs);
+      } catch {
+        const sub = await fetchLogsInRange(dex, filter, segFrom, segTo, tierIndex + 1);
+        results = results.concat(sub);
+      }
+      segTo = segFrom - 1;
+    }
+    return results;
+  }, []);
+
   const queryFilterSafe = useCallback(async (dex, provider, filter) => {
     const latest = await provider.getBlockNumber();
-    const ranges = [500_000, 50_000, 5_000]; // kamayib boruvchi urinishlar
-    let lastErr;
-    for (const range of ranges) {
-      const fromBlock = Math.max(0, latest - range);
-      try {
-        return await dex.queryFilter(filter, fromBlock, latest);
-      } catch (e) {
-        lastErr = e;
-        console.warn(`queryFilter ${range} blok bilan muvaffaqiyatsiz, kichikroq oraliq sinalmoqda...`, e);
-      }
-    }
-    throw lastErr;
-  }, []);
+    // Kontrakt bugun deploy qilingani uchun ~150 000 blok (Arbitrum'da
+    // taxminan bir necha kunlik) tarixni qamrab olish yetarli.
+    const HISTORY_BLOCKS = 100_000;
+    const fromBlock = Math.max(0, latest - HISTORY_BLOCKS);
+    return fetchLogsInRange(dex, filter, fromBlock, latest, 0);
+  }, [fetchLogsInRange]);
 
   const discoverPositionIds = useCallback(async (dex, provider) => {
     const [approvedLogs, fulfilledLogs] = await Promise.all([
@@ -354,7 +376,8 @@ export default function DexPositions() {
       setPositions(loaded.filter(Boolean).sort((a, b) => Number(b.id - a.id)));
     } catch (e) {
       console.error('load positions error:', e);
-      toast.error('Pozitsiyalarni yuklashda xato');
+      const rawMsg = e?.reason || e?.shortMessage || e?.info?.error?.message || e?.message || "Noma'lum";
+      toast.error(`Yuklashda xato: ${rawMsg}`, { duration: 10000 });
     } finally {
       setLoading(false);
     }
