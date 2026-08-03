@@ -62,6 +62,11 @@ const DEX_ABI = [
   'error SwapWouldLeaveLiquidatable()',
   'error TooLittleReceived(uint256 minOut, uint256 actualOut)',
   'error ZeroAmount()',
+  // DUR/USDC tokenlarining o'z xatolari — bular ListingMarket emas,
+  // ERC20 tokenning o'zidan keladi (masalan balans yetmasa), lekin
+  // ular ham shu tranzaksiya ichida ro'y berishi mumkin.
+  'error ERC20InsufficientBalance(address sender, uint256 balance, uint256 needed)',
+  'error ERC20InsufficientAllowance(address spender, uint256 allowance, uint256 needed)',
 ];
 
 // Har bir xato nomi uchun tushunarli o'zbekcha xabar. Kontrakt qaysi
@@ -124,6 +129,14 @@ function translateContractError(e) {
     if (!data || typeof data !== 'string') continue;
     try {
       const parsed = DEX_INTERFACE.parseError(data);
+      if (parsed?.name === 'ERC20InsufficientBalance') {
+        const balance = ethers.formatUnits(parsed.args.balance, TOKEN_DECIMALS.DUR);
+        const needed = ethers.formatUnits(parsed.args.needed, TOKEN_DECIMALS.DUR);
+        return `DUR yetarli emas — sizda ${balance}, kerak ${needed}`;
+      }
+      if (parsed?.name === 'ERC20InsufficientAllowance') {
+        return "Ruxsat yetarli emas — qayta urinib ko'ring (approve avtomatik so'raladi)";
+      }
       if (parsed?.name) {
         return ERROR_MESSAGES[parsed.name] || `Kontrakt xatosi: ${parsed.name}`;
       }
@@ -357,9 +370,25 @@ export default function DexListings() {
   const handleFulfillOffer = async (offer) => {
     if (!account) { toast.error('Avval hamyonni ulang'); return; }
     setActionLoading('offer-' + offer.id.toString());
-    const tid = toast.loading('Taklif bajarilmoqda...');
+    const tid = toast.loading('Tekshirilmoqda...');
     try {
       await ensureCorrectChain();
+
+      // Tranzaksiya yuborishdan OLDIN balansni tekshiramiz — aks holda
+      // foydalanuvchi behuda MetaMask oynasini ko'radi va tushunarsiz
+      // "unknown custom error" bilan duch keladi (chunki bu DUR
+      // tokenining o'zidan keladigan ERC20InsufficientBalance xatosi,
+      // MetaMask uni tranzaksiya simulyatsiyasida oldindan ko'rsatadi).
+      const durToken = new ethers.Contract(TOKEN_ADDRESSES.DUR, ERC20_ABI, signer);
+      const balance = await durToken.balanceOf(account);
+      if (balance < offer.durAmount) {
+        const have = ethers.formatUnits(balance, TOKEN_DECIMALS.DUR);
+        const need = ethers.formatUnits(offer.durAmount, TOKEN_DECIMALS.DUR);
+        toast.error(`DUR yetarli emas — sizda ${have}, kerak ${need}`, { id: tid });
+        return;
+      }
+
+      toast.loading('Taklif bajarilmoqda...', { id: tid });
       await ensureDexApproval('DUR', signer, account, offer.durAmount, openWalletForRequest);
 
       const dex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, signer);

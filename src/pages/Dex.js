@@ -69,6 +69,10 @@ const DEX_ABI = [
   'error SwapWouldLeaveLiquidatable()',
   'error TooLittleReceived(uint256 minOut, uint256 actualOut)',
   'error ZeroAmount()',
+  // DUR/USDC tokenlarining o'z xatolari — bular ListingMarket emas,
+  // ERC20 tokenning o'zidan keladi (masalan balans yetmasa).
+  'error ERC20InsufficientBalance(address sender, uint256 balance, uint256 needed)',
+  'error ERC20InsufficientAllowance(address spender, uint256 allowance, uint256 needed)',
 ];
 
 // Har bir xato nomi uchun tushunarli o'zbekcha xabar.
@@ -126,6 +130,12 @@ function translateContractError(e) {
     if (!data || typeof data !== 'string') continue;
     try {
       const parsed = DEX_INTERFACE.parseError(data);
+      if (parsed?.name === 'ERC20InsufficientBalance' || parsed?.name === 'ERC20InsufficientAllowance') {
+        // Qaysi token ekanini bu yerda bilmaymiz (DUR yoki USDC bo'lishi
+        // mumkin) — aniq miqdorni handleSubmit'dagi oldindan tekshiruv
+        // ko'rsatadi, bu yerda faqat umumiy holat aytiladi.
+        return "Balans yoki ruxsat yetarli emas — qayta urinib ko'ring";
+      }
       if (parsed?.name) {
         return ERROR_MESSAGES[parsed.name] || `Kontrakt xatosi: ${parsed.name}`;
       }
@@ -332,13 +342,32 @@ export default function Dex() {
   const handleSubmit = async () => {
     if (!canSubmit) return;
     setLoading(true);
-    const tid = toast.loading(mode === 'sell' ? "E'lon joylanmoqda..." : "Taklif joylanmoqda...");
+    const tid = toast.loading('Tekshirilmoqda...');
     try {
       await ensureCorrectChain();
 
       const durRaw = ethers.parseUnits(durAmount, TOKEN_DECIMALS.DUR);
       const priceRaw = ethers.parseUnits(priceUSDC, TOKEN_DECIMALS.USDC);
       const period = BigInt(periodDays);
+
+      // Tranzaksiya yuborishdan OLDIN kerakli tokenning balansini
+      // tekshiramiz — aks holda foydalanuvchi behuda MetaMask oynasini
+      // ko'radi va tushunarsiz xato bilan duch keladi ("sell" uchun DUR,
+      // "buy" uchun garov sifatida USDC kerak bo'ladi).
+      const neededToken   = mode === 'sell' ? 'DUR' : 'USDC';
+      const neededAmount  = mode === 'sell' ? durRaw : preview.garovRaw;
+      const neededDecimals = mode === 'sell' ? TOKEN_DECIMALS.DUR : TOKEN_DECIMALS.USDC;
+      const checkToken = new ethers.Contract(TOKEN_ADDRESSES[neededToken], ERC20_ABI, signer);
+      const balance = await checkToken.balanceOf(account);
+      if (balance < neededAmount) {
+        const have = ethers.formatUnits(balance, neededDecimals);
+        const need = ethers.formatUnits(neededAmount, neededDecimals);
+        toast.error(`${neededToken} yetarli emas — sizda ${have}, kerak ${need}`, { id: tid });
+        setLoading(false);
+        return;
+      }
+
+      toast.loading(mode === 'sell' ? "E'lon joylanmoqda..." : "Taklif joylanmoqda...", { id: tid });
 
       const dex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, signer);
       let tx;
