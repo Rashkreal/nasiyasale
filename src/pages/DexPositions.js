@@ -4,17 +4,30 @@ import toast from 'react-hot-toast';
 import { useWeb3 } from '../hooks/useWeb3';
 import { TOKEN_ADDRESSES, TOKEN_DECIMALS, ERC20_ABI } from '../abi/contract';
 import {
-  Wallet, ArrowRightLeft, PlusCircle, MinusCircle, CheckCircle2,
-  AlertTriangle, Loader2, RefreshCw, Search, ChevronDown, ChevronUp,
+  ArrowRightLeft, PlusCircle, MinusCircle, CheckCircle2,
+  AlertTriangle, Loader2, RefreshCw, ChevronDown, ChevronUp,
 } from 'lucide-react';
 
 // ══════════════════════════════════════════════════════════════════════
 //  Faol pozitsiya boshqaruvi — Dex.js / DexListings.js bilan bir xil
 //  sahifa oilasi. Har bir sahifa o'zining manzil/ABI/yordamchi
 //  funksiyalarini o'zida saqlaydi (Vault.js naqshi).
+//
+//  MUHIM TARIXIY ESLATMA: bu sahifaning birinchi versiyasi "mening
+//  pozitsiyalarim"ni voqealarni (events, eth_getLogs) skanerlab topgan
+//  edi. Bu mo'rt bo'lib chiqdi — RPC provayderlar blok oralig'iga
+//  hujjatlashtirilmagan, kichik chegara qo'yadi (Ankr hatto 5000 blokni
+//  ham rad etdi), va vaqt o'tishi bilan "so'nggi N blok" oynasi eski
+//  pozitsiyalarni "unutib qo'yardi". CreditSale bu muammoni umuman
+//  boshqacha yechgan ekan: kontraktning o'zi xaridor bo'yicha massiv
+//  saqlaydi. Shu naqsh endi ListingMarket'ga ham qo'shildi
+//  (getPositionsByBuyer / totalPositionsByBuyer) — oddiy eth_call, hech
+//  qanday blok chegarasi yo'q. Shuning uchun bu versiya voqea-skanerlash,
+//  sahifalab qidirish va "qo'lda topilganlarni saqlab qolish" kabi butun
+//  murakkab qatlamni olib tashladi.
 // ══════════════════════════════════════════════════════════════════════
 
-const DEX_ADDRESS = '0xcCD9825260728c29169171a415A34c113484Aa6C';
+const DEX_ADDRESS = '0xF3892fD31De58995bAA4A345B3c745612dbf9F95';
 
 // Kontraktdagi kabi qattiq belgilangan token ID'lar — o'zgarmas konstanta,
 // har safar so'rash shart emas.
@@ -49,6 +62,8 @@ const DEX_ABI = [
   'function getTokenPriceUSDC(uint8 tokenId) external view returns (uint256)',
   'function getSafeDurPrice() external view returns (uint256)',
   'function isSafePriceAvailable() external view returns (bool)',
+  'function totalPositionsByBuyer(address buyer) external view returns (uint256)',
+  'function getPositionsByBuyer(address buyer, uint256 offset, uint256 limit) external view returns (tuple(address buyer, address seller, uint256 priceUSDC, uint256 durAmount, uint256 dueDate, uint8 collateralTokenId, uint256 collateralAmount, uint16 bufferBps, uint8 status)[] result, uint256[] ids)',
   // Yozish
   'function addMargin(uint256 positionId, uint256 amount) external',
   'function removeMargin(uint256 positionId, uint256 amount) external',
@@ -57,9 +72,6 @@ const DEX_ABI = [
   'function repay(uint256 positionId) external',
   'function liquidate(uint256 positionId) external',
   'function checkpoint() external',
-  // Pozitsiyalarni topish uchun voqealar
-  'event ListingApproved(uint256 indexed listingId, uint256 indexed positionId, address indexed buyer, uint256 garov)',
-  'event BuyOfferFulfilled(uint256 indexed offerId, uint256 indexed positionId, address indexed seller)',
   // Kontraktning BARCHA maxsus xatolari
   'error AlreadySwapped()',
   'error BadChainlinkPrice()',
@@ -243,111 +255,15 @@ const STATUS_LABELS = ['Ochiq', "To'langan", 'Likvidatsiya qilingan'];
 export default function DexPositions() {
   const { account, signer, isCorrectNetwork, ensureCorrectChain, openWalletForRequest, refreshBalances } = useWeb3();
 
-  const [positions, setPositions] = useState([]); // [{ id, ...struct fields, health }]
+  const [positions, setPositions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
-  const [searchId, setSearchId] = useState('');
   const [actionLoading, setActionLoading] = useState(null);
   const [checkpointing, setCheckpointing] = useState(false);
   const [oracleReady, setOracleReady] = useState(true);
 
-  // ── Pozitsiyalarni topish: kontraktda "mening pozitsiyalarim" degan
-  //    tayyor funksiya yo'q, shuning uchun voqealar (events) orqali
-  //    qidiramiz. ListingApproved'da buyer indekslangan (to'g'ridan-to'g'ri
-  //    filtrlash mumkin); BuyOfferFulfilled'da esa faqat seller
-  //    indekslangan, shuning uchun HAMMA shunday voqealarni olib, har
-  //    birining haqiqiy xaridorini kontraktdan tekshiramiz. Loyiha hali
-  //    yangi bo'lgani uchun bu amaliy jihatdan tez ishlaydi; kelajakda
-  //    voqealar soni ko'payib ketsa, blok oralig'ini cheklash kerak
-  //    bo'ladi.
-  // Ko'p RPC provayderlar (Ankr jumladan) eth_getLogs so'rovida blok
-  // oralig'iga chegara qo'yadi (masalan 50 000 yoki 100 000 blok).
-  // Arbitrum'da bugungi blok raqami yuz millionlab bo'lgani uchun "blok
-  // 0'dan hozirgacha" so'rovi har doim rad etiladi. Shuning uchun avval
-  // KATTA (lekin oqilona) oraliqni sinaymiz, u rad etilsa — kichikroq
-  // oraliqqa qaytib qayta urinamiz. Kontrakt yangi deploy qilingani uchun
-  // butun tarixi ancha kichik oraliqqa sig'adi.
-  // Rad etilgan diapazonni avtomatik kichikroq bo'laklarga bo'lib qayta
-  // sinaydi (1000 → 200 → 50 blok), har bir bo'lakni alohida so'raydi va
-  // natijalarni birlashtiradi. RPC provayderning haqiqiy chegarasi
-  // hujjatlashtirilmagan (5000 ham rad etilgani tasdiqlangan) — shuning
-  // uchun taxmin qilish o'rniga, xato chiqqan segmentni avtomatik
-  // maydalaymiz.
-  // Segmentlarni KETMA-KET emas, PARALLEL (bir vaqtda 10 tadan) so'raydi —
-  // 200 ta ketma-ket so'rov o'rniga 20 ta partiya, umumiy vaqtni
-  // taxminan 10 baravar qisqartiradi. Rad etilgan segment o'zi ichida
-  // kichikroq oynaga bo'linadi (500 → 100 blok).
-  const fetchSegment = useCallback(async (dex, filter, segFrom, segTo) => {
-    try {
-      return await dex.queryFilter(filter, segFrom, segTo);
-    } catch {
-      let results = [];
-      let subTo = segTo;
-      while (subTo >= segFrom) {
-        const subFrom = Math.max(segFrom, subTo - 100 + 1);
-        try {
-          const logs = await dex.queryFilter(filter, subFrom, subTo);
-          results = results.concat(logs);
-        } catch { /* bu kichik bo'lakni o'tkazib yuboramiz */ }
-        subTo = subFrom - 1;
-      }
-      return results;
-    }
-  }, []);
-
-  const fetchLogsInRange = useCallback(async (dex, filter, fromBlock, toBlock) => {
-    const WINDOW = 500;
-    const CONCURRENCY = 10;
-
-    const segments = [];
-    let segTo = toBlock;
-    while (segTo >= fromBlock) {
-      const segFrom = Math.max(fromBlock, segTo - WINDOW + 1);
-      segments.push([segFrom, segTo]);
-      segTo = segFrom - 1;
-    }
-
-    let results = [];
-    for (let i = 0; i < segments.length; i += CONCURRENCY) {
-      const batch = segments.slice(i, i + CONCURRENCY);
-      const batchResults = await Promise.all(
-        batch.map(([segFrom, segTo]) => fetchSegment(dex, filter, segFrom, segTo))
-      );
-      results = results.concat(...batchResults);
-    }
-    return results;
-  }, [fetchSegment]);
-
-  const queryFilterSafe = useCallback(async (dex, provider, filter) => {
-    const latest = await provider.getBlockNumber();
-    // Kontrakt bugun deploy qilingani uchun ~150 000 blok (Arbitrum'da
-    // taxminan bir necha kunlik) tarixni qamrab olish yetarli.
-    const HISTORY_BLOCKS = 100_000;
-    const fromBlock = Math.max(0, latest - HISTORY_BLOCKS);
-    return fetchLogsInRange(dex, filter, fromBlock, latest, 0);
-  }, [fetchLogsInRange]);
-
-  const discoverPositionIds = useCallback(async (dex, provider) => {
-    const [approvedLogs, fulfilledLogs] = await Promise.all([
-      queryFilterSafe(dex, provider, dex.filters.ListingApproved(null, null, account)),
-      queryFilterSafe(dex, provider, dex.filters.BuyOfferFulfilled()),
-    ]);
-
-    const ids = new Set(approvedLogs.map((log) => log.args.positionId.toString()));
-
-    for (const log of fulfilledLogs) {
-      const positionId = log.args.positionId;
-      try {
-        const pos = await dex.positions(positionId);
-        if (pos.buyer.toLowerCase() === account.toLowerCase()) {
-          ids.add(positionId.toString());
-        }
-      } catch { /* o'tkazib yuboriladi */ }
-    }
-
-    return Array.from(ids);
-  }, [account, queryFilterSafe]);
-
+  // ── Pozitsiyalarni yuklash: to'g'ridan-to'g'ri kontraktdan, bitta
+  //    sahifalab qaytaradigan chaqiruv orqali. Voqea-skanerlash yo'q.
   const load = useCallback(async () => {
     if (!account) { setPositions([]); setLoading(false); return; }
     setLoading(true);
@@ -358,13 +274,12 @@ export default function DexPositions() {
       const ready = await dex.isSafePriceAvailable();
       setOracleReady(ready);
 
-      const ids = await discoverPositionIds(dex, provider);
+      const total = await dex.totalPositionsByBuyer(account);
+      const [rawPositions, ids] = await dex.getPositionsByBuyer(account, 0, total);
 
       const loaded = await Promise.all(
-        ids.map(async (idStr) => {
-          const id = BigInt(idStr);
-          const p = await dex.positions(id);
-          if (p.buyer === ethers.ZeroAddress) return null; // xavfsizlik uchun
+        rawPositions.map(async (p, i) => {
+          const id = ids[i];
 
           let liquidatable = false;
           try { liquidatable = await dex.isLiquidatable(id); } catch { /* e'tiborsiz */ }
@@ -395,7 +310,7 @@ export default function DexPositions() {
         })
       );
 
-      setPositions(loaded.filter(Boolean).sort((a, b) => Number(b.id - a.id)));
+      setPositions(loaded.sort((a, b) => Number(b.id - a.id)));
     } catch (e) {
       console.error('load positions error:', e);
       const rawMsg = e?.reason || e?.shortMessage || e?.info?.error?.message || e?.message || "Noma'lum";
@@ -403,51 +318,13 @@ export default function DexPositions() {
     } finally {
       setLoading(false);
     }
-  }, [account, discoverPositionIds]);
+  }, [account]);
 
   useEffect(() => {
     load();
     const id = setInterval(load, 30000);
     return () => clearInterval(id);
   }, [load]);
-
-  const handleSearchById = async () => {
-    const idNum = parseInt(searchId, 10);
-    if (isNaN(idNum) || idNum < 0) { toast.error("To'g'ri pozitsiya ID kiriting"); return; }
-    setLoading(true);
-    try {
-      const provider = await getReadProvider();
-      const dex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, provider);
-      const p = await dex.positions(idNum);
-      if (p.buyer === ethers.ZeroAddress) { toast.error('Bunday pozitsiya topilmadi'); return; }
-
-      let liquidatable = false, floor = null, threshold = null, value = null, withdrawable = null;
-      try { liquidatable = await dex.isLiquidatable(idNum); } catch { /* e'tiborsiz */ }
-      try {
-        [floor, threshold, value, withdrawable] = await Promise.all([
-          dex.requiredFloor(idNum), dex.liquidationThreshold(idNum), dex.currentValue(idNum), dex.withdrawableMargin(idNum),
-        ]);
-      } catch { /* e'tiborsiz */ }
-
-      const found = {
-        id: BigInt(idNum), buyer: p.buyer, seller: p.seller, priceUSDC: p.priceUSDC,
-        durAmount: p.durAmount, dueDate: p.dueDate, collateralTokenId: Number(p.collateralTokenId),
-        collateralAmount: p.collateralAmount, bufferBps: p.bufferBps, status: Number(p.status),
-        liquidatable, floor, threshold, value, withdrawable,
-      };
-      setPositions((prev) => {
-        const withoutDup = prev.filter((x) => x.id !== found.id);
-        return [found, ...withoutDup];
-      });
-      setExpandedId(found.id.toString());
-      setSearchId('');
-    } catch (e) {
-      console.error('search error:', e);
-      toast.error('Qidirishda xato');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // MUHIM: MetaMask ba'zan ketma-ket ikkita so'rovni bitta funksiya
   // ichida yashirin navbatga qo'yadi — checkpoint() shuning uchun
@@ -672,20 +549,6 @@ export default function DexPositions() {
       <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 16 }}>
         Ochiq pozitsiyalaringizni boshqaring — garov qo'shing, swap qiling yoki to'lang.
       </p>
-
-      <div className="card" style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
-        <Search size={16} color="var(--text-muted)" />
-        <input
-          className="input"
-          type="number"
-          min="0"
-          placeholder="Pozitsiya ID orqali qidirish..."
-          value={searchId}
-          onChange={(e) => setSearchId(e.target.value)}
-          style={{ flex: 1 }}
-        />
-        <button className="btn btn-outline btn-sm" onClick={handleSearchById} disabled={loading}>Qidirish</button>
-      </div>
 
       {!oracleReady && (
         <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 16, borderColor: 'var(--warning)', flexWrap: 'wrap' }}>
