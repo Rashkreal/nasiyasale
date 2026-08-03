@@ -407,7 +407,7 @@ export default function Dex() {
 
   return (
     <div style={{ maxWidth: 560, margin: '0 auto', padding: '20px 16px' }}>
-      <h2 style={{ marginBottom: 4 }}>P2P Market — e'lon yaratish</h2>
+      <h2 style={{ marginBottom: 4 }}>P2P Market — e'lon joylash</h2>
       <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 20 }}>
         DUR'ni nasiya sotish yoki sotib olish taklifini joylang.
       </p>
