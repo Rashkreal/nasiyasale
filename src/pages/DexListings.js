@@ -3,7 +3,7 @@ import { ethers } from 'ethers';
 import toast from 'react-hot-toast';
 import { useWeb3 } from '../hooks/useWeb3';
 import { TOKEN_ADDRESSES, TOKEN_DECIMALS, ERC20_ABI } from '../abi/contract';
-import { Tag, ShoppingCart, RefreshCw, X, Check, AlertCircle, Loader2 } from 'lucide-react';
+import { Tag, ShoppingCart, RefreshCw, X, AlertCircle, Loader2 } from 'lucide-react';
 
 // ══════════════════════════════════════════════════════════════════════
 //  E'lonlarni ko'rish + tasdiqlash — Dex.js (E'lon yaratish) bilan bir
@@ -387,7 +387,9 @@ export default function DexListings() {
                     )}
                   </div>
                   <div style={{ fontSize: 14 }}>
-                    <b>{fmt(item.durAmount, TOKEN_DECIMALS.DUR)} DUR</b> — {fmt(item.priceUSDC, TOKEN_DECIMALS.USDC)} USDC
+                    <b>{fmt(item.durAmount, TOKEN_DECIMALS.DUR)} DUR</b>{' '}
+                    {tab === 'listings' ? 'sotiladi' : 'sotib olinmoqchi'}
+                    {' — jami narxi '}<b>{fmt(item.priceUSDC, TOKEN_DECIMALS.USDC)} USDC</b>
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                     Muddat: {item.paymentPeriodDays.toString()} kun · Garov: {garovRaw !== null ? fmt(garovRaw, TOKEN_DECIMALS.USDC) + ' USDC' : "narxni yangilang"}
@@ -409,7 +411,8 @@ export default function DexListings() {
                       disabled={actionLoading === idKey || (tab === 'listings' && !oracleReady)}
                       onClick={() => (tab === 'listings' ? handleApproveListing(item) : handleFulfillOffer(item))}
                     >
-                      <Check size={14} /> {tab === 'listings' ? 'Tasdiqlash' : 'Bajarish'}
+                      {tab === 'listings' ? <ShoppingCart size={14} /> : <Tag size={14} />}
+                      {' '}{tab === 'listings' ? 'DUR sotib olish' : 'DUR sotish'}
                     </button>
                   )}
                 </div>
