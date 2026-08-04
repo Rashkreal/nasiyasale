@@ -11,7 +11,7 @@ import { Tag, ShoppingCart, RefreshCw, X, AlertCircle, Loader2 } from 'lucide-re
 //  yordamchi funksiyalarini o'zida saqlaydi (Vault.js/Dex.js naqshi).
 // ══════════════════════════════════════════════════════════════════════
 
-const DEX_ADDRESS = '0xcCD9825260728c29169171a415A34c113484Aa6C';
+const DEX_ADDRESS = '0xF3892fD31De58995bAA4A345B3c745612dbf9F95';
 
 const DEX_ABI = [
   'function getPendingListings(uint256 offset, uint256 limit) external view returns (tuple(address seller, uint256 durAmount, uint256 priceUSDC, uint256 paymentPeriodDays, uint8 status)[] result, uint256[] ids)',
