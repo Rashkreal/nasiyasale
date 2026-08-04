@@ -3,6 +3,7 @@ import { ethers } from 'ethers';
 import toast from 'react-hot-toast';
 import { useWeb3 } from '../hooks/useWeb3';
 import { TOKEN_ADDRESSES, TOKEN_DECIMALS, ERC20_ABI, ARBITRUM_ONE } from '../abi/contract';
+import { saveLocalTxHistory } from '../utils/localTxHistory';
 import { Tag, ShoppingCart, Info, AlertCircle, Loader2 } from 'lucide-react';
 
 // ══════════════════════════════════════════════════════════════════════
@@ -17,7 +18,7 @@ import { Tag, ShoppingCart, Info, AlertCircle, Loader2 } from 'lucide-react';
 // emas, frontend ABI orqali to'g'ridan-to'g'ri ishlaydi.
 const DEX_ADDRESS = '0xe7D46AfcE0b243BD2d654fA496f706bC20c6a32b';
 
-// Faqat shu sahifaga (elon yaratish) kerak bo'lgan qism — inson o'qiy
+// Faqat shu sahifaga (elon joylash) kerak bo'lgan qism — inson o'qiy
 // oladigan ABI. Boshqa bo'limlar (elonlarni ko'rish, pozitsiya boshqaruvi)
 // qo'shilganda shu ro'yxatga funksiyalar qo'shiladi.
 const DEX_ABI = [
@@ -393,6 +394,14 @@ export default function Dex() {
       );
 
       toast.success(mode === 'sell' ? "E'lon joylandi!" : 'Taklif joylandi!', { id: tid });
+      saveLocalTxHistory({
+        type: mode === 'sell' ? 'dexPostListing' : 'dexPostBuyOffer',
+        label: mode === 'sell' ? "DEX: DUR sotuvga qo'yildi" : 'DEX: DUR uchun taklif qo\'yildi',
+        txHash: tx.hash,
+        status: 'success',
+        account,
+        extra: `${durAmount} DUR — ${priceUSDC} USDC`,
+      });
       setDurAmount('');
       setPriceUSDC('');
       refreshBalances();

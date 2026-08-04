@@ -220,7 +220,7 @@ export default function TxHistory() {
 
                 {ev.txHash ? (
                   <a
-                    href={`https://optimistic.etherscan.io/tx/${ev.txHash}`}
+                    href={`https://arbiscan.io/tx/${ev.txHash}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{

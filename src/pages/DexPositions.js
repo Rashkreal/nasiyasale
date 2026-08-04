@@ -3,6 +3,7 @@ import { ethers } from 'ethers';
 import toast from 'react-hot-toast';
 import { useWeb3 } from '../hooks/useWeb3';
 import { TOKEN_ADDRESSES, TOKEN_DECIMALS, ERC20_ABI } from '../abi/contract';
+import { saveLocalTxHistory } from '../utils/localTxHistory';
 import {
   ArrowRightLeft, PlusCircle, MinusCircle, CheckCircle2,
   AlertTriangle, Loader2, RefreshCw, ChevronDown, ChevronUp,
@@ -434,6 +435,15 @@ export default function DexPositions() {
       await withProgressToast(withWalletTimeout(tx.wait(), 180000, "Tranzaksiya juda uzoq tasdiqlanmoqda"), tid, CHAIN_STAGES);
 
       toast.success('Garov qo\'shildi!', { id: tid });
+      saveLocalTxHistory({
+        type: 'dexAddMargin',
+        label: "DEX: Garov qo'shildi",
+        listingId: position.id.toString(),
+        txHash: tx.hash,
+        status: 'success',
+        account,
+        extra: `+${amountStr} ${tokenKey}`,
+      });
       refreshBalances();
       load();
     } catch (e) {
@@ -466,6 +476,15 @@ export default function DexPositions() {
       await withProgressToast(withWalletTimeout(tx.wait(), 180000, "Tranzaksiya juda uzoq tasdiqlanmoqda"), tid, CHAIN_STAGES);
 
       toast.success("Garov olib qo'yildi!", { id: tid });
+      saveLocalTxHistory({
+        type: 'dexRemoveMargin',
+        label: "DEX: Garov olib qo'yildi",
+        listingId: position.id.toString(),
+        txHash: tx.hash,
+        status: 'success',
+        account,
+        extra: `-${amountStr} ${tokenSymbolFor(position.collateralTokenId)}`,
+      });
       refreshBalances();
       load();
     } catch (e) {
@@ -493,6 +512,14 @@ export default function DexPositions() {
       await withProgressToast(withWalletTimeout(tx.wait(), 180000, "Tranzaksiya juda uzoq tasdiqlanmoqda"), tid, CHAIN_STAGES);
 
       toast.success('DUR muvaffaqiyatli swap qilindi!', { id: tid });
+      saveLocalTxHistory({
+        type: 'dexSwapDurToUsdc',
+        label: "DEX: DUR USDC'ga swap qilindi",
+        listingId: position.id.toString(),
+        txHash: tx.hash,
+        status: 'success',
+        account,
+      });
       load();
     } catch (e) {
       reportTxError(e, tid);
@@ -515,6 +542,14 @@ export default function DexPositions() {
       await withProgressToast(withWalletTimeout(tx.wait(), 180000, "Tranzaksiya juda uzoq tasdiqlanmoqda"), tid, CHAIN_STAGES);
 
       toast.success(`Garov ${tokenSymbolFor(targetTokenId)}'ga aylantirildi!`, { id: tid });
+      saveLocalTxHistory({
+        type: 'dexSwapCollateral',
+        label: `DEX: Garov ${tokenSymbolFor(targetTokenId)}'ga aylantirildi`,
+        listingId: position.id.toString(),
+        txHash: tx.hash,
+        status: 'success',
+        account,
+      });
       load();
     } catch (e) {
       reportTxError(e, tid);
@@ -540,6 +575,14 @@ export default function DexPositions() {
       await withProgressToast(withWalletTimeout(tx.wait(), 180000, "Tranzaksiya juda uzoq tasdiqlanmoqda"), tid, CHAIN_STAGES);
 
       toast.success("Garov USDC'ga qaytarildi!", { id: tid });
+      saveLocalTxHistory({
+        type: 'dexSwapCollateralBack',
+        label: "DEX: Garov USDC'ga qaytarildi",
+        listingId: position.id.toString(),
+        txHash: tx.hash,
+        status: 'success',
+        account,
+      });
       load();
     } catch (e) {
       reportTxError(e, tid);
@@ -572,6 +615,15 @@ export default function DexPositions() {
       await withProgressToast(withWalletTimeout(tx.wait(), 180000, "Tranzaksiya juda uzoq tasdiqlanmoqda"), tid, CHAIN_STAGES);
 
       toast.success("To'lov amalga oshirildi! Garov qaytarildi.", { id: tid });
+      saveLocalTxHistory({
+        type: 'dexRepay',
+        label: "DEX: To'lov amalga oshirildi",
+        listingId: position.id.toString(),
+        txHash: tx.hash,
+        status: 'success',
+        account,
+        extra: `${fmt(position.priceUSDC, TOKEN_DECIMALS.USDC)} USDC`,
+      });
       refreshBalances();
       load();
     } catch (e) {
@@ -595,6 +647,14 @@ export default function DexPositions() {
       await withProgressToast(withWalletTimeout(tx.wait(), 180000, "Tranzaksiya juda uzoq tasdiqlanmoqda"), tid, CHAIN_STAGES);
 
       toast.success('Likvidatsiya bajarildi!', { id: tid });
+      saveLocalTxHistory({
+        type: 'dexLiquidate',
+        label: 'DEX: Likvidatsiya qilindi',
+        listingId: position.id.toString(),
+        txHash: tx.hash,
+        status: 'success',
+        account,
+      });
       refreshBalances();
       load();
     } catch (e) {

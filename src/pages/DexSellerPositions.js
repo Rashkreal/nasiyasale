@@ -3,6 +3,7 @@ import { ethers } from 'ethers';
 import toast from 'react-hot-toast';
 import { useWeb3 } from '../hooks/useWeb3';
 import { TOKEN_DECIMALS } from '../abi/contract';
+import { saveLocalTxHistory } from '../utils/localTxHistory';
 import { AlertTriangle, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 
 // ══════════════════════════════════════════════════════════════════════
@@ -206,6 +207,14 @@ export default function DexSellerPositions() {
       await withProgressToast(withWalletTimeout(tx.wait(), 180000, "Tranzaksiya juda uzoq tasdiqlanmoqda"), tid, CHAIN_STAGES);
 
       toast.success('Likvidatsiya bajarildi! Qarzingiz qaytarildi.', { id: tid });
+      saveLocalTxHistory({
+        type: 'dexLiquidate',
+        label: 'DEX: Likvidatsiya qilindi (sotuvchi)',
+        listingId: position.id.toString(),
+        txHash: tx.hash,
+        status: 'success',
+        account,
+      });
       refreshBalances();
       load();
     } catch (e) {

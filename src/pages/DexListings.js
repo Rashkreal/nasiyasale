@@ -3,10 +3,11 @@ import { ethers } from 'ethers';
 import toast from 'react-hot-toast';
 import { useWeb3 } from '../hooks/useWeb3';
 import { TOKEN_ADDRESSES, TOKEN_DECIMALS, ERC20_ABI } from '../abi/contract';
+import { saveLocalTxHistory } from '../utils/localTxHistory';
 import { Tag, ShoppingCart, RefreshCw, X, AlertCircle, Loader2 } from 'lucide-react';
 
 // ══════════════════════════════════════════════════════════════════════
-//  E'lonlarni ko'rish + tasdiqlash — Dex.js (E'lon yaratish) bilan bir
+//  E'lonlarni ko'rish + tasdiqlash — Dex.js (E'lon joylash) bilan bir
 //  xil sahifa, shu bilan bog'liq. Har bir sahifa o'zining manzil/ABI/
 //  yordamchi funksiyalarini o'zida saqlaydi (Vault.js/Dex.js naqshi).
 // ══════════════════════════════════════════════════════════════════════
@@ -358,6 +359,15 @@ export default function DexListings() {
       );
 
       toast.success("E'lon tasdiqlandi! Pozitsiya ochildi.", { id: tid });
+      saveLocalTxHistory({
+        type: 'dexApproveListing',
+        label: "DEX: E'lon tasdiqlandi",
+        listingId: listing.id.toString(),
+        txHash: tx.hash,
+        status: 'success',
+        account,
+        extra: `${fmt(listing.durAmount, TOKEN_DECIMALS.DUR)} DUR`,
+      });
       refreshBalances();
       load();
     } catch (e) {
@@ -403,6 +413,15 @@ export default function DexListings() {
       );
 
       toast.success('Taklif bajarildi! Pozitsiya ochildi.', { id: tid });
+      saveLocalTxHistory({
+        type: 'dexFulfillBuyOffer',
+        label: 'DEX: Taklif bajarildi',
+        listingId: offer.id.toString(),
+        txHash: tx.hash,
+        status: 'success',
+        account,
+        extra: `${fmt(offer.durAmount, TOKEN_DECIMALS.DUR)} DUR`,
+      });
       refreshBalances();
       load();
     } catch (e) {
@@ -425,6 +444,14 @@ export default function DexListings() {
       );
       await withWalletTimeout(tx.wait(), 90000, 'Bekor qilish tasdiqlanmadi');
       toast.success('Bekor qilindi', { id: tid });
+      saveLocalTxHistory({
+        type: kind === 'listing' ? 'dexCancelListing' : 'dexCancelBuyOffer',
+        label: kind === 'listing' ? "DEX: E'lon bekor qilindi" : 'DEX: Taklif bekor qilindi',
+        listingId: id.toString(),
+        txHash: tx.hash,
+        status: 'success',
+        account,
+      });
       refreshBalances();
       load();
     } catch (e) {
