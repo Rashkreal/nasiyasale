@@ -69,6 +69,7 @@ const DEX_ABI = [
   'function removeMargin(uint256 positionId, uint256 amount) external',
   'function swapDurToUsdc(uint256 positionId, uint256 minUsdcOut) external',
   'function swapCollateralToToken(uint256 positionId, uint8 targetTokenId, uint256 minAmountOut) external',
+  'function swapCollateralToUsdc(uint256 positionId, uint256 minUsdcOut) external',
   'function repay(uint256 positionId) external',
   'function liquidate(uint256 positionId) external',
   'function checkpoint() external',
@@ -237,16 +238,40 @@ async function ensureDexApproval(tokenKey, signer, account, amountRaw, openWalle
   }
 }
 
+// toPrecision() silently switches to exponential notation for very small
+// numbers (e.g. "3.6e-7" for a small WBTC amount) - this rebuilds the
+// same significant-figure rounding using toFixed() instead, which never
+// produces exponential notation, so small token amounts always show as
+// plain decimals like "0.00000036".
 function fmt(raw, decimals, sigFigs = 4) {
   if (raw === null || raw === undefined) return '—';
   const num = parseFloat(ethers.formatUnits(raw, decimals));
   if (!isFinite(num)) return '—';
   if (num === 0) return '0';
-  return num.toPrecision(sigFigs).replace(/\.?0+$/, '').replace(/\.$/, '');
+
+  const abs = Math.abs(num);
+  let str;
+  if (abs >= 1) {
+    str = num.toPrecision(sigFigs);
+    if (str.includes('e') || str.includes('E')) str = num.toFixed(0);
+  } else {
+    const leadingZeros = Math.ceil(-Math.log10(abs));
+    const places = Math.min(leadingZeros + sigFigs, 18);
+    str = num.toFixed(places);
+  }
+  return str.replace(/\.?0+$/, '').replace(/\.$/, '');
 }
+
+// Hardcoded rather than toLocaleDateString('uz-UZ', ...): this runtime's
+// locale data doesn't have proper Uzbek month abbreviations, so that
+// approach silently fell back to "M08" instead of "avgust". Spelling the
+// months out here guarantees correct output regardless of the browser's
+// locale-data completeness.
+const UZ_MONTHS = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
 function fmtDate(unixSeconds) {
   if (!unixSeconds || unixSeconds === 0n) return '—';
-  return new Date(Number(unixSeconds) * 1000).toLocaleDateString('uz-UZ', { year: 'numeric', month: 'short', day: 'numeric' });
+  const d = new Date(Number(unixSeconds) * 1000);
+  return `${d.getDate()}-${UZ_MONTHS[d.getMonth()]}, ${d.getFullYear()}`;
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -261,6 +286,11 @@ export default function DexPositions() {
   const [actionLoading, setActionLoading] = useState(null);
   const [checkpointing, setCheckpointing] = useState(false);
   const [oracleReady, setOracleReady] = useState(true);
+  // Swap tugmalari yonida taxminiy natijani ko'rsatish uchun — load()
+  // ichida bir marta o'qiladi, har bosishda qayta so'ralmaydi.
+  const [durPrice, setDurPrice] = useState(null);
+  const [wbtcPrice, setWbtcPrice] = useState(null);
+  const [wethPrice, setWethPrice] = useState(null);
 
   // ── Pozitsiyalarni yuklash: to'g'ridan-to'g'ri kontraktdan, bitta
   //    sahifalab qaytaradigan chaqiruv orqali. Voqea-skanerlash yo'q.
@@ -273,6 +303,17 @@ export default function DexPositions() {
 
       const ready = await dex.isSafePriceAvailable();
       setOracleReady(ready);
+
+      // Swap tugmalari uchun taxminiy narxlar — har biri mustaqil,
+      // biri muvaffaqiyatsiz bo'lsa boshqalariga (yoki pozitsiyalarni
+      // yuklashga) ta'sir qilmaydi.
+      if (ready) {
+        dex.getSafeDurPrice().then(setDurPrice).catch(() => setDurPrice(null));
+      } else {
+        setDurPrice(null);
+      }
+      dex.getTokenPriceUSDC(TOKEN_WBTC).then(setWbtcPrice).catch(() => setWbtcPrice(null));
+      dex.getTokenPriceUSDC(TOKEN_WETH).then(setWethPrice).catch(() => setWethPrice(null));
 
       const total = await dex.totalPositionsByBuyer(account);
       const [rawPositions, ids] = await dex.getPositionsByBuyer(account, 0, total);
@@ -482,6 +523,31 @@ export default function DexPositions() {
     }
   };
 
+  // Teskari yo'nalish: WBTC/WETH -> USDC. To'g'ridan-to'g'ri WBTC<->WETH
+  // yo'q — agar boshqa tokenga o'tish kerak bo'lsa, avval shu orqali
+  // USDC'ga qaytib, keyin handleSwapCollateral bilan davom etiladi.
+  const handleSwapCollateralToUsdc = async (position) => {
+    setActionLoading(position.id.toString() + '-swapback');
+    const tid = toast.loading("USDC'ga qaytarilmoqda...");
+    try {
+      await ensureCorrectChain();
+      const dex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, signer);
+      openWalletForRequest();
+      const tx = await withProgressToast(
+        withWalletTimeout(dex.swapCollateralToUsdc(position.id, 0), 90000, "MetaMask ochilmadi yoki wallet javob bermadi"),
+        tid, WALLET_STAGES
+      );
+      await withProgressToast(withWalletTimeout(tx.wait(), 180000, "Tranzaksiya juda uzoq tasdiqlanmoqda"), tid, CHAIN_STAGES);
+
+      toast.success("Garov USDC'ga qaytarildi!", { id: tid });
+      load();
+    } catch (e) {
+      reportTxError(e, tid);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleRepay = async (position) => {
     setActionLoading(position.id.toString() + '-repay');
     const tid = toast.loading('Tekshirilmoqda...');
@@ -572,7 +638,7 @@ export default function DexPositions() {
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {positions.map((p) => {
+        {positions.filter((p) => p.status === 0).map((p) => {
           const idStr = p.id.toString();
           const isExpanded = expandedId === idStr;
           const collSymbol = tokenSymbolFor(p.collateralTokenId);
@@ -627,18 +693,55 @@ export default function DexPositions() {
                   {isOpen && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
                       {p.durAmount > 0n && (
-                        <button className="btn btn-outline btn-sm" disabled={actionLoading === idStr + '-swapdur' || !oracleReady} onClick={() => handleSwapDurToUsdc(p)}>
-                          <ArrowRightLeft size={14} /> DUR'ni USDC'ga swap qilish
-                        </button>
+                        <div>
+                          <button className="btn btn-outline btn-sm" style={{ width: '100%' }} disabled={actionLoading === idStr + '-swapdur' || !oracleReady} onClick={() => handleSwapDurToUsdc(p)}>
+                            <ArrowRightLeft size={14} /> DUR'ni USDC'ga swap qilish
+                          </button>
+                          {durPrice !== null && (
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, textAlign: 'center' }}>
+                              Taxminan: ~{fmt((p.durAmount * durPrice) / (10n ** 18n), TOKEN_DECIMALS.USDC)} USDC
+                            </div>
+                          )}
+                        </div>
                       )}
                       {p.durAmount === 0n && p.collateralTokenId === TOKEN_USDC && (
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <button className="btn btn-outline btn-sm" style={{ flex: 1 }} disabled={actionLoading === idStr + '-swapcoll'} onClick={() => handleSwapCollateral(p, TOKEN_WBTC)}>
-                            → WBTC
+                        <div>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button className="btn btn-outline btn-sm" style={{ flex: 1 }} disabled={actionLoading === idStr + '-swapcoll'} onClick={() => handleSwapCollateral(p, TOKEN_WBTC)}>
+                              → WBTC
+                            </button>
+                            <button className="btn btn-outline btn-sm" style={{ flex: 1 }} disabled={actionLoading === idStr + '-swapcoll'} onClick={() => handleSwapCollateral(p, TOKEN_WETH)}>
+                              → WETH
+                            </button>
+                          </div>
+                          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                            <div style={{ flex: 1, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center' }}>
+                              {wbtcPrice !== null ? `~${fmt((p.collateralAmount * (10n ** 8n)) / wbtcPrice, TOKEN_DECIMALS.WBTC)} WBTC` : ''}
+                            </div>
+                            <div style={{ flex: 1, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center' }}>
+                              {wethPrice !== null ? `~${fmt((p.collateralAmount * (10n ** 18n)) / wethPrice, TOKEN_DECIMALS.WETH)} WETH` : ''}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {p.durAmount === 0n && p.collateralTokenId !== TOKEN_USDC && (
+                        <div>
+                          <button className="btn btn-outline btn-sm" style={{ width: '100%' }} disabled={actionLoading === idStr + '-swapback'} onClick={() => handleSwapCollateralToUsdc(p)}>
+                            <ArrowRightLeft size={14} /> {collSymbol}'ni USDC'ga qaytarish
                           </button>
-                          <button className="btn btn-outline btn-sm" style={{ flex: 1 }} disabled={actionLoading === idStr + '-swapcoll'} onClick={() => handleSwapCollateral(p, TOKEN_WETH)}>
-                            → WETH
-                          </button>
+                          {p.collateralTokenId === TOKEN_WBTC && wbtcPrice !== null && (
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, textAlign: 'center' }}>
+                              Taxminan: ~{fmt((p.collateralAmount * wbtcPrice) / (10n ** 8n), TOKEN_DECIMALS.USDC)} USDC
+                            </div>
+                          )}
+                          {p.collateralTokenId === TOKEN_WETH && wethPrice !== null && (
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, textAlign: 'center' }}>
+                              Taxminan: ~{fmt((p.collateralAmount * wethPrice) / (10n ** 18n), TOKEN_DECIMALS.USDC)} USDC
+                            </div>
+                          )}
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, textAlign: 'center' }}>
+                            Boshqa tokenga o'tish uchun: avval USDC'ga qaytaring, keyin qayta swap qiling
+                          </div>
                         </div>
                       )}
 
