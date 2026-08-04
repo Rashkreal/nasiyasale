@@ -27,7 +27,7 @@ import {
 //  murakkab qatlamni olib tashladi.
 // ══════════════════════════════════════════════════════════════════════
 
-const DEX_ADDRESS = '0xF3892fD31De58995bAA4A345B3c745612dbf9F95';
+const DEX_ADDRESS = '0xe7D46AfcE0b243BD2d654fA496f706bC20c6a32b';
 
 // Kontraktdagi kabi qattiq belgilangan token ID'lar — o'zgarmas konstanta,
 // har safar so'rash shart emas.
