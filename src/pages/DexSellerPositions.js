@@ -15,7 +15,7 @@ import { AlertTriangle, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 //  foydali harakat, chunki qarzini qaytarib olishni tezlashtiradi).
 // ══════════════════════════════════════════════════════════════════════
 
-const DEX_ADDRESS = '0xe7D46AfcE0b243BD2d654fA496f706bC20c6a32b';
+const DEX_ADDRESS = '0xA8c28410bD55bf85fdBa3240FcAE068B8Eeae2c4';
 
 const TOKEN_WBTC = 0;
 const TOKEN_WETH = 1;

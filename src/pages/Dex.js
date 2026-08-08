@@ -16,7 +16,7 @@ import { Tag, ShoppingCart, Info, AlertCircle, Loader2 } from 'lucide-react';
 // swap slippage/likvidatsiya sog'liq tekshiruvi, PositionNotFound va boshqa
 // audit tuzatishlari bilan). Arbiscan'da hali verify qilinmagan — bu muammo
 // emas, frontend ABI orqali to'g'ridan-to'g'ri ishlaydi.
-const DEX_ADDRESS = '0xe7D46AfcE0b243BD2d654fA496f706bC20c6a32b';
+const DEX_ADDRESS = '0xA8c28410bD55bf85fdBa3240FcAE068B8Eeae2c4';
 
 // Faqat shu sahifaga (elon joylash) kerak bo'lgan qism — inson o'qiy
 // oladigan ABI. Boshqa bo'limlar (elonlarni ko'rish, pozitsiya boshqaruvi)

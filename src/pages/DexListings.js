@@ -12,20 +12,22 @@ import { Tag, ShoppingCart, RefreshCw, X, AlertCircle, Loader2 } from 'lucide-re
 //  yordamchi funksiyalarini o'zida saqlaydi (Vault.js/Dex.js naqshi).
 // ══════════════════════════════════════════════════════════════════════
 
-const DEX_ADDRESS = '0xe7D46AfcE0b243BD2d654fA496f706bC20c6a32b';
+const DEX_ADDRESS = '0xA8c28410bD55bf85fdBa3240FcAE068B8Eeae2c4';
 
 const DEX_ABI = [
-  'function getPendingListings(uint256 offset, uint256 limit) external view returns (tuple(address seller, uint256 durAmount, uint256 priceUSDC, uint256 paymentPeriodDays, uint8 status)[] result, uint256[] ids)',
-  'function getPendingBuyOffers(uint256 offset, uint256 limit) external view returns (tuple(address buyer, uint256 durAmount, uint256 priceUSDC, uint256 paymentPeriodDays, uint256 garov, uint8 status)[] result, uint256[] ids)',
+  'function getPendingListings(uint256 offset, uint256 limit) external view returns (tuple(address seller, uint256 durAmount, uint256 priceUSDC, uint256 durAmountRemaining, uint256 paymentPeriodDays, uint8 status)[] result, uint256[] ids)',
+  'function getPendingBuyOffers(uint256 offset, uint256 limit) external view returns (tuple(address buyer, uint256 durAmount, uint256 priceUSDC, uint256 paymentPeriodDays, uint256 garov, uint256 durAmountRemaining, uint8 status)[] result, uint256[] ids)',
   'function totalPendingListings() external view returns (uint256)',
   'function totalPendingBuyOffers() external view returns (uint256)',
-  'function previewGarov(uint256 listingId) external view returns (uint256)',
-  'function approveListing(uint256 listingId) external returns (uint256 positionId)',
-  'function fulfillBuyOffer(uint256 offerId) external returns (uint256 positionId)',
+  'function previewGarov(uint256 listingId, uint256 durAmountToTake) external view returns (uint256)',
+  'function approveListing(uint256 listingId, uint256 durAmountToTake) external returns (uint256 positionId)',
+  'function fulfillBuyOffer(uint256 offerId, uint256 durAmountToFulfill) external returns (uint256 positionId)',
   'function cancelListing(uint256 listingId) external',
   'function cancelBuyOffer(uint256 offerId) external',
   'function checkpoint() external',
   'function isSafePriceAvailable() external view returns (bool)',
+  'function getSafeDurPrice() external view returns (uint256)',
+  'function MIN_PARTIAL_FILL_USDC() external view returns (uint256)',
   // Kontraktning BARCHA maxsus xatolari — buni to'liq qo'shmasak, ethers
   // revert sababini "unknown custom error" deb chiqaradi, chunki uni qaysi
   // ABI orqali dekod qilishni bilmaydi.
@@ -34,6 +36,7 @@ const DEX_ABI = [
   'error BadListingParams()',
   'error BadPeriod()',
   'error BadTokenId()',
+  'error BelowMinimumFill(uint256 fillValue, uint256 minimumRequired)',
   'error BelowRequiredFloor(uint256 remainingValue, uint256 requiredValue)',
   'error CannotApproveOwnListing()',
   'error ChainlinkPriceUnderflow()',
@@ -41,6 +44,7 @@ const DEX_ABI = [
   'error CheckpointGapNotElapsed(uint256 gap, uint256 required)',
   'error CheckpointStale(uint256 age, uint256 maxAge)',
   'error CheckpointTooSoon(uint256 nextAllowedAt)',
+  'error ExceedsRemainingAmount(uint256 requested, uint256 remaining)',
   'error InsufficientCollateral()',
   'error ListingNotPending()',
   'error MustSwapDurFirst()',
@@ -75,6 +79,8 @@ const DEX_ABI = [
 // qilish kerakligini tushunadi — xom "unknown custom error" o'rniga.
 const ERROR_MESSAGES = {
   CannotApproveOwnListing: "O'zingiz joylagan e'lon/taklifni o'zingiz bajara olmaysiz — buni faqat boshqa hamyon amalga oshirishi mumkin",
+  BelowMinimumFill: "Bu miqdor juda kichik — qisman olishda minimal chegaradan yuqori bo'lishi kerak (yoki qolganning hammasini oling)",
+  ExceedsRemainingAmount: "So'ralgan miqdor mavjud qoldiqdan ko'p",
   ListingNotPending: "Bu e'lon/taklif allaqachon tasdiqlangan yoki bekor qilingan",
   NoCheckpointYet: "Oracle hali umuman ishga tushirilmagan",
   CheckpointStale: 'Narx eskirgan — avval "Narxni yangilash" tugmasini bosing',
@@ -230,12 +236,19 @@ export default function DexListings() {
   const { account, signer, isCorrectNetwork, ensureCorrectChain, openWalletForRequest, refreshBalances } = useWeb3();
 
   const [tab, setTab] = useState('listings'); // 'listings' | 'offers'
-  const [listings, setListings] = useState([]); // [{ id, seller, durAmount, priceUSDC, paymentPeriodDays, garovRaw }]
-  const [offers, setOffers] = useState([]);     // [{ id, buyer, durAmount, priceUSDC, paymentPeriodDays, garov }]
+  const [listings, setListings] = useState([]); // [{ id, seller, durAmount, priceUSDC, durAmountRemaining, paymentPeriodDays }]
+  const [offers, setOffers] = useState([]);     // [{ id, buyer, durAmount, priceUSDC, paymentPeriodDays, garov, durAmountRemaining }]
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null); // id currently acting on
   const [oracleReady, setOracleReady] = useState(true); // birinchi load tugagach aniqlashadi
   const [checkpointing, setCheckpointing] = useState(false);
+  // Qisman to'ldirish uchun: minimal chegara (USDC) va DUR narxi — har bir
+  // FillRow'ga tarqatiladi, shunda "kamida X DUR" degan ko'rsatma chiqadi.
+  // garov endi miqdorga bog'liq bo'lgani uchun load() vaqtida OLDINDAN
+  // hisoblanmaydi — har bir kartochka o'z tanlagan miqdori uchun alohida
+  // so'raydi (pastda FillRow'da).
+  const [minFillUsdc, setMinFillUsdc] = useState(null);
+  const [durPrice, setDurPrice] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -246,31 +259,31 @@ export default function DexListings() {
       const ready = await dex.isSafePriceAvailable();
       setOracleReady(ready);
 
+      dex.MIN_PARTIAL_FILL_USDC().then(setMinFillUsdc).catch(() => {});
+      if (ready) {
+        dex.getSafeDurPrice().then(setDurPrice).catch(() => setDurPrice(null));
+      } else {
+        setDurPrice(null);
+      }
+
       const [listingsRes, offersRes] = await Promise.all([
         dex.getPendingListings(0, PAGE_SIZE),
         dex.getPendingBuyOffers(0, PAGE_SIZE),
       ]);
 
-      // previewGarov requires a per-listing call (garov moves with the
-      // oracle price), so it's fetched alongside each listing rather than
-      // being part of the struct itself. Buy offers already carry a
-      // fixed garov (escrowed at posting), so no extra call is needed.
       const [result, ids] = listingsRes;
-      const withGarov = await Promise.all(
-        result.map(async (l, i) => {
-          let garovRaw = null;
-          try { garovRaw = await dex.previewGarov(ids[i]); } catch { /* oracle not ready */ }
-          return {
+      setListings(
+        result
+          .map((l, i) => ({
             id: ids[i],
             seller: l.seller,
             durAmount: l.durAmount,
             priceUSDC: l.priceUSDC,
+            durAmountRemaining: l.durAmountRemaining,
             paymentPeriodDays: l.paymentPeriodDays,
-            garovRaw,
-          };
-        })
+          }))
+          .reverse() // eng yangisi tepada
       );
-      setListings(withGarov.reverse()); // eng yangisi tepada
 
       const [oResult, oIds] = offersRes;
       setOffers(
@@ -282,6 +295,7 @@ export default function DexListings() {
             priceUSDC: o.priceUSDC,
             paymentPeriodDays: o.paymentPeriodDays,
             garov: o.garov,
+            durAmountRemaining: o.durAmountRemaining,
           }))
           .reverse()
       );
@@ -336,7 +350,7 @@ export default function DexListings() {
     }
   };
 
-  const handleApproveListing = async (listing) => {
+  const handleApproveListing = async (listing, amountRaw) => {
     if (!account) { toast.error('Avval hamyonni ulang'); return; }
     if (!oracleReady) { toast.error("Avval yuqoridagi 'Narxni yangilash' tugmasini bosing"); return; }
     setActionLoading(listing.id.toString());
@@ -344,13 +358,13 @@ export default function DexListings() {
     try {
       await ensureCorrectChain();
       const dex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, signer);
-      const garovRaw = await dex.previewGarov(listing.id);
+      const garovRaw = await dex.previewGarov(listing.id, amountRaw);
 
       await ensureDexApproval('USDC', signer, account, garovRaw, openWalletForRequest);
 
       openWalletForRequest();
       const tx = await withProgressToast(
-        withWalletTimeout(dex.approveListing(listing.id), 90000, "MetaMask ochilmadi yoki wallet javob bermadi"),
+        withWalletTimeout(dex.approveListing(listing.id, amountRaw), 90000, "MetaMask ochilmadi yoki wallet javob bermadi"),
         tid, WALLET_STAGES
       );
       await withProgressToast(
@@ -366,7 +380,7 @@ export default function DexListings() {
         txHash: tx.hash,
         status: 'success',
         account,
-        extra: `${fmt(listing.durAmount, TOKEN_DECIMALS.DUR)} DUR`,
+        extra: `${fmt(amountRaw, TOKEN_DECIMALS.DUR)} DUR`,
       });
       refreshBalances();
       load();
@@ -377,7 +391,7 @@ export default function DexListings() {
     }
   };
 
-  const handleFulfillOffer = async (offer) => {
+  const handleFulfillOffer = async (offer, amountRaw) => {
     if (!account) { toast.error('Avval hamyonni ulang'); return; }
     setActionLoading('offer-' + offer.id.toString());
     const tid = toast.loading('Tekshirilmoqda...');
@@ -391,20 +405,20 @@ export default function DexListings() {
       // MetaMask uni tranzaksiya simulyatsiyasida oldindan ko'rsatadi).
       const durToken = new ethers.Contract(TOKEN_ADDRESSES.DUR, ERC20_ABI, signer);
       const balance = await durToken.balanceOf(account);
-      if (balance < offer.durAmount) {
+      if (balance < amountRaw) {
         const have = ethers.formatUnits(balance, TOKEN_DECIMALS.DUR);
-        const need = ethers.formatUnits(offer.durAmount, TOKEN_DECIMALS.DUR);
+        const need = ethers.formatUnits(amountRaw, TOKEN_DECIMALS.DUR);
         toast.error(`DUR yetarli emas — sizda ${have}, kerak ${need}`, { id: tid });
         return;
       }
 
       toast.loading('Taklif bajarilmoqda...', { id: tid });
-      await ensureDexApproval('DUR', signer, account, offer.durAmount, openWalletForRequest);
+      await ensureDexApproval('DUR', signer, account, amountRaw, openWalletForRequest);
 
       const dex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, signer);
       openWalletForRequest();
       const tx = await withProgressToast(
-        withWalletTimeout(dex.fulfillBuyOffer(offer.id), 90000, "MetaMask ochilmadi yoki wallet javob bermadi"),
+        withWalletTimeout(dex.fulfillBuyOffer(offer.id, amountRaw), 90000, "MetaMask ochilmadi yoki wallet javob bermadi"),
         tid, WALLET_STAGES
       );
       await withProgressToast(
@@ -420,7 +434,7 @@ export default function DexListings() {
         txHash: tx.hash,
         status: 'success',
         account,
-        extra: `${fmt(offer.durAmount, TOKEN_DECIMALS.DUR)} DUR`,
+        extra: `${fmt(amountRaw, TOKEN_DECIMALS.DUR)} DUR`,
       });
       refreshBalances();
       load();
@@ -530,7 +544,22 @@ export default function DexListings() {
         {items.map((item) => {
           const idKey = (tab === 'listings' ? '' : 'offer-') + item.id.toString();
           const mine = isMine(item);
-          const garovRaw = tab === 'listings' ? item.garovRaw : item.garov;
+          const remaining = item.durAmountRemaining;
+          const isPartiallyTaken = remaining < item.durAmount;
+
+          // Listings: garov depends on the LIVE oracle price, so it needs
+          // a fresh contract call per chosen amount. Offers: garov is a
+          // FIXED pot from posting time, just divided proportionally -
+          // pure client-side math, matching the contract's own formula
+          // exactly, no call needed.
+          const previewFn = tab === 'listings'
+            ? async (amountRaw) => {
+                const provider = await getReadProvider();
+                const dex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, provider);
+                return dex.previewGarov(item.id, amountRaw);
+              }
+            : async (amountRaw) => (item.garov * amountRaw) / item.durAmount;
+
           return (
             <div key={idKey} className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
@@ -547,36 +576,43 @@ export default function DexListings() {
                     )}
                   </div>
                   <div style={{ fontSize: 14 }}>
-                    <b>{fmt(item.durAmount, TOKEN_DECIMALS.DUR)} DUR</b>{' '}
+                    <b>{fmt(remaining, TOKEN_DECIMALS.DUR)} DUR</b>{' '}
+                    {isPartiallyTaken && (
+                      <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>
+                        (jami {fmt(item.durAmount, TOKEN_DECIMALS.DUR)} dan qoldi){' '}
+                      </span>
+                    )}
                     {tab === 'listings' ? 'sotiladi' : 'sotib olinmoqchi'}
-                    {' — jami narxi '}<b>{fmt(item.priceUSDC, TOKEN_DECIMALS.USDC)} USDC</b>
+                    {' — narxi (to\'liq uchun) '}<b>{fmt(item.priceUSDC, TOKEN_DECIMALS.USDC)} USDC</b>
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                    Muddat: {item.paymentPeriodDays.toString()} kun · Garov: {garovRaw !== null ? fmt(garovRaw, TOKEN_DECIMALS.USDC) + ' USDC' : "narxni yangilang"}
+                    Muddat: {item.paymentPeriodDays.toString()} kun
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: 8 }}>
-                  {mine ? (
-                    <button
-                      className="btn btn-outline btn-sm"
-                      disabled={actionLoading === idKey}
-                      onClick={() => handleCancel(tab === 'listings' ? 'listing' : 'offer', item.id)}
-                    >
-                      <X size={14} /> Bekor qilish
-                    </button>
-                  ) : (
-                    <button
-                      className="btn btn-primary btn-sm"
-                      disabled={actionLoading === idKey || (tab === 'listings' && !oracleReady)}
-                      onClick={() => (tab === 'listings' ? handleApproveListing(item) : handleFulfillOffer(item))}
-                    >
-                      {tab === 'listings' ? <ShoppingCart size={14} /> : <Tag size={14} />}
-                      {' '}{tab === 'listings' ? 'DUR sotib olish' : 'DUR sotish'}
-                    </button>
-                  )}
-                </div>
+                {mine && (
+                  <button
+                    className="btn btn-outline btn-sm"
+                    disabled={actionLoading === idKey}
+                    onClick={() => handleCancel(tab === 'listings' ? 'listing' : 'offer', item.id)}
+                  >
+                    <X size={14} /> Bekor qilish
+                  </button>
+                )}
               </div>
+
+              {!mine && (
+                <FillRow
+                  remaining={remaining}
+                  minFillUsdc={minFillUsdc}
+                  durPrice={durPrice}
+                  previewFn={previewFn}
+                  disabled={actionLoading === idKey || (tab === 'listings' && !oracleReady)}
+                  actionLabel={tab === 'listings' ? 'DUR sotib olish' : 'DUR sotish'}
+                  actionIcon={tab === 'listings' ? <ShoppingCart size={14} /> : <Tag size={14} />}
+                  onSubmit={(amountRaw) => (tab === 'listings' ? handleApproveListing(item, amountRaw) : handleFulfillOffer(item, amountRaw))}
+                />
+              )}
             </div>
           );
         })}
@@ -587,6 +623,82 @@ export default function DexListings() {
           Tasdiqlash yoki bekor qilish uchun hamyonni ulang
         </div>
       )}
+    </div>
+  );
+}
+
+// Miqdor tanlash + garov ko'rish + tasdiqlash tugmasi — sotuv e'loni yoki
+// xarid taklifining bir qismini (yoki hammasini) olish uchun. Standart
+// qiymat — qolgan hammasi; foydalanuvchi kamaytirishi mumkin.
+function FillRow({ remaining, minFillUsdc, durPrice, previewFn, disabled, actionLabel, actionIcon, onSubmit }) {
+  const [amountStr, setAmountStr] = useState(() => ethers.formatUnits(remaining, TOKEN_DECIMALS.DUR));
+  const [garovPreview, setGarovPreview] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  let amountRaw = null;
+  try { amountRaw = ethers.parseUnits(amountStr || '0', TOKEN_DECIMALS.DUR); } catch { /* hali yozib tugatmagan */ }
+
+  const isFull = amountRaw !== null && amountRaw === remaining;
+  const minFillDur = (!isFull && minFillUsdc !== null && durPrice !== null && durPrice > 0n)
+    ? (minFillUsdc * (10n ** 18n)) / durPrice
+    : null;
+  const belowMin = !isFull && minFillDur !== null && amountRaw !== null && amountRaw > 0n && amountRaw < minFillDur;
+  const valid = amountRaw !== null && amountRaw > 0n && amountRaw <= remaining && !belowMin;
+
+  // Tanlangan miqdor uchun garovni jonli ko'rsatish — har harf kiritilganda
+  // emas, biroz kutib turib (debounce), keraksiz chaqiruvlarni kamaytirish
+  // uchun.
+  useEffect(() => {
+    if (!valid) { setGarovPreview(null); return; }
+    let cancelled = false;
+    setPreviewLoading(true);
+    const t = setTimeout(async () => {
+      try {
+        const g = await previewFn(amountRaw);
+        if (!cancelled) setGarovPreview(g);
+      } catch {
+        if (!cancelled) setGarovPreview(null);
+      } finally {
+        if (!cancelled) setPreviewLoading(false);
+      }
+    }, 400);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [amountStr, valid]);
+
+  return (
+    <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--bg-secondary)' }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 120 }}>
+          <label className="input-label" style={{ fontSize: 12 }}>Miqdor (DUR)</label>
+          <input
+            className="input"
+            type="number"
+            min="0"
+            value={amountStr}
+            onChange={(e) => setAmountStr(e.target.value)}
+          />
+        </div>
+        <button
+          type="button"
+          className="btn btn-outline btn-sm"
+          onClick={() => setAmountStr(ethers.formatUnits(remaining, TOKEN_DECIMALS.DUR))}
+        >
+          Hammasi
+        </button>
+        <button
+          className="btn btn-primary btn-sm"
+          disabled={disabled || !valid}
+          onClick={() => onSubmit(amountRaw)}
+        >
+          {actionIcon} {actionLabel}
+        </button>
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>
+        {previewLoading && 'Garov hisoblanmoqda...'}
+        {!previewLoading && garovPreview !== null && `Garov: ${fmt(garovPreview, TOKEN_DECIMALS.USDC)} USDC`}
+        {!previewLoading && garovPreview === null && belowMin && minFillDur !== null &&
+          `Qisman olishda kamida ~${fmt(minFillDur, TOKEN_DECIMALS.DUR)} DUR kerak (yoki hammasini oling)`}
+      </div>
     </div>
   );
 }
