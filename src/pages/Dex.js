@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { useWeb3 } from '../hooks/useWeb3';
 import { TOKEN_ADDRESSES, TOKEN_DECIMALS, ERC20_ABI, ARBITRUM_ONE } from '../abi/contract';
 import { saveLocalTxHistory } from '../utils/localTxHistory';
+import { loadApproveMultiplier } from './Settings';
 import { Tag, ShoppingCart, Info, AlertCircle, Loader2 } from 'lucide-react';
 
 // ══════════════════════════════════════════════════════════════════════
@@ -195,18 +196,19 @@ const CHAIN_STAGES = [
 async function ensureDexApproval(tokenKey, signer, account, amountRaw, openWalletForRequest) {
   const token = new ethers.Contract(TOKEN_ADDRESSES[tokenKey], ERC20_ABI, signer);
   const allowance = await token.allowance(account, DEX_ADDRESS);
-  if (allowance >= amountRaw) return;
+  if (allowance >= amountRaw) return true;
 
   const tid = toast.loading(`${tokenKey} uchun ruxsat so'ralmoqda...`);
   try {
     openWalletForRequest();
     const tx = await withWalletTimeout(
-      token.approve(DEX_ADDRESS, ethers.MaxUint256),
+      token.approve(DEX_ADDRESS, loadApproveMultiplier() === 'max' ? ethers.MaxUint256 : amountRaw * BigInt(loadApproveMultiplier())),
       90000,
       `${tokenKey} approval oynasi chiqmadi yoki wallet javob bermadi`
     );
     await withWalletTimeout(tx.wait(), 90000, `${tokenKey} approval tasdiqlanmadi`);
-    toast.success(`${tokenKey} ruxsat berildi`, { id: tid });
+    toast.success(`${tokenKey} ruxsat berildi! Endi tugmani yana bosing.`, { id: tid });
+    return false;
   } catch (e) {
     console.error('approval error:', e);
     toast.error(translateContractError(e), { id: tid });
@@ -373,14 +375,16 @@ export default function Dex() {
       const dex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, signer);
       let tx;
       if (mode === 'sell') {
-        await ensureDexApproval('DUR', signer, account, durRaw, openWalletForRequest);
+        const approved = await ensureDexApproval('DUR', signer, account, durRaw, openWalletForRequest);
+        if (!approved) return;
         openWalletForRequest();
         tx = await withProgressToast(
           withWalletTimeout(dex.postListing(durRaw, priceRaw, period), 90000, "MetaMask ochilmadi yoki wallet javob bermadi"),
           tid, WALLET_STAGES
         );
       } else {
-        await ensureDexApproval('USDC', signer, account, preview.garovRaw, openWalletForRequest);
+        const approved = await ensureDexApproval('USDC', signer, account, preview.garovRaw, openWalletForRequest);
+        if (!approved) return;
         openWalletForRequest();
         tx = await withProgressToast(
           withWalletTimeout(dex.postBuyOffer(durRaw, priceRaw, period), 90000, "MetaMask ochilmadi yoki wallet javob bermadi"),

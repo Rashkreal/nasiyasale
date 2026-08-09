@@ -277,7 +277,8 @@ if ((status === 7 || (status === 4 && isExpired)) && !item.isCollateral && (buye
 
       // 2) USDC approve (ensureApproval ichida polling bor — allowance
       //    blockchain'da tasdiqlanmaguncha kutadi)
-      await ensureApproval('USDC', listing.priceUSDC);
+      const approved = await ensureApproval('USDC', listing.priceUSDC);
+      if (!approved) return;
 
       // 3) Asosiy tx — wallet'ni oldindan ochib qo'yish (mobile uchun)
       openWalletForRequest && openWalletForRequest();
@@ -451,7 +452,8 @@ toast.success(t('approvedClaimDefaultSuccess') || 'Default claim muvaffaqiyatli 
     try {
       await ensureCorrectChain();
 
-      await ensureApproval('USDC', listing.priceUSDC);
+      const approved = await ensureApproval('USDC', listing.priceUSDC);
+      if (!approved) return;
 
       openWalletForRequest && openWalletForRequest();
 

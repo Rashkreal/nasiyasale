@@ -325,7 +325,8 @@ priceRaw
       let tx;
 
       if (selected === 'collateral-sell') {
-        await ensureApproval('DUR', durRaw);
+        const approvedDur = await ensureApproval('DUR', durRaw);
+        if (!approvedDur) return;
         openWalletForRequest();
         tx = await withProgressToast(
           withWalletTimeout(
@@ -356,10 +357,11 @@ priceRaw
 
 
 , tokenId, collateralBufferBps);
-        await ensureApproval(buyChosenToken, 
+        const approvedBuy = await ensureApproval(buyChosenToken, 
 colAmt
 
 );
+        if (!approvedBuy) return;
         const singleMask = 1 << tokenId;
         openWalletForRequest();
         tx = await withProgressToast(
@@ -381,7 +383,8 @@ priceRaw
         );
 
       } else if (selected === 'nocollateral-sell') {
-        await ensureApproval('DUR', durRaw);
+        const approvedDur = await ensureApproval('DUR', durRaw);
+        if (!approvedDur) return;
         openWalletForRequest();
         tx = await withProgressToast(
           withWalletTimeout(

@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { useWeb3 } from '../hooks/useWeb3';
 import { TOKEN_ADDRESSES, TOKEN_DECIMALS, ERC20_ABI } from '../abi/contract';
 import { saveLocalTxHistory } from '../utils/localTxHistory';
+import { loadApproveMultiplier } from './Settings';
 import {
   ArrowRightLeft, PlusCircle, MinusCircle, CheckCircle2,
   AlertTriangle, Loader2, RefreshCw, ChevronDown, ChevronUp,
@@ -220,18 +221,19 @@ const CHAIN_STAGES = [
 async function ensureDexApproval(tokenKey, signer, account, amountRaw, openWalletForRequest) {
   const token = new ethers.Contract(TOKEN_ADDRESSES[tokenKey], ERC20_ABI, signer);
   const allowance = await token.allowance(account, DEX_ADDRESS);
-  if (allowance >= amountRaw) return;
+  if (allowance >= amountRaw) return true;
 
   const tid = toast.loading(`${tokenKey} uchun ruxsat so'ralmoqda...`);
   try {
     openWalletForRequest();
     const tx = await withWalletTimeout(
-      token.approve(DEX_ADDRESS, ethers.MaxUint256),
+      token.approve(DEX_ADDRESS, loadApproveMultiplier() === 'max' ? ethers.MaxUint256 : amountRaw * BigInt(loadApproveMultiplier())),
       90000,
       `${tokenKey} approval oynasi chiqmadi yoki wallet javob bermadi`
     );
     await withWalletTimeout(tx.wait(), 90000, `${tokenKey} approval tasdiqlanmadi`);
-    toast.success(`${tokenKey} ruxsat berildi`, { id: tid });
+    toast.success(`${tokenKey} ruxsat berildi! Endi tugmani yana bosing.`, { id: tid });
+    return false;
   } catch (e) {
     console.error('approval error:', e);
     toast.error(translateContractError(e, TOKEN_DECIMALS[tokenKey]), { id: tid });
@@ -423,7 +425,8 @@ export default function DexPositions() {
         return;
       }
 
-      await ensureDexApproval(tokenKey, signer, account, amountRaw, openWalletForRequest);
+      const approved = await ensureDexApproval(tokenKey, signer, account, amountRaw, openWalletForRequest);
+      if (!approved) return;
       toast.loading('Garov qo\'shilmoqda...', { id: tid });
 
       const dex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, signer);
@@ -603,7 +606,8 @@ export default function DexPositions() {
         return;
       }
 
-      await ensureDexApproval('USDC', signer, account, position.priceUSDC, openWalletForRequest);
+      const approved = await ensureDexApproval('USDC', signer, account, position.priceUSDC, openWalletForRequest);
+      if (!approved) return;
       toast.loading("To'lanmoqda...", { id: tid });
 
       const dex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, signer);

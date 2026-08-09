@@ -8,6 +8,7 @@ import {
   TOKEN_DECIMALS,
   ARBITRUM_ONE,
 } from '../abi/contract';
+import { loadApproveMultiplier } from '../pages/Settings';
 import toast from 'react-hot-toast';
 
 const Web3Context = createContext(null);
@@ -431,7 +432,8 @@ export function Web3Provider({ children }) {
     const tid = toast.loading(`${tokenKey} uchun ruxsat so‘ralmoqda...`);
     activeToastRef.current = tid;
     try {
-      const approveAmount = ethers.MaxUint256;
+      const mult = loadApproveMultiplier();
+      const approveAmount = mult === 'max' ? ethers.MaxUint256 : amountRaw * BigInt(mult);
       openWalletForRequest();
       const tx = await withTimeout(
         tokenWithSigner.connect(signer).approve(CONTRACT_ADDRESS, approveAmount),
@@ -439,9 +441,9 @@ export function Web3Provider({ children }) {
         `${tokenKey} approval oynasi chiqmadi yoki wallet javob bermadi`
       );
       await withTimeout(tx.wait(), 90000, `${tokenKey} approval tasdiqlanmadi`);
-      toast.success(`${tokenKey} ruxsat berildi`, { id: tid });
+      toast.success(`${tokenKey} ruxsat berildi! Endi tugmani yana bosing.`, { id: tid });
       activeToastRef.current = null;
-      return true;
+      return false;
     } catch (e) {
       const msg = (e?.message || '').toLowerCase();
       if (msg.includes('rejected') || msg.includes('denied')) {

@@ -550,11 +550,13 @@ export default function Listings() {
       chosenTokenId = TOKEN_IDS[chosenKey];
 
       const colAmt = await contract.getCollateralAmount(listingId, chosenTokenId);
-      await ensureApproval(chosenKey, colAmt);
+      const approvedColl = await ensureApproval(chosenKey, colAmt);
+      if (!approvedColl) return;
     }
 
     if (status === 1 || status === 3) {
-      await ensureApproval('DUR', listing.durAmount);
+      const approvedDur = await ensureApproval('DUR', listing.durAmount);
+      if (!approvedDur) return;
     }
 
     setActionLoading(listingId);
