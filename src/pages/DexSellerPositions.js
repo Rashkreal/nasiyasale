@@ -132,6 +132,25 @@ function fmtDate(unixSeconds) {
   return `${d.getDate()}-${UZ_MONTHS[d.getMonth()]}, ${d.getFullYear()}`;
 }
 
+// CreditSale'ning Approved.js'dagi timeLeft() bilan bir xil mantiq.
+function timeLeft(dueDate) {
+  const now = Math.floor(Date.now() / 1000);
+  const due = Number(dueDate);
+  const diff = due - now;
+
+  if (diff <= 0) return { expired: true, text: "Muddati o'tgan" };
+
+  const d = Math.floor(diff / 86400);
+  const h = Math.floor((diff % 86400) / 3600);
+  const m = Math.floor((diff % 3600) / 60);
+  const s = diff % 60;
+
+  if (d > 0) return { expired: false, text: `${d} kun ${h} soat qoldi` };
+  if (h > 0) return { expired: false, text: `${h} soat ${m} daqiqa qoldi` };
+  if (m > 0) return { expired: false, text: `${m} daqiqa ${s} soniya qoldi` };
+  return { expired: false, text: `${s} soniya qoldi` };
+}
+
 function shortAddr(addr) {
   if (!addr) return '—';
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -283,7 +302,11 @@ export default function DexSellerPositions() {
                     Xaridor: <span className="mono">{shortAddr(p.buyer)}</span>
                   </div>
                   <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                    Muddat: {fmtDate(p.dueDate)} {overdue && <span style={{ color: 'var(--danger)' }}>(o'tib ketgan)</span>}
+                    Muddat: {fmtDate(p.dueDate)}
+                    {overdue
+                      ? <span style={{ color: 'var(--danger)' }}> (o'tib ketgan)</span>
+                      : <span style={{ color: 'var(--success)' }}> · {timeLeft(p.dueDate).text}</span>
+                    }
                   </div>
                   <div style={{ fontSize: 13 }}>
                     Xaridorning garovi: <b>{fmt(p.collateralAmount, collDecimals)} {collSymbol}</b>

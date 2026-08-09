@@ -218,6 +218,9 @@ const CHAIN_STAGES = [
   [40000, "Hali kutilmoqda — Arbitrum tarmog'i band bo'lishi mumkin"],
 ];
 
+// @returns true agar ruxsat allaqachon yetarli bo'lsa (chaqiruvchi darhol
+//          davom etishi mumkin); false agar HOZIRGINA yangi ruxsat
+//          so'ralgan bo'lsa (chaqiruvchi TO'XTASHI kerak).
 async function ensureDexApproval(tokenKey, signer, account, amountRaw, openWalletForRequest) {
   const token = new ethers.Contract(TOKEN_ADDRESSES[tokenKey], ERC20_ABI, signer);
   const allowance = await token.allowance(account, DEX_ADDRESS);
@@ -225,9 +228,11 @@ async function ensureDexApproval(tokenKey, signer, account, amountRaw, openWalle
 
   const tid = toast.loading(`${tokenKey} uchun ruxsat so'ralmoqda...`);
   try {
+    const mult = loadApproveMultiplier();
+    const approveAmount = mult === 'max' ? ethers.MaxUint256 : amountRaw * BigInt(mult);
     openWalletForRequest();
     const tx = await withWalletTimeout(
-      token.approve(DEX_ADDRESS, loadApproveMultiplier() === 'max' ? ethers.MaxUint256 : amountRaw * BigInt(loadApproveMultiplier())),
+      token.approve(DEX_ADDRESS, approveAmount),
       90000,
       `${tokenKey} approval oynasi chiqmadi yoki wallet javob bermadi`
     );
@@ -275,6 +280,28 @@ function fmtDate(unixSeconds) {
   if (!unixSeconds || unixSeconds === 0n) return '—';
   const d = new Date(Number(unixSeconds) * 1000);
   return `${d.getDate()}-${UZ_MONTHS[d.getMonth()]}, ${d.getFullYear()}`;
+}
+
+// CreditSale'ning Approved.js'dagi timeLeft() bilan bir xil mantiq — soat/
+// daqiqagacha aniq qoldiq vaqtni ko'rsatadi. Alohida sonagich (setInterval)
+// shart emas: bu sahifa allaqachon 30 soniyada bir load()ni qayta ishga
+// tushiradi, shu bilan qoldiq vaqt ham tabiiy ravishda yangilanib turadi.
+function timeLeft(dueDate) {
+  const now = Math.floor(Date.now() / 1000);
+  const due = Number(dueDate);
+  const diff = due - now;
+
+  if (diff <= 0) return { expired: true, text: "Muddati o'tgan" };
+
+  const d = Math.floor(diff / 86400);
+  const h = Math.floor((diff % 86400) / 3600);
+  const m = Math.floor((diff % 3600) / 60);
+  const s = diff % 60;
+
+  if (d > 0) return { expired: false, text: `${d} kun ${h} soat qoldi` };
+  if (h > 0) return { expired: false, text: `${h} soat ${m} daqiqa qoldi` };
+  if (m > 0) return { expired: false, text: `${m} daqiqa ${s} soniya qoldi` };
+  return { expired: false, text: `${s} soniya qoldi` };
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -742,7 +769,11 @@ export default function DexPositions() {
               {isExpanded && (
                 <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--bg-secondary)', display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                    Muddat: {fmtDate(p.dueDate)} {overdue && isOpen && <span style={{ color: 'var(--danger)' }}>(o'tib ketgan)</span>}
+                    Muddat: {fmtDate(p.dueDate)}
+                    {isOpen && (overdue
+                      ? <span style={{ color: 'var(--danger)' }}> (o'tib ketgan)</span>
+                      : <span style={{ color: 'var(--success)' }}> · {timeLeft(p.dueDate).text}</span>
+                    )}
                   </div>
                   <div style={{ fontSize: 13 }}>
                     Garov: <b>{fmt(p.collateralAmount, collDecimals)} {collSymbol}</b>
