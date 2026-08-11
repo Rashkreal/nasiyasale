@@ -9,7 +9,7 @@ import {
   LayoutDashboard, PlusSquare, List,
   CheckCircle, BarChart3, Zap, Clock,
   AlertTriangle, LogOut, Copy, Check, Info, Wallet, Menu, X, Sun, Moon, Lock, TrendingUp, Settings, FileText,
-  RefreshCw, ArrowLeftRight, Tag
+  RefreshCw, Tag, ShoppingCart, Briefcase, Store, ArrowLeftRight
 } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 
@@ -42,10 +42,14 @@ export default function Layout({ children }) {
     { to: '/history', icon: Clock, label: t('navHistory') },
     { to: '/about', icon: Info, label: t('navAbout') || 'Haqida' },
     { to: '/vault', icon: Lock, label: 'Vault' },
+    { to: '/listing-market', icon: Tag, label: "ListingMarket - E'lon joylash" },
+    { to: '/listing-market-listings', icon: ShoppingCart, label: 'ListingMarket - Elonlar' },
+    { to: '/listing-market-positions', icon: Briefcase, label: 'ListingMarket - Pozitsiyalarim' },
+    { to: '/listing-market-seller-positions', icon: Store, label: 'ListingMarket - Sotganlarim' },
     { to: '/dex', icon: ArrowLeftRight, label: "DEX — E'lon joylash" },
     { to: '/dex-listings', icon: List, label: "DEX — E'lonlar" },
     { to: '/dex-positions', icon: Wallet, label: 'DEX — Pozitsiyalarim' },
-    { to: '/dex-seller-positions', icon: Tag, label: 'DEX — Sotganlarim' },
+
     { to: '/tokenomics', icon: TrendingUp, label: 'Tokenomics' },
     { to: '/whitepaper', icon: FileText, label: 'Whitepaper' },
     { to: '/settings', icon: Settings, label: t('navSettings') || 'Sozlamalar' },

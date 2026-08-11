@@ -14,10 +14,11 @@ import BLLevel from './pages/BLLevel';
 import TxHistory from './pages/TxHistory';
 import About from './pages/About';
 import Vault from './pages/Vault';
-import Dex from './pages/Dex';
-import DexListings from './pages/DexListings';
-import DexPositions from './pages/DexPositions';
-import DexSellerPositions from './pages/DexSellerPositions';
+import ListingMarket from './pages/ListingMarket';
+import ListingMarketListings from './pages/ListingMarketListings';
+import ListingMarketPositions from './pages/ListingMarketPositions';
+import ListingMarketSellerPositions from './pages/ListingMarketSellerPositions';
+
 import Tokenomics from './pages/Tokenomics';
 import Settings from './pages/Settings';
 import Whitepaper from './pages/Whitepaper';
@@ -44,10 +45,11 @@ export default function App() {
                 <Route path="/history" element={<TxHistory />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/vault" element={<Vault />} />
-                <Route path="/dex" element={<Dex />} />
-                <Route path="/dex-listings" element={<DexListings />} />
-                <Route path="/dex-positions" element={<DexPositions />} />
-                <Route path="/dex-seller-positions" element={<DexSellerPositions />} />
+                <Route path="/listing-market" element={<ListingMarket />} />
+                <Route path="/listing-market-listings" element={<ListingMarketListings />} />
+                <Route path="/listing-market-positions" element={<ListingMarketPositions />} />
+                <Route path="/listing-market-seller-positions" element={<ListingMarketSellerPositions />} />
+                
                 <Route path="/tokenomics" element={<Tokenomics />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/whitepaper" element={<Whitepaper />} />

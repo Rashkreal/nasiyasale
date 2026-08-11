@@ -5,33 +5,35 @@ import { useWeb3 } from '../hooks/useWeb3';
 import { TOKEN_ADDRESSES, TOKEN_DECIMALS, ERC20_ABI } from '../abi/contract';
 import { saveLocalTxHistory } from '../utils/localTxHistory';
 import { loadApproveMultiplier } from './Settings';
-import { Tag, ShoppingCart, RefreshCw, X, AlertCircle, Loader2 } from 'lucide-react';
+import { Tag, ShoppingCart, RefreshCw, X } from 'lucide-react';
 
 // ══════════════════════════════════════════════════════════════════════
-//  E'lonlarni ko'rish + tasdiqlash — Dex.js (E'lon joylash) bilan bir
-//  xil sahifa, shu bilan bog'liq. Har bir sahifa o'zining manzil/ABI/
-//  yordamchi funksiyalarini o'zida saqlaydi (Vault.js/Dex.js naqshi).
+//  E'lonlarni ko'rish + tasdiqlash — ListingMarket.js (e'lon joylash)
+//  bilan bir xil sahifa oilasi. Har bir sahifa o'zining manzil/ABI/
+//  yordamchi funksiyalarini o'zida saqlaydi.
+//
+//  Checkpoint oracle yo'q — WBTC narxi Chainlink orqali doim, darhol
+//  mavjud, shuning uchun bu sahifada "narxni yangilash" degan tugma yoki
+//  oracle holatini kutish umuman yo'q (avvalgi DUR-asosli versiyadan
+//  farqli o'laroq).
 // ══════════════════════════════════════════════════════════════════════
 
-const DEX_ADDRESS = '0xA8c28410bD55bf85fdBa3240FcAE068B8Eeae2c4';
+const DEX_ADDRESS = '0x8aC38A6C9E02EE75658ae6f2d6Fd93e8e43c247f';
 
 const DEX_ABI = [
-  'function getPendingListings(uint256 offset, uint256 limit) external view returns (tuple(address seller, uint256 durAmount, uint256 priceUSDC, uint256 durAmountRemaining, uint256 paymentPeriodDays, uint8 status)[] result, uint256[] ids)',
-  'function getPendingBuyOffers(uint256 offset, uint256 limit) external view returns (tuple(address buyer, uint256 durAmount, uint256 priceUSDC, uint256 paymentPeriodDays, uint256 garov, uint256 durAmountRemaining, uint8 status)[] result, uint256[] ids)',
+  'function getPendingListings(uint256 offset, uint256 limit) external view returns (tuple(address seller, uint256 wbtcAmount, uint256 priceUSDC, uint256 wbtcAmountRemaining, uint256 paymentPeriodDays, uint8 status)[] result, uint256[] ids)',
+  'function getPendingBuyOffers(uint256 offset, uint256 limit) external view returns (tuple(address buyer, uint256 wbtcAmount, uint256 priceUSDC, uint256 paymentPeriodDays, uint256 garov, uint256 wbtcAmountRemaining, uint8 status)[] result, uint256[] ids)',
   'function totalPendingListings() external view returns (uint256)',
   'function totalPendingBuyOffers() external view returns (uint256)',
-  'function previewGarov(uint256 listingId, uint256 durAmountToTake) external view returns (uint256)',
-  'function approveListing(uint256 listingId, uint256 durAmountToTake) external returns (uint256 positionId)',
-  'function fulfillBuyOffer(uint256 offerId, uint256 durAmountToFulfill) external returns (uint256 positionId)',
+  'function previewGarov(uint256 listingId, uint256 wbtcAmountToTake) external view returns (uint256)',
+  'function approveListing(uint256 listingId, uint256 wbtcAmountToTake) external returns (uint256 positionId)',
+  'function fulfillBuyOffer(uint256 offerId, uint256 wbtcAmountToFulfill) external returns (uint256 positionId)',
   'function cancelListing(uint256 listingId) external',
   'function cancelBuyOffer(uint256 offerId) external',
-  'function checkpoint() external',
-  'function isSafePriceAvailable() external view returns (bool)',
-  'function getSafeDurPrice() external view returns (uint256)',
+  'function PROTOCOL_FEE_BPS() external view returns (uint16)',
   'function MIN_PARTIAL_FILL_USDC() external view returns (uint256)',
-  // Kontraktning BARCHA maxsus xatolari — buni to'liq qo'shmasak, ethers
-  // revert sababini "unknown custom error" deb chiqaradi, chunki uni qaysi
-  // ABI orqali dekod qilishni bilmaydi.
+  'function getTokenPriceUSDC(uint8 tokenId) external view returns (uint256)',
+  // Kontraktning BARCHA maxsus xatolari
   'error AlreadySwapped()',
   'error BadChainlinkPrice()',
   'error BadListingParams()',
@@ -41,22 +43,15 @@ const DEX_ABI = [
   'error BelowRequiredFloor(uint256 remainingValue, uint256 requiredValue)',
   'error CannotApproveOwnListing()',
   'error ChainlinkPriceUnderflow()',
-  'error CheckpointDeviationExceeded(uint256 prevPrice, uint256 currPrice)',
-  'error CheckpointGapNotElapsed(uint256 gap, uint256 required)',
-  'error CheckpointStale(uint256 age, uint256 maxAge)',
-  'error CheckpointTooSoon(uint256 nextAllowedAt)',
   'error ExceedsRemainingAmount(uint256 requested, uint256 remaining)',
   'error InsufficientCollateral()',
   'error ListingNotPending()',
-  'error MustSwapDurFirst()',
-  'error NoCheckpointYet()',
   'error NoPriceAvailable()',
   'error NotBuyer()',
   'error NotLiquidatable()',
   'error NotPoolManager()',
   'error NotSeller()',
   'error NothingToSwap()',
-  'error PoolEmpty()',
   'error PositionNotFound()',
   'error PositionNotOpen()',
   'error PriceTooHigh(uint256 narx, uint256 maxAllowed)',
@@ -68,96 +63,68 @@ const DEX_ABI = [
   'error SwapWouldLeaveLiquidatable()',
   'error TooLittleReceived(uint256 minOut, uint256 actualOut)',
   'error ZeroAmount()',
-  // DUR/USDC tokenlarining o'z xatolari — bular ListingMarket emas,
-  // ERC20 tokenning o'zidan keladi (masalan balans yetmasa), lekin
-  // ular ham shu tranzaksiya ichida ro'y berishi mumkin.
   'error ERC20InsufficientBalance(address sender, uint256 balance, uint256 needed)',
   'error ERC20InsufficientAllowance(address spender, uint256 allowance, uint256 needed)',
 ];
 
-// Har bir xato nomi uchun tushunarli o'zbekcha xabar. Kontrakt qaysi
-// sababdan revert bo'lgani aniq ma'lum bo'lganda, foydalanuvchi nima
-// qilish kerakligini tushunadi — xom "unknown custom error" o'rniga.
 const ERROR_MESSAGES = {
   CannotApproveOwnListing: "O'zingiz joylagan e'lon/taklifni o'zingiz bajara olmaysiz — buni faqat boshqa hamyon amalga oshirishi mumkin",
   BelowMinimumFill: "Bu miqdor juda kichik — qisman olishda minimal chegaradan yuqori bo'lishi kerak (yoki qolganning hammasini oling)",
   ExceedsRemainingAmount: "So'ralgan miqdor mavjud qoldiqdan ko'p",
   ListingNotPending: "Bu e'lon/taklif allaqachon tasdiqlangan yoki bekor qilingan",
-  NoCheckpointYet: "Oracle hali umuman ishga tushirilmagan",
-  CheckpointStale: 'Narx eskirgan — avval "Narxni yangilash" tugmasini bosing',
-  CheckpointGapNotElapsed: 'Checkpointlar orasida yetarli vaqt o\'tmagan',
-  CheckpointTooSoon: "Hali erta — bir necha soniyadan keyin qayta urinib ko'ring",
-  CheckpointDeviationExceeded: "Narx juda keskin o'zgardi — birozdan keyin qayta urinib ko'ring",
-  PriceTooHigh: 'Narx tannarxdan +10%dan oshib ketgan',
+  PriceTooHigh: "Narx tannarxdan +10%dan oshib ketgan",
   BadListingParams: "Miqdor yoki narx noto'g'ri kiritilgan",
   BadPeriod: "To'lov muddati 1-30 kun oralig'ida bo'lishi kerak",
-  InsufficientCollateral: 'Garov yetarli emas',
-  BelowRequiredFloor: 'Bu miqdorni olib qo\'yish pozitsiyani xavfli holatga tashlaydi',
-  SwapWouldLeaveLiquidatable: 'Bu swap pozitsiyani darhol likvidatsiyaga tashlab yuboradi — avval garov qo\'shing',
-  NothingToSwap: "Swap qilish uchun DUR qolmagan",
-  MustSwapDurFirst: 'Avval DUR\'ni USDC\'ga swap qilish kerak',
-  AlreadySwapped: 'Garov allaqachon boshqa tokenga aylantirilgan',
-  PositionNotFound: 'Bunday pozitsiya topilmadi',
-  PositionNotOpen: 'Bu pozitsiya endi ochiq emas',
+  InsufficientCollateral: "Garov yetarli emas",
+  BelowRequiredFloor: "Bu miqdorni olib qo'yish pozitsiyani xavfli holatga tashlaydi",
+  SwapWouldLeaveLiquidatable: "Bu svop pozitsiyani darhol likvidatsiyaga tashlab yuboradi — avval garov qo'shing",
+  NothingToSwap: "Svop qilish uchun WBTC principal qolmagan",
+  AlreadySwapped: "Garov allaqachon boshqa tokenga aylantirilgan",
+  PositionNotFound: "Bunday pozitsiya topilmadi",
+  PositionNotOpen: "Bu pozitsiya endi ochiq emas",
   NotBuyer: "Bu amalni faqat pozitsiya xaridori bajara oladi",
   NotSeller: "Bu amalni faqat e'lon egasi bajara oladi",
-  NotLiquidatable: 'Bu pozitsiya hali likvidatsiya qilinishi mumkin emas',
+  NotLiquidatable: "Bu pozitsiya hali likvidatsiya qilinishi mumkin emas",
   ZeroAmount: "Miqdor 0 bo'lishi mumkin emas",
   BadTokenId: "Noto'g'ri token tanlandi",
-  PoolEmpty: "Uniswap pool bo'sh yoki ishga tushirilmagan",
   SequencerDown: "Arbitrum sequencer vaqtincha ishlamayapti — birozdan keyin urinib ko'ring",
   SequencerGracePeriod: "Sequencer yaqinda tiklandi — bir necha daqiqa kutish kerak",
-  SequencerFeedDead: 'Sequencer holatini tekshirib bo\'lmadi',
+  SequencerFeedDead: "Sequencer holatini tekshirib bo'lmadi",
   BadChainlinkPrice: "Narx manbasidan noto'g'ri ma'lumot keldi",
-  StaleChainlinkPrice: 'Narx manbasi eskirgan',
+  StaleChainlinkPrice: "Narx manbasi eskirgan — birozdan keyin qayta urinib ko'ring",
   StaleChainlinkRound: "Narx manbasi to'liq yangilanmagan",
   ChainlinkPriceUnderflow: "Narx hisoblashda xato",
   NoPriceAvailable: "Hech qanday narx manbai topilmadi",
   NotPoolManager: "Ruxsatsiz chaqiruv",
-  TooLittleReceived: "Swap natijasi kutilgandan kam — slippage juda yuqori",
+  TooLittleReceived: "Svop natijasi kutilgandan kam — slippage juda yuqori",
 };
 
-// Xato dekodlash uchun alohida Interface — kontrakt instance kerak emas,
-// bu sof, tarmoqqa bog'liq bo'lmagan operatsiya.
 const DEX_INTERFACE = new ethers.Interface(DEX_ABI);
 
-/// Kontraktdan qaytgan xato ma'lumotini (mavjud bo'lsa) dekod qilib,
-/// tushunarli o'zbekcha xabarga aylantiradi. Avval MetaMask'da rad
-/// etilgan/bekor qilingan holatlarni ushlaydi, keyin DEX_INTERFACE orqali
-/// xatoning aniq nomini o'qiydi (turli joylarda — e.data, e.info.error.data
-/// va h.k. — saqlanishi mumkinligi uchun bir nechta joydan qidiradi).
 function translateContractError(e) {
   const rawMsg = (e?.reason || e?.shortMessage || e?.message || '').toLowerCase();
   if (rawMsg.includes('rejected') || rawMsg.includes('denied') || rawMsg.includes('user denied')) {
     return 'Rad etildi';
   }
-
   const candidates = [e?.data, e?.error?.data, e?.info?.error?.data, e?.error?.error?.data];
   for (const data of candidates) {
     if (!data || typeof data !== 'string') continue;
     try {
       const parsed = DEX_INTERFACE.parseError(data);
       if (parsed?.name === 'ERC20InsufficientBalance') {
-        const balance = ethers.formatUnits(parsed.args.balance, TOKEN_DECIMALS.DUR);
-        const needed = ethers.formatUnits(parsed.args.needed, TOKEN_DECIMALS.DUR);
-        return `DUR yetarli emas — sizda ${balance}, kerak ${needed}`;
+        const balance = ethers.formatUnits(parsed.args.balance, TOKEN_DECIMALS.WBTC);
+        const needed = ethers.formatUnits(parsed.args.needed, TOKEN_DECIMALS.WBTC);
+        return `WBTC yetarli emas — sizda ${balance}, kerak ${needed}`;
       }
       if (parsed?.name === 'ERC20InsufficientAllowance') {
         return "Ruxsat yetarli emas — qayta urinib ko'ring (approve avtomatik so'raladi)";
       }
-      if (parsed?.name) {
-        return ERROR_MESSAGES[parsed.name] || `Kontrakt xatosi: ${parsed.name}`;
-      }
-    } catch { /* bu joydan dekod bo'lmadi, keyingisini sinaymiz */ }
+      if (parsed?.name) return ERROR_MESSAGES[parsed.name] || `Kontrakt xatosi: ${parsed.name}`;
+    } catch { /* keyingisini sinaymiz */ }
   }
-
-  // Nomi ma'lum bo'lmasa ham, matn ichida xato nomi ko'rinib turgan
-  // hollar uchun (ba'zi walletlar/RPC'lar shu tarzda qaytaradi) —
-  // lug'atdagi har bir nomni matn ichidan qidiramiz.
   for (const [name, msg] of Object.entries(ERROR_MESSAGES)) {
     if (rawMsg.includes(name.toLowerCase())) return msg;
   }
-
   return e?.reason || e?.shortMessage || "Noma'lum xatolik yuz berdi — birozdan keyin qayta urinib ko'ring";
 }
 
@@ -184,7 +151,6 @@ function withProgressToast(promise, toastId, stages) {
   const timers = stages.map(([ms, msg]) => setTimeout(() => toast.loading(msg, { id: toastId }), ms));
   return promise.finally(() => timers.forEach(clearTimeout));
 }
-
 const WALLET_STAGES = [
   [8000, "MetaMask'da tasdiqlashni kuting..."],
   [20000, "Sekin tarmoq — MetaMask'ni oching va tasdiqlang"],
@@ -202,9 +168,11 @@ async function ensureDexApproval(tokenKey, signer, account, amountRaw, openWalle
 
   const tid = toast.loading(`${tokenKey} uchun ruxsat so'ralmoqda...`);
   try {
+    const mult = loadApproveMultiplier();
+    const approveAmount = mult === 'max' ? ethers.MaxUint256 : amountRaw * BigInt(mult);
     openWalletForRequest();
     const tx = await withWalletTimeout(
-      token.approve(DEX_ADDRESS, loadApproveMultiplier() === 'max' ? ethers.MaxUint256 : amountRaw * BigInt(loadApproveMultiplier())),
+      token.approve(DEX_ADDRESS, approveAmount),
       90000,
       `${tokenKey} approval oynasi chiqmadi yoki wallet javob bermadi`
     );
@@ -230,27 +198,19 @@ function fmt(raw, decimals, sigFigs = 4) {
   return num.toPrecision(sigFigs).replace(/\.?0+$/, '').replace(/\.$/, '');
 }
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
 const PAGE_SIZE = 20;
 
-export default function DexListings() {
+export default function ListingMarketListings() {
   const { account, signer, isCorrectNetwork, ensureCorrectChain, openWalletForRequest, refreshBalances } = useWeb3();
 
   const [tab, setTab] = useState('listings'); // 'listings' | 'offers'
-  const [listings, setListings] = useState([]); // [{ id, seller, durAmount, priceUSDC, durAmountRemaining, paymentPeriodDays }]
-  const [offers, setOffers] = useState([]);     // [{ id, buyer, durAmount, priceUSDC, paymentPeriodDays, garov, durAmountRemaining }]
+  const [listings, setListings] = useState([]);
+  const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(null); // id currently acting on
-  const [oracleReady, setOracleReady] = useState(true); // birinchi load tugagach aniqlashadi
-  const [checkpointing, setCheckpointing] = useState(false);
-  // Qisman to'ldirish uchun: minimal chegara (USDC) va DUR narxi — har bir
-  // FillRow'ga tarqatiladi, shunda "kamida X DUR" degan ko'rsatma chiqadi.
-  // garov endi miqdorga bog'liq bo'lgani uchun load() vaqtida OLDINDAN
-  // hisoblanmaydi — har bir kartochka o'z tanlagan miqdori uchun alohida
-  // so'raydi (pastda FillRow'da).
+  const [actionLoading, setActionLoading] = useState(null);
   const [minFillUsdc, setMinFillUsdc] = useState(null);
-  const [durPrice, setDurPrice] = useState(null);
+  const [wbtcPrice, setWbtcPrice] = useState(null);
+  const [feeBps, setFeeBps] = useState(5);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -258,15 +218,9 @@ export default function DexListings() {
       const provider = await getReadProvider();
       const dex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, provider);
 
-      const ready = await dex.isSafePriceAvailable();
-      setOracleReady(ready);
-
       dex.MIN_PARTIAL_FILL_USDC().then(setMinFillUsdc).catch(() => {});
-      if (ready) {
-        dex.getSafeDurPrice().then(setDurPrice).catch(() => setDurPrice(null));
-      } else {
-        setDurPrice(null);
-      }
+      dex.PROTOCOL_FEE_BPS().then((f) => setFeeBps(Number(f))).catch(() => {});
+      dex.getTokenPriceUSDC(0).then(setWbtcPrice).catch(() => setWbtcPrice(null));
 
       const [listingsRes, offersRes] = await Promise.all([
         dex.getPendingListings(0, PAGE_SIZE),
@@ -279,12 +233,12 @@ export default function DexListings() {
           .map((l, i) => ({
             id: ids[i],
             seller: l.seller,
-            durAmount: l.durAmount,
+            wbtcAmount: l.wbtcAmount,
             priceUSDC: l.priceUSDC,
-            durAmountRemaining: l.durAmountRemaining,
+            wbtcAmountRemaining: l.wbtcAmountRemaining,
             paymentPeriodDays: l.paymentPeriodDays,
           }))
-          .reverse() // eng yangisi tepada
+          .reverse()
       );
 
       const [oResult, oIds] = offersRes;
@@ -293,11 +247,11 @@ export default function DexListings() {
           .map((o, i) => ({
             id: oIds[i],
             buyer: o.buyer,
-            durAmount: o.durAmount,
+            wbtcAmount: o.wbtcAmount,
             priceUSDC: o.priceUSDC,
             paymentPeriodDays: o.paymentPeriodDays,
             garov: o.garov,
-            durAmountRemaining: o.durAmountRemaining,
+            wbtcAmountRemaining: o.wbtcAmountRemaining,
           }))
           .reverse()
       );
@@ -315,54 +269,18 @@ export default function DexListings() {
     return () => clearInterval(id);
   }, [load]);
 
-  // MUHIM: MetaMask ba'zan ketma-ket ikkita so'rovni (bitta JS funksiyasi
-  // ichida, orada YANGI bosish bo'lmasa) yashirin navbatga qo'yib, ikkinchi
-  // oynani avtomatik ochmaydi. Shuning uchun checkpoint() Dex.js'dagi kabi
-  // o'zining aniq tugma bosishiga bog'liq — approveListing'dan mustaqil.
-  const handleCheckpoint = async () => {
-    setCheckpointing(true);
-    const tid = toast.loading("Narx yangilanmoqda...");
-    try {
-      await ensureCorrectChain();
-      const dex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, signer);
-      openWalletForRequest();
-      const tx = await withWalletTimeout(dex.checkpoint(), 90000, "MetaMask ochilmadi yoki wallet javob bermadi");
-      await withWalletTimeout(tx.wait(), 90000, "Checkpoint tasdiqlanmadi");
-
-      // Xuddi Dex.js'dagi kabi: o'qish uchun ishlatiladigan RPC (Ankr/
-      // public) MetaMask yuborgan tugundan farqli bo'lgani uchun yangi
-      // blokni bir necha soniya kechikib ko'rishi mumkin. Bitta tekshirish
-      // o'rniga HAQIQATAN tasdiqlanguncha qayta-qayta tekshiramiz.
-      let confirmed = false;
-      for (let i = 1; i <= 15; i++) {
-        toast.loading(`Tasdiqlanmoqda... (${i * 2}s)`, { id: tid });
-        await sleep(2000);
-        try {
-          const readDex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, await getReadProvider());
-          if (await readDex.isSafePriceAvailable()) { confirmed = true; break; }
-        } catch { /* keyingi urinishda qayta tekshiriladi */ }
-      }
-
-      toast.success(confirmed ? "Narx yangilandi!" : "Tasdiqlandi — ro'yxat tez orada o'zi yangilanadi", { id: tid });
-      load();
-    } catch (e) {
-      reportTxError(e, tid);
-    } finally {
-      setCheckpointing(false);
-    }
-  };
-
   const handleApproveListing = async (listing, amountRaw) => {
     if (!account) { toast.error('Avval hamyonni ulang'); return; }
-    if (!oracleReady) { toast.error("Avval yuqoridagi 'Narxni yangilash' tugmasini bosing"); return; }
     setActionLoading(listing.id.toString());
     const tid = toast.loading("E'lon tasdiqlanmoqda...");
     try {
       await ensureCorrectChain();
       const dex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, signer);
       const garovRaw = await dex.previewGarov(listing.id, amountRaw);
+      const partialPriceUSDC = (listing.priceUSDC * amountRaw) / listing.wbtcAmount;
+      const feeRaw = (partialPriceUSDC * BigInt(feeBps)) / 10000n;
 
-      const approved = await ensureDexApproval('USDC', signer, account, garovRaw, openWalletForRequest);
+      const approved = await ensureDexApproval('USDC', signer, account, garovRaw + feeRaw, openWalletForRequest);
       if (!approved) return;
 
       openWalletForRequest();
@@ -377,13 +295,13 @@ export default function DexListings() {
 
       toast.success("E'lon tasdiqlandi! Pozitsiya ochildi.", { id: tid });
       saveLocalTxHistory({
-        type: 'dexApproveListing',
-        label: "DEX: E'lon tasdiqlandi",
+        type: 'listingMarketApproveListing',
+        label: "ListingMarket: E'lon tasdiqlandi",
         listingId: listing.id.toString(),
         txHash: tx.hash,
         status: 'success',
         account,
-        extra: `${fmt(amountRaw, TOKEN_DECIMALS.DUR)} DUR`,
+        extra: `${fmt(amountRaw, TOKEN_DECIMALS.WBTC)} WBTC`,
       });
       refreshBalances();
       load();
@@ -401,22 +319,21 @@ export default function DexListings() {
     try {
       await ensureCorrectChain();
 
-      // Tranzaksiya yuborishdan OLDIN balansni tekshiramiz — aks holda
-      // foydalanuvchi behuda MetaMask oynasini ko'radi va tushunarsiz
-      // "unknown custom error" bilan duch keladi (chunki bu DUR
-      // tokenining o'zidan keladigan ERC20InsufficientBalance xatosi,
-      // MetaMask uni tranzaksiya simulyatsiyasida oldindan ko'rsatadi).
-      const durToken = new ethers.Contract(TOKEN_ADDRESSES.DUR, ERC20_ABI, signer);
-      const balance = await durToken.balanceOf(account);
-      if (balance < amountRaw) {
-        const have = ethers.formatUnits(balance, TOKEN_DECIMALS.DUR);
-        const need = ethers.formatUnits(amountRaw, TOKEN_DECIMALS.DUR);
-        toast.error(`DUR yetarli emas — sizda ${have}, kerak ${need}`, { id: tid });
+      const feeRaw = (amountRaw * BigInt(feeBps)) / 10000n;
+      const totalNeeded = amountRaw + feeRaw;
+
+      // Tranzaksiya yuborishdan OLDIN balansni tekshiramiz.
+      const wbtcToken = new ethers.Contract(TOKEN_ADDRESSES.WBTC, ERC20_ABI, signer);
+      const balance = await wbtcToken.balanceOf(account);
+      if (balance < totalNeeded) {
+        const have = ethers.formatUnits(balance, TOKEN_DECIMALS.WBTC);
+        const need = ethers.formatUnits(totalNeeded, TOKEN_DECIMALS.WBTC);
+        toast.error(`WBTC yetarli emas — sizda ${have}, kerak ${need} (komissiya bilan)`, { id: tid });
         return;
       }
 
       toast.loading('Taklif bajarilmoqda...', { id: tid });
-      const approved = await ensureDexApproval('DUR', signer, account, amountRaw, openWalletForRequest);
+      const approved = await ensureDexApproval('WBTC', signer, account, totalNeeded, openWalletForRequest);
       if (!approved) return;
 
       const dex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, signer);
@@ -432,13 +349,13 @@ export default function DexListings() {
 
       toast.success('Taklif bajarildi! Pozitsiya ochildi.', { id: tid });
       saveLocalTxHistory({
-        type: 'dexFulfillBuyOffer',
-        label: 'DEX: Taklif bajarildi',
+        type: 'listingMarketFulfillBuyOffer',
+        label: 'ListingMarket: Taklif bajarildi',
         listingId: offer.id.toString(),
         txHash: tx.hash,
         status: 'success',
         account,
-        extra: `${fmt(amountRaw, TOKEN_DECIMALS.DUR)} DUR`,
+        extra: `${fmt(amountRaw, TOKEN_DECIMALS.WBTC)} WBTC`,
       });
       refreshBalances();
       load();
@@ -463,8 +380,8 @@ export default function DexListings() {
       await withWalletTimeout(tx.wait(), 90000, 'Bekor qilish tasdiqlanmadi');
       toast.success('Bekor qilindi', { id: tid });
       saveLocalTxHistory({
-        type: kind === 'listing' ? 'dexCancelListing' : 'dexCancelBuyOffer',
-        label: kind === 'listing' ? "DEX: E'lon bekor qilindi" : 'DEX: Taklif bekor qilindi',
+        type: kind === 'listing' ? 'listingMarketCancelListing' : 'listingMarketCancelBuyOffer',
+        label: kind === 'listing' ? "ListingMarket: E'lon bekor qilindi" : 'ListingMarket: Taklif bekor qilindi',
         listingId: id.toString(),
         txHash: tx.hash,
         status: 'success',
@@ -480,7 +397,7 @@ export default function DexListings() {
   };
 
   function reportTxError(e, tid) {
-    console.error('dex action error:', e);
+    console.error('listing market action error:', e);
     toast.error(translateContractError(e), { id: tid });
   }
 
@@ -499,25 +416,13 @@ export default function DexListings() {
         Kutilayotgan e'lonlar va takliflarni ko'ring, tasdiqlang yoki bekor qiling.
       </p>
 
-      {!oracleReady && (
-        <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 16, borderColor: 'var(--warning)', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <AlertCircle size={18} color="var(--warning)" />
-            <span style={{ fontSize: 13 }}>Narx eskirgan — sotuv e'lonini tasdiqlashdan oldin yangilash kerak.</span>
-          </div>
-          <button className="btn btn-outline btn-sm" onClick={handleCheckpoint} disabled={checkpointing}>
-            {checkpointing ? <Loader2 className="spin" size={14} /> : 'Narxni yangilash'}
-          </button>
-        </div>
-      )}
-
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
         <button
           className={`card ${tab === 'listings' ? 'card-selected' : ''}`}
           onClick={() => setTab('listings')}
           style={{ textAlign: 'left', cursor: 'pointer', border: tab === 'listings' ? '1px solid var(--accent)' : undefined }}
         >
-          <Tag size={20} color="var(--dur-color)" />
+          <Tag size={20} color="var(--accent-bright)" />
           <div style={{ fontWeight: 600, marginTop: 8 }}>Sotuv e'lonlari</div>
           <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{listings.length} ta kutilmoqda</div>
         </button>
@@ -548,21 +453,20 @@ export default function DexListings() {
         {items.map((item) => {
           const idKey = (tab === 'listings' ? '' : 'offer-') + item.id.toString();
           const mine = isMine(item);
-          const remaining = item.durAmountRemaining;
-          const isPartiallyTaken = remaining < item.durAmount;
+          const remaining = item.wbtcAmountRemaining;
+          const isPartiallyTaken = remaining < item.wbtcAmount;
 
-          // Listings: garov depends on the LIVE oracle price, so it needs
-          // a fresh contract call per chosen amount. Offers: garov is a
-          // FIXED pot from posting time, just divided proportionally -
-          // pure client-side math, matching the contract's own formula
-          // exactly, no call needed.
+          // Listing: garov jonli Chainlink narxidan hisoblanadi, har
+          // safar kontraktdan so'raladi. Offer: garov joylashda
+          // qat'iylashtirilgan pot, faqat proportsional bo'linadi —
+          // kontrakt chaqiruvi shart emas.
           const previewFn = tab === 'listings'
             ? async (amountRaw) => {
                 const provider = await getReadProvider();
                 const dex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, provider);
                 return dex.previewGarov(item.id, amountRaw);
               }
-            : async (amountRaw) => (item.garov * amountRaw) / item.durAmount;
+            : async (amountRaw) => (item.garov * amountRaw) / item.wbtcAmount;
 
           return (
             <div key={idKey} className="card">
@@ -580,10 +484,10 @@ export default function DexListings() {
                     )}
                   </div>
                   <div style={{ fontSize: 14 }}>
-                    <b>{fmt(remaining, TOKEN_DECIMALS.DUR)} DUR</b>{' '}
+                    <b>{fmt(remaining, TOKEN_DECIMALS.WBTC)} WBTC</b>
                     {isPartiallyTaken && (
                       <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>
-                        (jami {fmt(item.durAmount, TOKEN_DECIMALS.DUR)} dan qoldi){' '}
+                        {' '}(jami {fmt(item.wbtcAmount, TOKEN_DECIMALS.WBTC)} dan qoldi)
                       </span>
                     )}
                     {'-'}<b>{fmt(item.priceUSDC, TOKEN_DECIMALS.USDC)} USDC</b>
@@ -609,10 +513,12 @@ export default function DexListings() {
                 <FillRow
                   remaining={remaining}
                   minFillUsdc={minFillUsdc}
-                  durPrice={durPrice}
+                  wbtcPrice={wbtcPrice}
+                  feeBps={feeBps}
+                  tab={tab}
                   previewFn={previewFn}
-                  disabled={actionLoading === idKey || (tab === 'listings' && !oracleReady)}
-                  actionLabel={tab === 'listings' ? 'DUR sotib olish' : 'DUR sotish'}
+                  disabled={actionLoading === idKey}
+                  actionLabel={tab === 'listings' ? 'WBTC sotib olish' : 'WBTC sotish'}
                   actionIcon={tab === 'listings' ? <ShoppingCart size={14} /> : <Tag size={14} />}
                   onSubmit={(amountRaw) => (tab === 'listings' ? handleApproveListing(item, amountRaw) : handleFulfillOffer(item, amountRaw))}
                 />
@@ -631,27 +537,24 @@ export default function DexListings() {
   );
 }
 
-// Miqdor tanlash + garov ko'rish + tasdiqlash tugmasi — sotuv e'loni yoki
-// xarid taklifining bir qismini (yoki hammasini) olish uchun. Standart
-// qiymat — qolgan hammasi; foydalanuvchi kamaytirishi mumkin.
-function FillRow({ remaining, minFillUsdc, durPrice, previewFn, disabled, actionLabel, actionIcon, onSubmit }) {
-  const [amountStr, setAmountStr] = useState(() => ethers.formatUnits(remaining, TOKEN_DECIMALS.DUR));
+// Miqdor tanlash + garov (va komissiya) ko'rish + tasdiqlash tugmasi.
+function FillRow({ remaining, minFillUsdc, wbtcPrice, feeBps, tab, previewFn, disabled, actionLabel, actionIcon, onSubmit }) {
+  const [amountStr, setAmountStr] = useState(() => ethers.formatUnits(remaining, TOKEN_DECIMALS.WBTC));
   const [garovPreview, setGarovPreview] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
   let amountRaw = null;
-  try { amountRaw = ethers.parseUnits(amountStr || '0', TOKEN_DECIMALS.DUR); } catch { /* hali yozib tugatmagan */ }
+  try { amountRaw = ethers.parseUnits(amountStr || '0', TOKEN_DECIMALS.WBTC); } catch { /* hali yozib tugatmagan */ }
 
   const isFull = amountRaw !== null && amountRaw === remaining;
-  const minFillDur = (!isFull && minFillUsdc !== null && durPrice !== null && durPrice > 0n)
-    ? (minFillUsdc * (10n ** 18n)) / durPrice
+  const minFillWbtc = (!isFull && minFillUsdc !== null && wbtcPrice !== null && wbtcPrice > 0n)
+    ? (minFillUsdc * (10n ** 8n)) / wbtcPrice
     : null;
-  const belowMin = !isFull && minFillDur !== null && amountRaw !== null && amountRaw > 0n && amountRaw < minFillDur;
+  const belowMin = !isFull && minFillWbtc !== null && amountRaw !== null && amountRaw > 0n && amountRaw < minFillWbtc;
   const valid = amountRaw !== null && amountRaw > 0n && amountRaw <= remaining && !belowMin;
 
-  // Tanlangan miqdor uchun garovni jonli ko'rsatish — har harf kiritilganda
-  // emas, biroz kutib turib (debounce), keraksiz chaqiruvlarni kamaytirish
-  // uchun.
+  const feeRaw = amountRaw !== null && amountRaw > 0n ? (amountRaw * BigInt(feeBps)) / 10000n : null;
+
   useEffect(() => {
     if (!valid) { setGarovPreview(null); return; }
     let cancelled = false;
@@ -673,7 +576,7 @@ function FillRow({ remaining, minFillUsdc, durPrice, previewFn, disabled, action
     <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--bg-secondary)' }}>
       <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 120 }}>
-          <label className="input-label" style={{ fontSize: 12 }}>Miqdor (DUR)</label>
+          <label className="input-label" style={{ fontSize: 12 }}>Miqdor (WBTC)</label>
           <input
             className="input"
             type="number"
@@ -685,7 +588,7 @@ function FillRow({ remaining, minFillUsdc, durPrice, previewFn, disabled, action
         <button
           type="button"
           className="btn btn-outline btn-sm"
-          onClick={() => setAmountStr(ethers.formatUnits(remaining, TOKEN_DECIMALS.DUR))}
+          onClick={() => setAmountStr(ethers.formatUnits(remaining, TOKEN_DECIMALS.WBTC))}
         >
           Hammasi
         </button>
@@ -698,10 +601,14 @@ function FillRow({ remaining, minFillUsdc, durPrice, previewFn, disabled, action
         </button>
       </div>
       <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>
-        {previewLoading && 'Garov hisoblanmoqda...'}
-        {!previewLoading && garovPreview !== null && `Garov: ${fmt(garovPreview, TOKEN_DECIMALS.USDC)} USDC`}
-        {!previewLoading && garovPreview === null && belowMin && minFillDur !== null &&
-          `Qisman olishda kamida ~${fmt(minFillDur, TOKEN_DECIMALS.DUR)} DUR kerak (yoki hammasini oling)`}
+        {previewLoading && 'Hisoblanmoqda...'}
+        {!previewLoading && garovPreview !== null && (
+          tab === 'listings'
+            ? `Garov: ${fmt(garovPreview, TOKEN_DECIMALS.USDC)} USDC + komissiya`
+            : `Garov (sizga tegishli emas): ${fmt(garovPreview, TOKEN_DECIMALS.USDC)} USDC · sizdan: ${fmt(amountRaw + (feeRaw || 0n), TOKEN_DECIMALS.WBTC)} WBTC (komissiya bilan)`
+        )}
+        {!previewLoading && garovPreview === null && belowMin && minFillWbtc !== null &&
+          `Qisman olishda kamida ~${fmt(minFillWbtc, TOKEN_DECIMALS.WBTC)} WBTC kerak (yoki hammasini oling)`}
       </div>
     </div>
   );

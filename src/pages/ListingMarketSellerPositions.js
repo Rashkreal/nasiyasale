@@ -8,14 +8,13 @@ import { AlertTriangle, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 
 // ══════════════════════════════════════════════════════════════════════
 //  Sotuvchi tomoni: men sotgan (approveListing/fulfillBuyOffer orqali
-//  boshqa birov xarid qilgan) pozitsiyalarim. DexPositions.js'ning
-//  ko'zgu-sahifasi, lekin sotuvchi garov/swap/to'lovni boshqarmaydi —
+//  boshqa birov xarid qilgan) pozitsiyalarim. ListingMarketPositions.js'
+//  ning ko'zgu-sahifasi, lekin sotuvchi garov/svop/to'lovni boshqarmaydi —
 //  faqat kuzatadi, va agar pozitsiya likvidatsiya holatiga tushsa, uni
-//  ishga tushirishi mumkin (permissionless, lekin aynan sotuvchiga eng
-//  foydali harakat, chunki qarzini qaytarib olishni tezlashtiradi).
+//  ishga tushirishi mumkin.
 // ══════════════════════════════════════════════════════════════════════
 
-const DEX_ADDRESS = '0xA8c28410bD55bf85fdBa3240FcAE068B8Eeae2c4';
+const DEX_ADDRESS = '0x8aC38A6C9E02EE75658ae6f2d6Fd93e8e43c247f';
 
 const TOKEN_WBTC = 0;
 const TOKEN_WETH = 1;
@@ -33,12 +32,11 @@ function tokenDecimalsFor(tokenId) {
 }
 
 const DEX_ABI = [
-  'function positions(uint256) external view returns (address buyer, address seller, uint256 priceUSDC, uint256 durAmount, uint256 dueDate, uint8 collateralTokenId, uint256 collateralAmount, uint16 bufferBps, uint8 status)',
+  'function positions(uint256) external view returns (address buyer, address seller, uint256 priceUSDC, uint256 wbtcAmount, uint256 dueDate, uint8 collateralTokenId, uint256 collateralAmount, uint16 bufferBps, uint8 status)',
   'function isLiquidatable(uint256 positionId) external view returns (bool)',
   'function liquidate(uint256 positionId) external',
   'function totalPositionsBySeller(address seller) external view returns (uint256)',
-  'function getPositionsBySeller(address seller, uint256 offset, uint256 limit) external view returns (tuple(address buyer, address seller, uint256 priceUSDC, uint256 durAmount, uint256 dueDate, uint8 collateralTokenId, uint256 collateralAmount, uint16 bufferBps, uint8 status)[] result, uint256[] ids)',
-  // Faqat shu sahifada ishlatiladigan xatolar
+  'function getPositionsBySeller(address seller, uint256 offset, uint256 limit) external view returns (tuple(address buyer, address seller, uint256 priceUSDC, uint256 wbtcAmount, uint256 dueDate, uint8 collateralTokenId, uint256 collateralAmount, uint16 bufferBps, uint8 status)[] result, uint256[] ids)',
   'error PositionNotFound()',
   'error PositionNotOpen()',
   'error NotLiquidatable()',
@@ -104,9 +102,6 @@ const CHAIN_STAGES = [
   [40000, "Hali kutilmoqda — Arbitrum tarmog'i band bo'lishi mumkin"],
 ];
 
-// Dex.js'dagi bilan bir xil mantiq (DexPositions.js'da tuzatilgan) —
-// toPrecision() kichik sonlarni "3.6e-7" ko'rinishida chiqarib
-// yubormasligi uchun.
 function fmt(raw, decimals, sigFigs = 4) {
   if (raw === null || raw === undefined) return '—';
   const num = parseFloat(ethers.formatUnits(raw, decimals));
@@ -132,7 +127,6 @@ function fmtDate(unixSeconds) {
   return `${d.getDate()}-${UZ_MONTHS[d.getMonth()]}, ${d.getFullYear()}`;
 }
 
-// CreditSale'ning Approved.js'dagi timeLeft() bilan bir xil mantiq.
 function timeLeft(dueDate) {
   const now = Math.floor(Date.now() / 1000);
   const due = Number(dueDate);
@@ -158,7 +152,7 @@ function shortAddr(addr) {
 
 const STATUS_LABELS = ['Ochiq', "To'langan", 'Likvidatsiya qilingan'];
 
-export default function DexSellerPositions() {
+export default function ListingMarketSellerPositions() {
   const { account, signer, ensureCorrectChain, openWalletForRequest, refreshBalances } = useWeb3();
 
   const [positions, setPositions] = useState([]);
@@ -186,7 +180,7 @@ export default function DexSellerPositions() {
             buyer: p.buyer,
             seller: p.seller,
             priceUSDC: p.priceUSDC,
-            durAmount: p.durAmount,
+            wbtcAmount: p.wbtcAmount,
             dueDate: p.dueDate,
             collateralTokenId: Number(p.collateralTokenId),
             collateralAmount: p.collateralAmount,
@@ -227,8 +221,8 @@ export default function DexSellerPositions() {
 
       toast.success('Likvidatsiya bajarildi! Qarzingiz qaytarildi.', { id: tid });
       saveLocalTxHistory({
-        type: 'dexLiquidate',
-        label: 'DEX: Likvidatsiya qilindi (sotuvchi)',
+        type: 'listingMarketLiquidate',
+        label: 'ListingMarket: Likvidatsiya qilindi (sotuvchi)',
         listingId: position.id.toString(),
         txHash: tx.hash,
         status: 'success',
@@ -253,7 +247,7 @@ export default function DexSellerPositions() {
         </button>
       </div>
       <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 16 }}>
-        DUR sotgan pozitsiyalaringizni kuzating — qarz, muddat va garov holati.
+        WBTC sotgan pozitsiyalaringizni kuzating — qarz, muddat va garov holati.
       </p>
 
       {loading && positions.length === 0 && (
@@ -272,6 +266,7 @@ export default function DexSellerPositions() {
           const collSymbol = tokenSymbolFor(p.collateralTokenId);
           const collDecimals = tokenDecimalsFor(p.collateralTokenId);
           const overdue = Date.now() / 1000 > Number(p.dueDate);
+          const hasWbtcPrincipal = p.wbtcAmount > 0n;
 
           let healthColor = 'var(--success)';
           let healthLabel = 'Sog\'lom';
@@ -310,8 +305,12 @@ export default function DexSellerPositions() {
                   </div>
                   <div style={{ fontSize: 13 }}>
                     Xaridorning garovi: <b>{fmt(p.collateralAmount, collDecimals)} {collSymbol}</b>
-                    {p.durAmount > 0n && <> · Hali swap qilinmagan DUR: <b>{fmt(p.durAmount, TOKEN_DECIMALS.DUR)} DUR</b></>}
                   </div>
+                  {hasWbtcPrincipal && (
+                    <div style={{ fontSize: 13 }}>
+                      Birlashtirilmagan WBTC principal: <b>{fmt(p.wbtcAmount, TOKEN_DECIMALS.WBTC)} WBTC</b>
+                    </div>
+                  )}
 
                   {p.liquidatable && (
                     <button

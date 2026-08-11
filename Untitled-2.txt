@@ -1,0 +1,1661 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.34;
+
+// NOTE: npm (@openzeppelin/contracts) imports for Hardhat/Foundry builds.
+// For Remix, swap these for the GitHub `blob/v5.2.0/...` URLs of the same files.
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
+
+
+/// @notice Chainlink price feed / L2 sequencer uptime feed interface.
+interface AggregatorV3Interface {
+    function decimals() external view returns (uint8);
+
+    function latestRoundData()
+        external
+        view
+        returns (
+            uint80 roundId,
+            int256 answer,
+            uint256 startedAt,
+            uint256 updatedAt,
+            uint80 answeredInRound
+        );
+}
+
+/**
+ * @title  CreditSale
+ * @notice Decentralized peer-to-peer credit marketplace for the DUR token.
+ *         Sellers transfer DUR to buyers in exchange for a future USDC
+ *         payment, either collateralized (WBTC/WETH) or uncollateralized
+ *         (backed by an on-chain trust score, Business Level / BL).
+ *
+ * @dev    No owner, no admin, no upgrade path (see the OWNERLESS block
+ *         below). Tokens sent outside a properly formed listing are
+ *         permanently inaccessible.
+ *
+ *         Decimals: USDC = 6, WBTC = 8, DUR/WETH = 18.
+ *         All USDC amounts are raw token units (1 USDC = 1e6).
+ *
+ *  -- Oracle policy (Chainlink-only, L2-aware) --------------------------
+ *  Pricing relies solely on Chainlink (WBTC/USD, ETH/USD), the deepest and
+ *  most reliable feeds on Arbitrum One, which already aggregate many upstream
+ *  sources and serve as the single price authority here.
+ *
+ *    - Sequencer gate: every price read first checks Chainlink's Arbitrum
+ *      L2 Sequencer Uptime Feed. If the sequencer is down, or within the
+ *      grace period after it comes back, ALL price-dependent actions
+ *      (listing creation, approval, default claim) revert.
+ *
+ *    - Listing creation (snapshot): Chainlink is MANDATORY and must be
+ *      fresh. The price is read and stored; a stale/unavailable feed
+ *      reverts listing creation (clean collateral-sizing foundation).
+ *
+ *    - Collateral sizing: from the stored snapshot price plus the buffer.
+ *
+ *    - Approval (deviation check): the live, fresh Chainlink price must
+ *      stay within BOTH the creator's and the approver's deviation
+ *      tolerance of the snapshot (default 2%, adjustable 0.01%-20%).
+ *      Neither side can disable the check; the stricter one decides.
+ *
+ *    - Default claim: with the sequencer healthy, a fresh Chainlink price
+ *      (feed age <= 1h) is used. If the feed is stale, the claim waits:
+ *      between 1h and 48h of staleness it reverts so Chainlink can recover
+ *      (meanwhile the buyer can still pay, which needs no price). Once the
+ *      feed has been stale for over 48h, the feed's last reported price is
+ *      used so settlement is always eventually possible. Only if the feed
+ *      is completely dead (latestRoundData reverts) does the refreshable
+ *      claim-fallback snapshot apply, and then only once the due date is
+ *      48h past.
+ *
+ *    - Claim-fallback snapshot: each collateral listing keeps a fallback
+ *      price (claimFallbackPrice), seeded at approval from the creation
+ *      snapshot and refreshable by anyone via {refreshSnapshot}. It is the
+ *      last-resort settlement price for the dead-feed case only; it never
+ *      affects collateral sizing or the deviation check.
+ *
+ *    - Claiming a default: for collateralized trades EITHER party (seller
+ *      or buyer) may claim once the due date passes, so an inactive seller
+ *      cannot strand the buyer's surplus; the payout split is identical
+ *      regardless of caller. For uncollateralized trades only the seller
+ *      may claim.
+ *
+ *    - Buyer's right to pay after the due date: as long as the seller has
+ *      not yet claimed (status still Approved), the buyer may pay the debt
+ *      even after the due date, completing the trade normally. The seller
+ *      can end this window at any time by claiming the default.
+ *
+ *  Feed decimals are read dynamically (feed.decimals()) and normalized to
+ *  USDC's 6 decimals, so a feed decimals change cannot silently corrupt
+ *  prices.
+ *
+ *  Addresses are hardcoded for Arbitrum One. Porting to another network
+ *  (e.g. Optimism) requires a fresh deployment with that network's
+ *  token/feed/sequencer addresses.
+ */
+contract CreditSale is ReentrancyGuard {
+    using SafeERC20 for IERC20;
+
+    // ====================================================================
+    //  TRUSTLESS / OWNERLESS BY DESIGN
+    //
+    //  This contract has NO owner, NO admin, and NO upgrade path:
+    //    - it does not inherit Ownable/AccessControl and defines no
+    //      onlyOwner / onlyAdmin modifier;
+    //    - no address can pause it, drain it, change parameters, redirect
+    //      funds, or alter the oracle;
+    //    - the constructor only sets immutable token addresses and grants
+    //      no privileges to anyone (not even the deployer).
+    //
+    //  Consequence: there is no privileged-actor attack surface, but also
+    //  no recovery path. Tokens sent outside a properly formed listing are
+    //  permanently inaccessible.
+    // ====================================================================
+
+    // -- Custom errors ---------------------------------------------------
+    error BadParams();
+    error BadId();
+    error BadTokenId();
+    error UnknownToken();
+    error BadPeriod();
+    error BufferTooHigh();
+    error BadMask();
+    error TokenNotInMask();
+    error ExpiresInPast();
+    error ListingExpired();
+    error DeviationOutOfRange();
+    error NotPending();
+    error NotApproved();
+    error NotDefaulted();
+    error NotExpired();
+    error OnlySeller();
+    error OnlyBuyer();
+    error NotSellerOrBuyer();
+    error SellerSet();
+    error BuyerSet();
+    error SelfTradeBlocked();
+    error TokenNotAccepted();
+    error Blacklisted();
+    error TotalBLLimit();
+    error StaleBLReservation();
+    error BLExposureLimit();
+    error ZeroCollateral();
+    error NotCollateralListing();
+    error CollateralDefaultNotRehabilitable();
+    error CreatorDeviationExceeded();
+    error ApproverDeviationExceeded();
+    error BadChainlinkPrice();
+    error StaleChainlinkRound();
+    error StaleChainlinkPrice();
+    error ChainlinkPriceUnderflow();
+    error SequencerDown();
+    error SequencerGracePeriod();
+    error NoPriceAvailable();
+    error IdNotInArray();
+
+    // -- Tokens (Arbitrum One) ------------------------------------------
+    IERC20 public immutable USDC; // 6  decimals - payment & accounting unit
+    IERC20 public immutable WBTC; // 8  decimals - collateral
+    IERC20 public immutable WETH; // 18 decimals - collateral
+    IERC20 public immutable DUR;  // 18 decimals - asset sold on credit
+
+    // -- Oracles (Chainlink, Arbitrum One) ------------------------------
+    AggregatorV3Interface public constant WBTC_USD_FEED =
+        AggregatorV3Interface(0xd0C7101eACbB49F3deCcCc166d238410D6D46d57);
+
+    AggregatorV3Interface public constant WETH_USD_FEED =
+        AggregatorV3Interface(0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612);
+
+    // Chainlink L2 Sequencer Uptime Feed (Arbitrum One).
+    AggregatorV3Interface public constant SEQUENCER_UPTIME_FEED =
+        AggregatorV3Interface(0xFdB631F5EE196F0ed6FAa767959853A9F217697D);
+
+    uint256 public constant CHAINLINK_STALE_THRESHOLD = 3600; // 1 hour
+    uint256 public constant SEQUENCER_GRACE_PERIOD    = 3600; // 1 hour
+
+    // Claim-only liveness window. If the feed has been stale (age past the
+    // staleness threshold) for at least this long, the default claim is
+    // allowed to settle using the feed's last reported price, so collateral
+    // cannot stay frozen forever when Chainlink does not recover.
+    uint256 public constant CLAIM_STALE_FALLBACK_DELAY = 48 hours;
+
+    // USDC has 6 decimals; all USD prices are expressed in 1e6 units.
+    uint8 private constant USDC_DECIMALS = 6;
+
+    // -- Token ids (used in collateral masks) ---------------------------
+    uint8 public constant TOKEN_WBTC  = 0;
+    uint8 public constant TOKEN_WETH  = 1;
+    uint8 public constant TOKEN_COUNT = 2;
+
+    // -- Bounds ----------------------------------------------------------
+    uint256 public constant MIN_PERIOD_DAYS = 1;
+    uint256 public constant MAX_PERIOD_DAYS = 365;
+
+    uint256 public constant MAX_COLLATERAL_BUFFER_BPS = 2000; // 20%
+    uint256 private constant BPS_DENOMINATOR = 10000;
+
+    uint16 public constant MIN_DEVIATION_BPS = 1;    // 0.01%
+    uint16 public constant MAX_DEVIATION_BPS = 2000; // 20%
+
+    // Applied when a party passes 0: 0 means "use default", NOT "disable".
+    uint16 public constant DEFAULT_DEVIATION_BPS = 200; // 2%
+
+    // -- Listing model ---------------------------------------------------
+    enum ListingStatus {
+        PendingSellerCollateral,    // 0
+        PendingBuyerCollateral,     // 1
+        PendingSellerNoCollateral,  // 2
+        PendingBuyerNoCollateral,   // 3
+        Approved,                   // 4
+        Removed,                    // 5
+        Paid,                       // 6
+        Defaulted,                  // 7
+        PaidAfterDefault            // 8
+    }
+
+    struct Listing {
+        address seller;
+        address buyer;
+        uint256 durAmount;            // DUR transferred to buyer (1e18)
+        uint256 priceUSDC;            // USDC buyer must pay (1e6)
+        uint256 dueDate;              // payment deadline (unix)
+        uint256 paymentPeriod;        // payment window length in days
+        ListingStatus status;
+        bool isCollateral;
+        uint8 collateralMask;         // bitmask of accepted collateral tokens
+        uint8 collateralTokenId;      // token actually used as collateral
+        uint16 collateralBufferBps;   // extra collateral margin (0-2000)
+        uint16 creatorMaxDeviationBps;// creator's mandatory deviation tolerance
+        uint40 expiresAt;             // approval deadline; 0 disables
+        uint256 collateralAmount;     // collateral escrowed (raw)
+        uint256[2] lockedPrices;      // Chainlink snapshot per TOKEN_* id (1e6)
+    }
+
+    struct ListingInfo {
+        uint256 id;
+        address seller;
+        address buyer;
+        uint256 durAmount;
+        uint256 priceUSDC;
+        uint256 dueDate;
+        uint256 paymentPeriod;
+        ListingStatus status;
+        bool isCollateral;
+        uint8 collateralMask;
+        uint8 collateralTokenId;
+        uint16 collateralBufferBps;
+        uint16 creatorMaxDeviationBps;
+        uint40 expiresAt;
+        uint256 collateralAmount;
+        uint256 freeBL;
+        uint256 totalBLValue;
+        uint256 pendingBLValue;
+        uint256 activeExposureValue;
+        uint256[2] lockedPrices;
+    }
+
+    // -- Listing storage -------------------------------------------------
+    mapping(uint256 => Listing) public listingDetails;
+    uint256 private _nextListingId;
+
+    /// @notice Refreshable claim-time fallback price per listing (1e6 USDC
+    ///         units). Set at approval to the collateral token's creation
+    ///         snapshot, and updatable by {refreshSnapshot}. Used only when
+    ///         the Chainlink feed is completely dead at claim time.
+    mapping(uint256 => uint256) public claimFallbackPrice;
+
+    uint256[] public pendingSellerListingIds;
+    uint256[] public pendingBuyerListingIds;
+    uint256[] public approvedIds;
+
+    mapping(uint256 => uint256) private pendingSellerListingIdToIndex;
+    mapping(uint256 => uint256) private pendingBuyerListingIdToIndex;
+    mapping(uint256 => uint256) private approvedIdToIndex;
+
+    // -- Business Level (BL) accounting ---------------------------------
+    mapping(address => mapping(address => uint256)) public pairwiseBL;
+    mapping(address => uint256) public totalBL;
+    mapping(address => uint256) public pendingBuyNoCollateralBL;
+    mapping(address => mapping(address => uint256)) public activePairwiseExposure;
+
+    // -- Default tracking (uncollateralized trades only) ----------------
+    mapping(address => bool) public blacklist;
+    mapping(address => uint256) public unpaidNoCollateralDefaultCount;
+
+    // -- Events ----------------------------------------------------------
+    event ListingCreated(
+        uint256 indexed listingId,
+        address indexed creator,
+        uint256 durAmount,
+        uint256 priceUSDC,
+        uint256 paymentPeriod,
+        bool isCollateral,
+        uint8 collateralMask,
+        uint16 collateralBufferBps,
+        uint16 creatorMaxDeviationBps,
+        uint40 expiresAt
+    );
+
+    event ListingApproved(
+        uint256 indexed listingId,
+        address indexed buyer,
+        address indexed seller,
+        uint256 durAmount,
+        uint256 priceUSDC,
+        uint256 dueDate,
+        uint8 collateralTokenId,
+        uint256 collateralAmount
+    );
+
+    event ListingCancelled(uint256 indexed listingId, address indexed canceller);
+
+    event PaymentCompleted(
+        uint256 indexed listingId,
+        address indexed buyer,
+        uint256 newPairwiseBL,
+        uint256 newTotalBL,
+        address indexed seller
+    );
+
+    event CollateralClaimed(
+        address indexed claimer,
+        uint256 indexed listingId,
+        uint8 collateralTokenId,
+        uint256 collateralAmount
+    );
+
+    event BuyerDefaulted(
+        uint256 indexed listingId,
+        address indexed buyer,
+        address indexed seller,
+        bool isCollateral,
+        uint256 removedBL,
+        uint256 newTotalBL
+    );
+
+    event BuyerRehabilitated(
+        uint256 indexed listingId,
+        address indexed buyer,
+        address indexed seller,
+        uint256 unpaidDefaultLeft
+    );
+
+    event ClaimStalePriceUsed(
+        uint256 indexed listingId,
+        uint8   indexed tokenId,
+        uint256 stalePrice
+    );
+
+    event ClaimSnapshotFallbackUsed(
+        uint256 indexed listingId,
+        uint8   indexed tokenId,
+        uint256 snapshotPrice
+    );
+
+    event SnapshotRefreshed(
+        uint256 indexed listingId,
+        uint8   indexed tokenId,
+        uint256 newPrice,
+        address indexed refresher
+    );
+
+    event TotalBLChanged(address indexed buyer, uint256 oldTotalBL, uint256 newTotalBL);
+
+    event TotalBLInconsistency(address indexed buyer, uint256 totalBL, uint256 removed);
+
+    event PriceDeviationChecked(
+        uint256 indexed listingId,
+        uint8   indexed tokenId,
+        uint256 lockedPrice,
+        uint256 livePrice,
+        uint16  effectiveDeviationBps
+    );
+
+    // -- Constructor -----------------------------------------------------
+    constructor() {
+        DUR  = IERC20(0xf9161bb02ac52fe62896D23E1Eeb7Fd6Fd57DE21); // Arbitrum One
+        USDC = IERC20(0xaf88d065e77c8cC2239327C5EDb3A432268e5831); // Arbitrum One
+        WBTC = IERC20(0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f); // Arbitrum One
+        WETH = IERC20(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1); // Arbitrum One
+    }
+
+    // -- Token helpers ---------------------------------------------------
+    /// @notice Resolves a collateral token id (0=WBTC, 1=WETH) to its IERC20.
+    /// @dev Reverts on any unknown id, so a bad tokenId can never silently
+    ///      map to the zero address or a wrong token.
+    function _getToken(uint8 tokenId) internal view returns (IERC20) {
+        if (tokenId == TOKEN_WBTC) return WBTC;
+        if (tokenId == TOKEN_WETH) return WETH;
+        revert UnknownToken();
+    }
+
+    function _pullToken(uint8 tokenId, address from, uint256 amount) internal {
+        _getToken(tokenId).safeTransferFrom(from, address(this), amount);
+    }
+
+    function _sendToken(uint8 tokenId, address to, uint256 amount) internal {
+        _getToken(tokenId).safeTransfer(to, amount);
+    }
+
+    // ====================================================================
+    //  Oracle: L2 sequencer gate + Chainlink price reads
+    // ====================================================================
+
+    /// @notice Reverts unless the Arbitrum sequencer is up and past its
+    ///         grace period.
+    /// @dev Chainlink's L2 Sequencer Uptime Feed reports answer==0 when the
+    ///      sequencer is up. After a downtime, prices may be unreliable for
+    ///      a grace window; reads are rejected until that window passes.
+    ///      This is the first gate for every price-dependent action.
+    function _requireSequencerUp() internal view {
+        (, int256 answer, uint256 startedAt, , ) = SEQUENCER_UPTIME_FEED.latestRoundData();
+        // answer == 0 -> up; 1 -> down.
+        if (answer != 0) revert SequencerDown();
+        // startedAt == 0 can occur if the round is not yet initialized.
+        if (startedAt == 0) revert SequencerGracePeriod();
+        if (block.timestamp - startedAt <= SEQUENCER_GRACE_PERIOD) revert SequencerGracePeriod();
+    }
+
+    /// @notice Fresh Chainlink USD price for a token, normalized to USDC
+    ///         (1e6). Reverts if the sequencer is down, the answer is
+    ///         non-positive, the round is incomplete, or the price is stale.
+    /// @dev Security-critical: sole price source. Staleness is written
+    ///      addition-side to avoid block.timestamp - threshold underflow.
+    ///      Feed decimals are read at runtime so a feed decimals change
+    ///      cannot silently corrupt prices.
+    function _chainlinkPriceInternal(uint8 tokenId) internal view returns (uint256) {
+        _requireSequencerUp();
+        return _readFeed(tokenId, true);
+    }
+
+    /// @dev Shared feed reader. When requireFresh is true the staleness
+    ///      check is enforced; when false (claim liveness path) the feed's
+    ///      last reported answer is accepted even if stale, but a
+    ///      non-positive answer or incomplete round is still rejected.
+    ///      Does NOT gate the sequencer (callers decide).
+    function _readFeed(uint8 tokenId, bool requireFresh) internal view returns (uint256) {
+        if (tokenId >= TOKEN_COUNT) revert BadTokenId();
+        AggregatorV3Interface feed = tokenId == TOKEN_WBTC ? WBTC_USD_FEED : WETH_USD_FEED;
+
+        (
+            uint80 roundId,
+            int256 answer,
+            ,
+            uint256 updatedAt,
+            uint80 answeredInRound
+        ) = feed.latestRoundData();
+
+        if (answer <= 0) revert BadChainlinkPrice();
+        if (answeredInRound < roundId) revert StaleChainlinkRound();
+        if (requireFresh && block.timestamp > updatedAt + CHAINLINK_STALE_THRESHOLD) {
+            revert StaleChainlinkPrice();
+        }
+
+        uint256 price = _normalizeFeedAnswer(feed, uint256(answer));
+        if (price == 0) revert ChainlinkPriceUnderflow();
+        return price;
+    }
+
+    /// @dev Scales a raw feed answer from the feed's own decimals to USDC's
+    ///      6 decimals. Read at runtime so a feed decimals change cannot
+    ///      silently corrupt prices.
+    function _normalizeFeedAnswer(AggregatorV3Interface feed, uint256 answer)
+        internal
+        view
+        returns (uint256)
+    {
+        uint256 feedDecimals = uint256(feed.decimals());
+        if (feedDecimals > USDC_DECIMALS) {
+            return answer / (10 ** (feedDecimals - USDC_DECIMALS));
+        } else if (feedDecimals < USDC_DECIMALS) {
+            return answer * (10 ** (USDC_DECIMALS - feedDecimals));
+        }
+        return answer;
+    }
+
+    /// @notice External wrapper for the fresh price (used inside try/catch).
+    /// @dev Validates tokenId so off-chain consumers cannot get a wrong
+    ///      token's price from an out-of-range id.
+    function chainlinkPrice(uint8 tokenId) external view returns (uint256) {
+        if (tokenId >= TOKEN_COUNT) revert BadTokenId();
+        return _chainlinkPriceInternal(tokenId);
+    }
+
+    /// @notice Read-only helper: the feed's last reported price, ignoring
+    ///         staleness (still requires sequencer up and a valid round).
+    ///         For off-chain display; the claim path reads the feed directly.
+    function chainlinkLastPrice(uint8 tokenId) external view returns (uint256) {
+        if (tokenId >= TOKEN_COUNT) revert BadTokenId();
+        _requireSequencerUp();
+        return _readFeed(tokenId, false);
+    }
+
+    /// @notice Live (fresh) Chainlink price (1e6 USDC units). Reverts if
+    ///         unavailable/stale or sequencer down.
+    function getTokenPriceUSDC(uint8 tokenId) public view returns (uint256) {
+        if (tokenId >= TOKEN_COUNT) revert UnknownToken();
+        return _chainlinkPriceInternal(tokenId);
+    }
+
+    /// @dev Snapshot price at listing creation. Chainlink MANDATORY + fresh.
+    function _oracleSnapshotPrice(uint8 tokenId) internal view returns (uint256) {
+        return _chainlinkPriceInternal(tokenId); // reverts if seq down / unavailable / stale
+    }
+
+    /// @notice Normalizes a party's deviation tolerance.
+    /// @dev 0 means "use the default tolerance", never "disable the check".
+    ///      Any non-zero value must be inside [MIN, MAX]; this is what makes
+    ///      the deviation check impossible to switch off.
+    function _normalizeDeviation(uint16 bps) internal pure returns (uint16) {
+        if (bps == 0) return DEFAULT_DEVIATION_BPS;
+        if (bps < MIN_DEVIATION_BPS || bps > MAX_DEVIATION_BPS) revert DeviationOutOfRange();
+        return bps;
+    }
+
+    // -- Collateral sizing -----------------------------------------------
+    function requiredCollateralLocked(
+        uint256 priceUSDC,
+        uint8 tokenId,
+        uint256 lockedPrice,
+        uint16 bufferBps
+    )
+        public
+        pure
+        returns (uint256)
+    {
+        return _calcCollateral(priceUSDC, tokenId, lockedPrice, bufferBps);
+    }
+
+    /// @notice Collateral amount (raw units) whose value equals the debt
+    ///         scaled by (1 + bufferBps), at the given token price.
+    /// @dev Pure math; price source and buffer policy are decided by callers.
+    ///      Used for sizing at approval (with buffer) and for the seller's
+    ///      debt-equivalent share at default (with buffer = 0).
+    function _calcCollateral(
+        uint256 priceUSDC,
+        uint8 tokenId,
+        uint256 tokenPrice,
+        uint16 bufferBps
+    )
+        internal
+        pure
+        returns (uint256)
+    {
+        if (tokenId >= TOKEN_COUNT) revert BadTokenId();
+        if (priceUSDC == 0) revert BadParams();
+        if (tokenPrice == 0) revert BadChainlinkPrice();
+        if (bufferBps > MAX_COLLATERAL_BUFFER_BPS) revert BufferTooHigh();
+
+        uint256 requiredValue = Math.mulDiv(priceUSDC, BPS_DENOMINATOR + bufferBps, BPS_DENOMINATOR);
+
+        if (tokenId == TOKEN_WBTC) {
+            return Math.mulDiv(requiredValue, 1e8, tokenPrice);
+        }
+        return Math.mulDiv(requiredValue, 1e18, tokenPrice); // WETH
+    }
+
+    // -- Deviation check (mandatory, two-sided) --------------------------
+    /// @notice True if livePrice is within maxDeviationBps of lockedPrice.
+    /// @dev Deviation is measured relative to lockedPrice (the snapshot).
+    ///      Returns false if either price is zero, so a missing price can
+    ///      never accidentally pass the check.
+    function _priceWithinDeviation(
+        uint256 lockedPrice,
+        uint256 livePrice,
+        uint16 maxDeviationBps
+    )
+        internal
+        pure
+        returns (bool)
+    {
+        if (lockedPrice == 0 || livePrice == 0) return false;
+
+        uint256 diff = lockedPrice > livePrice ? lockedPrice - livePrice : livePrice - lockedPrice;
+        return Math.mulDiv(diff, BPS_DENOMINATOR, lockedPrice) <= maxDeviationBps;
+    }
+
+    /// @notice Mandatory two-sided price-deviation guard run at approval.
+    /// @dev The live, fresh Chainlink price must stay within BOTH the
+    ///      creator's and the approver's tolerance of the snapshot; the
+    ///      stricter bound effectively decides. Neither party can bypass
+    ///      the other's bound. Reverts (seq down / dead / stale) via
+    ///      _chainlinkPriceInternal, so approval requires a healthy feed.
+    function _checkCollateralDeviation(
+        uint256 listingId,
+        uint8 tokenId,
+        uint256 lockedPrice,
+        uint16 creatorBps,
+        uint16 approverBps
+    )
+        internal
+    {
+        uint16 cBps = _normalizeDeviation(creatorBps);
+        uint16 aBps = _normalizeDeviation(approverBps);
+
+        uint256 livePrice = _chainlinkPriceInternal(tokenId);
+
+        emit PriceDeviationChecked(
+            listingId, tokenId, lockedPrice, livePrice, cBps < aBps ? cBps : aBps
+        );
+
+        if (!_priceWithinDeviation(lockedPrice, livePrice, cBps)) revert CreatorDeviationExceeded();
+        if (!_priceWithinDeviation(lockedPrice, livePrice, aBps)) revert ApproverDeviationExceeded();
+    }
+
+    function getCollateralAmount(uint256 listingId, uint8 tokenId)
+        public
+        view
+        returns (uint256)
+    {
+        if (listingId >= _nextListingId) revert BadId();
+        if (tokenId >= TOKEN_COUNT) revert BadTokenId();
+
+        Listing storage l = listingDetails[listingId];
+
+        if (!l.isCollateral) revert NotCollateralListing();
+        if (!_maskHas(l.collateralMask, tokenId)) revert TokenNotAccepted();
+
+        return requiredCollateralLocked(l.priceUSDC, tokenId, l.lockedPrices[tokenId], l.collateralBufferBps);
+    }
+
+    /// @dev Snapshots fresh Chainlink prices for every token in the mask.
+    function _snapshotPrices(uint8 mask) internal view returns (uint256[2] memory prices) {
+        if (_maskHasUnchecked(mask, TOKEN_WBTC)) {
+            prices[TOKEN_WBTC] = _oracleSnapshotPrice(TOKEN_WBTC);
+        }
+        if (_maskHasUnchecked(mask, TOKEN_WETH)) {
+            prices[TOKEN_WETH] = _oracleSnapshotPrice(TOKEN_WETH);
+        }
+    }
+
+    function _maskHasUnchecked(uint8 mask, uint8 tokenId) internal pure returns (bool) {
+        return (mask & (1 << tokenId)) != 0;
+    }
+
+    function _snapshotPriceForToken(uint8 tokenId)
+        internal
+        view
+        returns (uint256[2] memory prices)
+    {
+        prices[tokenId] = _oracleSnapshotPrice(tokenId);
+    }
+
+    // -- BL accounting helpers -------------------------------------------
+    /// @notice Credits trust score (BL) to a buyer for a specific seller.
+    /// @dev BL is tracked per (buyer, seller) pair and in a buyer total.
+    ///      The pairwise design means trust earned with one seller cannot
+    ///      be reused as exposure room against another, limiting wash-trade
+    ///      inflation across distinct sellers.
+    function _addBL(address buyer, address seller, uint256 amount) internal {
+        if (amount == 0) return;
+
+        uint256 oldTotal = totalBL[buyer];
+
+        pairwiseBL[buyer][seller] += amount;
+        totalBL[buyer] += amount;
+
+        emit TotalBLChanged(buyer, oldTotal, totalBL[buyer]);
+    }
+
+    /// @notice Clears the buyer's BL with a given seller and decrements the
+    ///         buyer total by the same amount.
+    /// @dev Underflow-guarded: if the total is somehow smaller than the
+    ///      pairwise amount, it is floored at 0 and a TotalBLInconsistency
+    ///      event is emitted for monitoring rather than reverting.
+    function _zeroPairwiseBL(address buyer, address seller) internal returns (uint256 removed) {
+        removed = pairwiseBL[buyer][seller];
+        if (removed == 0) return 0;
+
+        uint256 oldTotal = totalBL[buyer];
+
+        pairwiseBL[buyer][seller] = 0;
+
+        if (totalBL[buyer] >= removed) {
+            totalBL[buyer] -= removed;
+        } else {
+            emit TotalBLInconsistency(buyer, totalBL[buyer], removed);
+            totalBL[buyer] = 0;
+        }
+
+        emit TotalBLChanged(buyer, oldTotal, totalBL[buyer]);
+    }
+
+    function _freeTotalBL(address buyer) internal view returns (uint256) {
+        uint256 total = totalBL[buyer];
+        uint256 pending = pendingBuyNoCollateralBL[buyer];
+        if (total <= pending) return 0;
+        return total - pending;
+    }
+
+    function totalBLLevel(address buyer) external view returns (uint256) {
+        return totalBL[buyer];
+    }
+
+    function freeTotalBL(address buyer) external view returns (uint256) {
+        return _freeTotalBL(buyer);
+    }
+
+    function blLevel(address buyer, address seller) public view returns (uint256) {
+        return pairwiseBL[buyer][seller];
+    }
+
+    function activeExposure(address buyer, address seller) external view returns (uint256) {
+        return activePairwiseExposure[buyer][seller];
+    }
+
+    function availableUncollateralizedRoom(address buyer, address seller)
+        external
+        view
+        returns (uint256)
+    {
+        uint256 ceiling = pairwiseBL[buyer][seller] / 10;
+        uint256 used = activePairwiseExposure[buyer][seller];
+        if (used >= ceiling) return 0;
+        return ceiling - used;
+    }
+
+    // -- Listing creation (internal) -------------------------------------
+    struct CreateListingArgs {
+        address seller;
+        address buyer;
+        uint256 durRaw;
+        uint256 priceRaw;
+        uint256 period;
+        ListingStatus status;
+        bool isCollateral;
+        uint8 mask;
+        uint8 chosenToken;
+        uint16 bufferBps;
+        uint16 creatorDeviationBps;
+        uint40 expiresAt;
+        uint256 colAmt;
+        uint256[2] prices;
+    }
+
+    function _createListing(CreateListingArgs memory args) private returns (uint256) {
+        uint256 id = _nextListingId++;
+
+        listingDetails[id] = Listing({
+            seller: args.seller,
+            buyer: args.buyer,
+            durAmount: args.durRaw,
+            priceUSDC: args.priceRaw,
+            dueDate: 0,
+            paymentPeriod: args.period,
+            status: args.status,
+            isCollateral: args.isCollateral,
+            collateralMask: args.mask,
+            collateralTokenId: args.chosenToken,
+            collateralBufferBps: args.bufferBps,
+            creatorMaxDeviationBps: args.creatorDeviationBps,
+            expiresAt: args.expiresAt,
+            collateralAmount: args.colAmt,
+            lockedPrices: args.prices
+        });
+
+        _addListingIdToStatusArray(id, args.status);
+
+        emit ListingCreated(
+            id,
+            msg.sender,
+            args.durRaw,
+            args.priceRaw,
+            args.period,
+            args.isCollateral,
+            args.mask,
+            args.bufferBps,
+            args.creatorDeviationBps,
+            args.expiresAt
+        );
+
+        return id;
+    }
+
+    function _checkPeriod(uint256 period) internal pure {
+        if (period < MIN_PERIOD_DAYS || period > MAX_PERIOD_DAYS) revert BadPeriod();
+    }
+
+    function _checkBuffer(uint16 bufferBps) internal pure {
+        if (bufferBps > MAX_COLLATERAL_BUFFER_BPS) revert BufferTooHigh();
+    }
+
+    function _checkExpiresAt(uint40 expiresAt) internal view {
+        if (expiresAt == 0) return;
+        if (uint256(expiresAt) <= block.timestamp) revert ExpiresInPast();
+    }
+
+    // -- Posting offers --------------------------------------------------
+    function postListingCollateralSell(
+        uint256 durRaw,
+        uint256 priceRaw,
+        uint256 period,
+        uint8 mask,
+        uint16 bufferBps,
+        uint16 creatorDevBps,
+        uint40 expiresAt
+    )
+        external
+        nonReentrant
+    {
+        if (durRaw == 0 || priceRaw == 0) revert BadParams();
+        _checkPeriod(period);
+        _checkBuffer(bufferBps);
+        _checkExpiresAt(expiresAt);
+        if (mask == 0 || mask >= (1 << TOKEN_COUNT)) revert BadMask();
+
+        uint16 cdev = _normalizeDeviation(creatorDevBps);
+
+        DUR.safeTransferFrom(msg.sender, address(this), durRaw);
+
+        // Chainlink-mandatory snapshot (reverts if seq down / unavailable / stale).
+        uint256[2] memory prices = _snapshotPrices(mask);
+
+        _createListing(CreateListingArgs({
+            seller: msg.sender,
+            buyer: address(0),
+            durRaw: durRaw,
+            priceRaw: priceRaw,
+            period: period,
+            status: ListingStatus.PendingSellerCollateral,
+            isCollateral: true,
+            mask: mask,
+            chosenToken: 0,
+            bufferBps: bufferBps,
+            creatorDeviationBps: cdev,
+            expiresAt: expiresAt,
+            colAmt: 0,
+            prices: prices
+        }));
+    }
+
+    /// @dev Buyer-side collateral fixes a single token at creation, so only
+    ///      chosenToken is taken; the stored mask is derived as
+    ///      (1 << chosenToken). There is no separate mask parameter.
+    function postListingCollateralBuy(
+        uint256 durRaw,
+        uint256 priceRaw,
+        uint256 period,
+        uint8 chosenToken,
+        uint16 bufferBps,
+        uint16 creatorDevBps,
+        uint40 expiresAt
+    )
+        external
+        nonReentrant
+    {
+        if (durRaw == 0 || priceRaw == 0) revert BadParams();
+        _checkPeriod(period);
+        _checkBuffer(bufferBps);
+        _checkExpiresAt(expiresAt);
+        if (chosenToken >= TOKEN_COUNT) revert BadTokenId();
+
+        uint8 mask = uint8(1 << chosenToken);
+        uint16 cdev = _normalizeDeviation(creatorDevBps);
+
+        // Chainlink-mandatory snapshot for the chosen collateral token.
+        uint256[2] memory prices = _snapshotPriceForToken(chosenToken);
+
+        uint256 colAmt = _calcCollateral(priceRaw, chosenToken, prices[chosenToken], bufferBps);
+        if (colAmt == 0) revert ZeroCollateral();
+
+        _pullToken(chosenToken, msg.sender, colAmt);
+
+        _createListing(CreateListingArgs({
+            seller: address(0),
+            buyer: msg.sender,
+            durRaw: durRaw,
+            priceRaw: priceRaw,
+            period: period,
+            status: ListingStatus.PendingBuyerCollateral,
+            isCollateral: true,
+            mask: mask,
+            chosenToken: chosenToken,
+            bufferBps: bufferBps,
+            creatorDeviationBps: cdev,
+            expiresAt: expiresAt,
+            colAmt: colAmt,
+            prices: prices
+        }));
+    }
+
+    function postListingNoCollateralSell(
+        uint256 durRaw,
+        uint256 priceRaw,
+        uint256 period,
+        uint40 expiresAt
+    )
+        external
+        nonReentrant
+    {
+        if (durRaw == 0 || priceRaw == 0) revert BadParams();
+        _checkPeriod(period);
+        _checkExpiresAt(expiresAt);
+
+        DUR.safeTransferFrom(msg.sender, address(this), durRaw);
+
+        uint256[2] memory empty;
+
+        _createListing(CreateListingArgs({
+            seller: msg.sender,
+            buyer: address(0),
+            durRaw: durRaw,
+            priceRaw: priceRaw,
+            period: period,
+            status: ListingStatus.PendingSellerNoCollateral,
+            isCollateral: false,
+            mask: 0,
+            chosenToken: 0,
+            bufferBps: 0,
+            creatorDeviationBps: 0,
+            expiresAt: expiresAt,
+            colAmt: 0,
+            prices: empty
+        }));
+    }
+
+    function postListingNoCollateralBuy(
+        uint256 durRaw,
+        uint256 priceRaw,
+        uint256 period,
+        uint40 expiresAt
+    )
+        external
+        nonReentrant
+    {
+        if (durRaw == 0 || priceRaw == 0) revert BadParams();
+        _checkPeriod(period);
+        _checkExpiresAt(expiresAt);
+        if (blacklist[msg.sender]) revert Blacklisted();
+
+        uint256 reqBL = durRaw * 10;
+        if (pendingBuyNoCollateralBL[msg.sender] + reqBL > totalBL[msg.sender]) revert TotalBLLimit();
+
+        pendingBuyNoCollateralBL[msg.sender] += reqBL;
+
+        uint256[2] memory empty;
+
+        _createListing(CreateListingArgs({
+            seller: address(0),
+            buyer: msg.sender,
+            durRaw: durRaw,
+            priceRaw: priceRaw,
+            period: period,
+            status: ListingStatus.PendingBuyerNoCollateral,
+            isCollateral: false,
+            mask: 0,
+            chosenToken: 0,
+            bufferBps: 0,
+            creatorDeviationBps: 0,
+            expiresAt: expiresAt,
+            colAmt: 0,
+            prices: empty
+        }));
+    }
+
+    // -- Cancellation ----------------------------------------------------
+    function cancelListing(uint256 listingId) external nonReentrant {
+        if (listingId >= _nextListingId) revert BadId();
+
+        Listing storage l = listingDetails[listingId];
+        ListingStatus s = l.status;
+
+        if (
+            s == ListingStatus.PendingSellerCollateral ||
+            s == ListingStatus.PendingSellerNoCollateral
+        ) {
+            if (msg.sender != l.seller) revert OnlySeller();
+            DUR.safeTransfer(msg.sender, l.durAmount);
+
+        } else if (s == ListingStatus.PendingBuyerCollateral) {
+            if (msg.sender != l.buyer) revert OnlyBuyer();
+
+            if (l.collateralAmount > 0) {
+                uint256 amt = l.collateralAmount;
+                l.collateralAmount = 0;
+                _sendToken(l.collateralTokenId, msg.sender, amt);
+            }
+
+        } else if (s == ListingStatus.PendingBuyerNoCollateral) {
+            if (msg.sender != l.buyer) revert OnlyBuyer();
+            _releaseNoCollateralBL(l.buyer, l.durAmount);
+
+        } else {
+            revert NotPending();
+        }
+
+        _removeListingIdFromStatusArray(listingId, s);
+        l.status = ListingStatus.Removed;
+
+        emit ListingCancelled(listingId, msg.sender);
+    }
+
+    /// @notice Permissionless cleanup of an expired no-collateral buy offer.
+    /// @dev Anyone may call this once a PendingBuyerNoCollateral listing is
+    ///      past its expiresAt. It frees the buyer's reserved BL and marks
+    ///      the listing Removed, so a forgotten offer cannot lock BL forever.
+    ///      Harmless to all parties; only an expired, unapproved offer is
+    ///      affected.
+    function cleanupExpiredNoCollateralBuy(uint256 listingId) external nonReentrant {
+        if (listingId >= _nextListingId) revert BadId();
+
+        Listing storage l = listingDetails[listingId];
+        if (l.status != ListingStatus.PendingBuyerNoCollateral) revert NotPending();
+        if (l.expiresAt == 0 || block.timestamp <= uint256(l.expiresAt)) revert NotExpired();
+
+        _releaseNoCollateralBL(l.buyer, l.durAmount);
+
+        _removeListingIdFromStatusArray(listingId, l.status);
+        l.status = ListingStatus.Removed;
+
+        emit ListingCancelled(listingId, msg.sender);
+    }
+
+    /// @dev Releases reserved no-collateral BL for `buyer`, underflow-safe.
+    function _releaseNoCollateralBL(address buyer, uint256 durAmount) internal {
+        uint256 reqBL = durAmount * 10;
+        if (pendingBuyNoCollateralBL[buyer] >= reqBL) {
+            pendingBuyNoCollateralBL[buyer] -= reqBL;
+        } else {
+            pendingBuyNoCollateralBL[buyer] = 0;
+        }
+    }
+
+    // -- Approval --------------------------------------------------------
+    /// @notice Counterparty accepts a pending listing, forming the trade.
+    /// @dev Collateral branches run the mandatory two-sided deviation check
+    ///      (requires a healthy fresh feed) before moving funds, size
+    ///      collateral from the stored snapshot, and follow CEI. No-collateral
+    ///      branches reserve BL exposure instead of collateral. Self-trading
+    ///      is blocked.
+    function approveListing(
+        uint256 listingId,
+        uint8 chosenToken,
+        uint16 maxPriceDeviationBps
+    )
+        external
+        nonReentrant
+    {
+        if (listingId >= _nextListingId) revert BadId();
+
+        Listing storage l = listingDetails[listingId];
+        ListingStatus oldStatus = l.status;
+
+        if (l.expiresAt != 0 && block.timestamp > uint256(l.expiresAt)) revert ListingExpired();
+
+        if (oldStatus == ListingStatus.PendingSellerCollateral) {
+            if (l.buyer != address(0)) revert BuyerSet();
+            if (msg.sender == l.seller) revert SelfTradeBlocked();
+            if (!_maskHas(l.collateralMask, chosenToken)) revert TokenNotAccepted();
+
+            _checkCollateralDeviation(
+                listingId,
+                chosenToken,
+                l.lockedPrices[chosenToken],
+                l.creatorMaxDeviationBps,
+                maxPriceDeviationBps
+            );
+
+            uint256 colAmt = requiredCollateralLocked(
+                l.priceUSDC,
+                chosenToken,
+                l.lockedPrices[chosenToken],
+                l.collateralBufferBps
+            );
+            if (colAmt == 0) revert ZeroCollateral();
+
+            // Effects before interactions (strict CEI).
+            l.buyer = msg.sender;
+            l.collateralTokenId = chosenToken;
+            l.collateralAmount = colAmt;
+
+            _pullToken(chosenToken, msg.sender, colAmt);
+            DUR.safeTransfer(msg.sender, l.durAmount);
+
+        } else if (oldStatus == ListingStatus.PendingBuyerCollateral) {
+            if (l.seller != address(0)) revert SellerSet();
+            if (msg.sender == l.buyer) revert SelfTradeBlocked();
+
+            _checkCollateralDeviation(
+                listingId,
+                l.collateralTokenId,
+                l.lockedPrices[l.collateralTokenId],
+                l.creatorMaxDeviationBps,
+                maxPriceDeviationBps
+            );
+
+            l.seller = msg.sender;
+
+            // DUR: seller -> buyer directly (one external call instead of two).
+            DUR.safeTransferFrom(msg.sender, l.buyer, l.durAmount);
+
+        } else if (oldStatus == ListingStatus.PendingSellerNoCollateral) {
+            if (chosenToken != 0) revert BadTokenId();
+            if (blacklist[msg.sender]) revert Blacklisted();
+            if (l.buyer != address(0)) revert BuyerSet();
+            if (msg.sender == l.seller) revert SelfTradeBlocked();
+
+            _checkExposureAndAccount(msg.sender, l.seller, l.durAmount);
+
+            l.buyer = msg.sender;
+            DUR.safeTransfer(msg.sender, l.durAmount);
+
+        } else if (oldStatus == ListingStatus.PendingBuyerNoCollateral) {
+            if (chosenToken != 0) revert BadTokenId();
+            if (l.seller != address(0)) revert SellerSet();
+            if (msg.sender == l.buyer) revert SelfTradeBlocked();
+            if (blacklist[l.buyer]) revert Blacklisted();
+            if (pendingBuyNoCollateralBL[l.buyer] > totalBL[l.buyer]) revert StaleBLReservation();
+
+            _checkExposureAndAccount(l.buyer, msg.sender, l.durAmount);
+
+            _releaseNoCollateralBL(l.buyer, l.durAmount);
+
+            l.seller = msg.sender;
+
+            // DUR: seller -> buyer directly.
+            DUR.safeTransferFrom(msg.sender, l.buyer, l.durAmount);
+
+        } else {
+            revert NotPending();
+        }
+
+        l.dueDate = block.timestamp + (l.paymentPeriod * 1 days);
+
+        // Seed the refreshable claim fallback with the collateral token's
+        // creation snapshot. Only meaningful for collateral listings, which
+        // are the only ones that can reach claimDefault with escrow.
+        if (l.isCollateral) {
+            claimFallbackPrice[listingId] = l.lockedPrices[l.collateralTokenId];
+        }
+
+        _removeListingIdFromStatusArray(listingId, oldStatus);
+        _addListingIdToStatusArray(listingId, ListingStatus.Approved);
+        l.status = ListingStatus.Approved;
+
+        emit ListingApproved(
+            listingId,
+            l.buyer,
+            l.seller,
+            l.durAmount,
+            l.priceUSDC,
+            l.dueDate,
+            l.collateralTokenId,
+            l.collateralAmount
+        );
+    }
+
+    /// @notice Reserves uncollateralized exposure for a (buyer, seller) pair.
+    /// @dev Enforces the 10x rule: total active exposure * 10 must not exceed
+    ///      the pair's BL, capping uncollateralized credit by earned trust.
+    function _checkExposureAndAccount(address buyer, address seller, uint256 durAmount)
+        internal
+    {
+        uint256 newExposure = activePairwiseExposure[buyer][seller] + durAmount;
+        if (newExposure * 10 > pairwiseBL[buyer][seller]) revert BLExposureLimit();
+        activePairwiseExposure[buyer][seller] = newExposure;
+    }
+
+    // -- Payment ---------------------------------------------------------
+    /// @notice Buyer pays the agreed USDC; trade closes normally.
+    /// @dev The buyer may pay even AFTER the due date, as long as the seller
+    ///      has not yet claimed the default (status still Approved). Pays the
+    ///      seller, returns collateral (if any) or releases exposure, then
+    ///      credits BL (1/10 of DUR for collateralized, full DUR for
+    ///      uncollateralized, reflecting the higher trust they require).
+    function makePayment(uint256 listingId) external nonReentrant {
+        if (listingId >= _nextListingId) revert BadId();
+
+        Listing storage l = listingDetails[listingId];
+
+        if (l.status != ListingStatus.Approved) revert NotApproved();
+        if (l.buyer != msg.sender) revert OnlyBuyer();
+        // Intentionally NO due-date check: paying late is allowed until the
+        // seller claims the default. Once claimed, status != Approved.
+
+        USDC.safeTransferFrom(msg.sender, l.seller, l.priceUSDC);
+
+        if (l.isCollateral) {
+            if (l.collateralAmount > 0) {
+                uint256 amt = l.collateralAmount;
+                l.collateralAmount = 0;
+                _sendToken(l.collateralTokenId, msg.sender, amt);
+            }
+        } else {
+            uint256 used = activePairwiseExposure[msg.sender][l.seller];
+            activePairwiseExposure[msg.sender][l.seller] = used >= l.durAmount ? used - l.durAmount : 0;
+        }
+
+        uint256 earnedBL = l.isCollateral ? (l.durAmount / 10) : l.durAmount;
+        _addBL(msg.sender, l.seller, earnedBL);
+
+        _removeListingIdFromStatusArray(listingId, ListingStatus.Approved);
+        l.status = ListingStatus.Paid;
+
+        emit PaymentCompleted(
+            listingId,
+            msg.sender,
+            pairwiseBL[msg.sender][l.seller],
+            totalBL[msg.sender],
+            l.seller
+        );
+    }
+
+    // ====================================================================
+    //  Default handling
+    //
+    //  Claim price resolution (collateral listings), sequencer healthy.
+    //  Banded by the feed's age (now - updatedAt):
+    //    age <= CHAINLINK_STALE_THRESHOLD (1h)       -> fresh price.
+    //    1h < age <= CLAIM_STALE_FALLBACK_DELAY (48h) -> revert; the feed
+    //        may recover, and meanwhile the buyer can still pay via
+    //        makePayment (which needs no price).
+    //    age > 48h -> the feed's last reported (stale) price is used so
+    //        settlement is always eventually possible (liveness). The
+    //        buffer logic below still bounds the seller's share.
+    //  If the feed is completely dead (latestRoundData reverts), the
+    //  refreshable claimFallbackPrice snapshot is used, but only once the
+    //  due date is at least 48h past. If the sequencer is down / in grace,
+    //  claim reverts regardless.
+    // ====================================================================
+
+    /// @dev External feed read used by the claim path via try/catch so a
+    ///      fully dead feed (latestRoundData reverting) can be detected and
+    ///      routed to the snapshot. Does NOT gate the sequencer (the caller
+    ///      does) and does NOT apply staleness bands; it returns the price
+    ///      and the feed age so the caller can band it. Reverts only on a
+    ///      dead feed, a non-positive answer, or an incomplete round.
+    function _readClaimFeedExternal(uint8 tokenId)
+        external
+        view
+        returns (uint256 price, uint256 age)
+    {
+        if (tokenId >= TOKEN_COUNT) revert BadTokenId();
+        AggregatorV3Interface feed = tokenId == TOKEN_WBTC ? WBTC_USD_FEED : WETH_USD_FEED;
+
+        (
+            uint80 roundId,
+            int256 answer,
+            ,
+            uint256 updatedAt,
+            uint80 answeredInRound
+        ) = feed.latestRoundData();
+
+        if (answer <= 0) revert BadChainlinkPrice();
+        if (answeredInRound < roundId) revert StaleChainlinkRound();
+
+        age = block.timestamp > updatedAt ? block.timestamp - updatedAt : 0;
+        price = _normalizeFeedAnswer(feed, uint256(answer));
+        if (price == 0) revert ChainlinkPriceUnderflow();
+    }
+
+    /// @notice Resolves the price used to settle a defaulted collateral
+    ///         trade. Returns (price, kind): 0 = fresh, 1 = stale, 2 = snapshot.
+    /// @dev Sequencer-gated first (reverts the whole claim if down/in grace).
+    ///      Then, by feed age: <=1h fresh; 1h-48h revert (wait for recovery);
+    ///      >48h the feed's last (stale) price. If the feed call itself
+    ///      reverts (dead feed), the refreshable snapshot is used, but only
+    ///      once dueDate + 48h has passed; before that the claim reverts so
+    ///      a transient feed failure cannot force a snapshot settlement.
+    function _resolveClaimPrice(uint256 listingId)
+        internal
+        view
+        returns (uint256 price, uint8 kind)
+    {
+        _requireSequencerUp();
+
+        Listing storage l = listingDetails[listingId];
+        uint8 tokenId = l.collateralTokenId;
+
+        try this._readClaimFeedExternal(tokenId) returns (uint256 p, uint256 age) {
+            // Feed responded.
+            if (age <= CHAINLINK_STALE_THRESHOLD) {
+                return (p, 0); // fresh
+            }
+            if (age <= CLAIM_STALE_FALLBACK_DELAY) {
+                revert StaleChainlinkPrice(); // wait band (1h-48h)
+            }
+            return (p, 1); // stale (>48h, feed still answering)
+        } catch {
+            // Feed is dead (latestRoundData reverted). Snapshot only after
+            // the due date is 48h past; otherwise keep waiting.
+            if (block.timestamp <= l.dueDate + CLAIM_STALE_FALLBACK_DELAY) {
+                revert StaleChainlinkPrice();
+            }
+            uint256 snap = claimFallbackPrice[listingId];
+            if (snap == 0) revert NoPriceAvailable();
+            return (snap, 2); // snapshot
+        }
+    }
+
+    /// @notice Settles a trade whose payment deadline passed unpaid.
+    /// @dev Caller rules: for collateralized trades EITHER the seller OR the
+    ///      buyer may call (so the buyer can unstick their surplus if the
+    ///      seller is inactive); for uncollateralized trades only the seller
+    ///      may call (the buyer would not blacklist themselves).
+    ///      Collateralized: the seller receives collateral worth exactly the
+    ///      debt (buffer excluded) at the resolved price; any surplus returns
+    ///      to the buyer (rahn); the seller can never receive more than the
+    ///      escrowed amount. Uncollateralized: the buyer's pairwise BL is
+    ///      zeroed, exposure released, and the buyer blacklisted until
+    ///      rehabilitated. Follows checks-effects-interactions. Settlement
+    ///      uses seller/buyer from the listing, never msg.sender.
+    function claimDefault(uint256 listingId) external nonReentrant {
+        if (listingId >= _nextListingId) revert BadId();
+
+        Listing storage l = listingDetails[listingId];
+
+        if (l.status != ListingStatus.Approved) revert NotApproved();
+        if (block.timestamp <= l.dueDate) revert NotExpired();
+
+        address seller = l.seller;
+        address buyer  = l.buyer;
+
+        // Caller authorization.
+        if (l.isCollateral) {
+            if (msg.sender != seller && msg.sender != buyer) revert NotSellerOrBuyer();
+        } else {
+            if (msg.sender != seller) revert OnlySeller();
+        }
+
+        if (l.isCollateral) {
+            if (l.collateralAmount > 0) {
+                uint8   tokId           = l.collateralTokenId;
+                uint256 totalCollateral = l.collateralAmount;
+
+                (uint256 claimPrice, uint8 priceKind) = _resolveClaimPrice(listingId);
+
+                // Amount of collateral worth exactly the debt (buffer = 0).
+                uint256 sellerTokens = _calcCollateral(l.priceUSDC, tokId, claimPrice, 0);
+
+                // Effects before transfers.
+                l.collateralAmount = 0;
+                uint256 removedBL = _zeroPairwiseBL(buyer, seller);
+                _removeListingIdFromStatusArray(listingId, ListingStatus.Approved);
+                l.status = ListingStatus.Defaulted;
+
+                if (priceKind == 1) {
+                    emit ClaimStalePriceUsed(listingId, tokId, claimPrice);
+                } else if (priceKind == 2) {
+                    emit ClaimSnapshotFallbackUsed(listingId, tokId, claimPrice);
+                }
+
+                uint256 paidToSeller;
+                if (sellerTokens >= totalCollateral) {
+                    // Collateral value dropped: seller takes all of it.
+                    paidToSeller = totalCollateral;
+                    _sendToken(tokId, seller, totalCollateral);
+                } else {
+                    // Surplus returned to buyer (rahn principle).
+                    paidToSeller = sellerTokens;
+                    _sendToken(tokId, seller, sellerTokens);
+                    _sendToken(tokId, buyer, totalCollateral - sellerTokens);
+                }
+
+                emit CollateralClaimed(seller, listingId, tokId, paidToSeller);
+                emit BuyerDefaulted(listingId, buyer, seller, true, removedBL, totalBL[buyer]);
+                return;
+            }
+
+            // No collateral escrowed (edge case): settle status/BL only.
+            uint256 removedBL2 = _zeroPairwiseBL(buyer, seller);
+            _removeListingIdFromStatusArray(listingId, ListingStatus.Approved);
+            l.status = ListingStatus.Defaulted;
+            emit BuyerDefaulted(listingId, buyer, seller, true, removedBL2, totalBL[buyer]);
+            return;
+        }
+
+        // Uncollateralized default (seller-only, enforced above).
+        uint256 removedBL3 = _zeroPairwiseBL(buyer, seller);
+
+        uint256 used = activePairwiseExposure[buyer][seller];
+        activePairwiseExposure[buyer][seller] = used >= l.durAmount ? used - l.durAmount : 0;
+
+        unpaidNoCollateralDefaultCount[buyer] += 1;
+        blacklist[buyer] = true;
+
+        _removeListingIdFromStatusArray(listingId, ListingStatus.Approved);
+        l.status = ListingStatus.Defaulted;
+
+        emit BuyerDefaulted(listingId, buyer, seller, false, removedBL3, totalBL[buyer]);
+    }
+
+    function payAfterDefault(uint256 listingId) external nonReentrant {
+        if (listingId >= _nextListingId) revert BadId();
+
+        Listing storage l = listingDetails[listingId];
+
+        if (l.status != ListingStatus.Defaulted) revert NotDefaulted();
+        if (l.buyer != msg.sender) revert OnlyBuyer();
+        if (l.isCollateral) revert CollateralDefaultNotRehabilitable();
+
+        USDC.safeTransferFrom(msg.sender, l.seller, l.priceUSDC);
+
+        if (unpaidNoCollateralDefaultCount[msg.sender] > 0) {
+            unpaidNoCollateralDefaultCount[msg.sender] -= 1;
+        }
+        if (unpaidNoCollateralDefaultCount[msg.sender] == 0) {
+            blacklist[msg.sender] = false;
+        }
+
+        l.status = ListingStatus.PaidAfterDefault;
+
+        emit BuyerRehabilitated(listingId, msg.sender, l.seller, unpaidNoCollateralDefaultCount[msg.sender]);
+    }
+
+    // ====================================================================
+    //  Snapshot refresh (permissionless)
+    //
+    //  Anyone may refresh a collateral listing's claim fallback price while
+    //  it is Approved. This keeps the last-resort settlement price (used
+    //  only if the Chainlink feed is ever completely dead) close to recent
+    //  reality, instead of frozen at the listing-creation snapshot.
+    //
+    //  Why this is safe and unprivileged:
+    //    - It writes ONLY claimFallbackPrice. The collateral sizing and the
+    //      approval deviation check both use lockedPrices, which are never
+    //      touched here, so the agreed trade terms cannot shift.
+    //    - The fallback is consumed only when the feed is fully dead AND the
+    //      due date is 48h past. That condition is not controllable by any
+    //      caller, so choosing when to refresh grants no advantage; a fresher
+    //      value is simply closer to the true price for either party.
+    //    - The value written is the feed's own latest answer (sequencer-gated
+    //      and round-validated). Staleness is allowed: when the feed is merely
+    //      stale its last answer is still the best available number, and it is
+    //      newer than the creation snapshot.
+    // ====================================================================
+
+    /// @notice Refreshes the claim fallback price of an Approved collateral
+    ///         listing to the collateral token's latest Chainlink answer.
+    /// @dev Permissionless. Sequencer-gated and round-validated; staleness is
+    ///      permitted. Reverts if the listing is not an Approved collateral
+    ///      listing or if the feed is fully dead. No external token calls are
+    ///      made, so no reentrancy guard is needed.
+    function refreshSnapshot(uint256 listingId) external {
+        if (listingId >= _nextListingId) revert BadId();
+
+        Listing storage l = listingDetails[listingId];
+        if (l.status != ListingStatus.Approved) revert NotApproved();
+        if (!l.isCollateral) revert NotCollateralListing();
+
+        _requireSequencerUp();
+
+        uint8 tokId = l.collateralTokenId;
+        // Last reported price, staleness ignored (still round-validated).
+        uint256 newPrice = _readFeed(tokId, false);
+
+        claimFallbackPrice[listingId] = newPrice;
+
+        emit SnapshotRefreshed(listingId, tokId, newPrice, msg.sender);
+    }
+
+    // -- Views -----------------------------------------------------------
+    function getListingById(uint256 listingId) public view returns (ListingInfo memory info) {
+        if (listingId >= _nextListingId) revert BadId();
+
+        Listing storage l = listingDetails[listingId];
+
+        // Filling the struct field-by-field (rather than via a single large
+        // literal) keeps the local stack shallow enough to compile without
+        // via-IR. The BL/exposure view math is factored into a helper for
+        // the same reason.
+        info.id            = listingId;
+        info.seller        = l.seller;
+        info.buyer         = l.buyer;
+        info.durAmount     = l.durAmount;
+        info.priceUSDC     = l.priceUSDC;
+        info.dueDate       = l.dueDate;
+        info.paymentPeriod = l.paymentPeriod;
+        info.status        = l.status;
+        info.isCollateral  = l.isCollateral;
+
+        info.collateralMask         = l.collateralMask;
+        info.collateralTokenId      = l.collateralTokenId;
+        info.collateralBufferBps    = l.collateralBufferBps;
+        info.creatorMaxDeviationBps = l.creatorMaxDeviationBps;
+        info.expiresAt              = l.expiresAt;
+        info.collateralAmount       = l.collateralAmount;
+        info.lockedPrices           = l.lockedPrices;
+
+        if (l.buyer != address(0)) {
+            info.totalBLValue   = totalBL[l.buyer];
+            info.pendingBLValue = pendingBuyNoCollateralBL[l.buyer];
+        }
+
+        (uint256 freeBL_, uint256 exposure_) = _viewBLState(l.buyer, l.seller);
+        info.freeBL              = freeBL_;
+        info.activeExposureValue = exposure_;
+    }
+
+    /// @dev Read-only BL/exposure math for getListingById, split out to keep
+    ///      that function's stack shallow (no via-IR needed). Returns the
+    ///      free BL visible to the buyer and the active pairwise exposure.
+    function _viewBLState(address buyer, address seller)
+        internal
+        view
+        returns (uint256 freeBL, uint256 exposure)
+    {
+        if (buyer == address(0)) return (0, 0);
+
+        uint256 freeTotal = _freeTotalBL(buyer);
+
+        if (seller == address(0)) {
+            return (freeTotal, 0);
+        }
+
+        exposure = activePairwiseExposure[buyer][seller];
+
+        uint256 pairBL = pairwiseBL[buyer][seller];
+        uint256 usedBL = exposure * 10;
+        uint256 pairFree = pairBL > usedBL ? pairBL - usedBL : 0;
+
+        freeBL = pairFree < freeTotal ? pairFree : freeTotal;
+    }
+
+    function getPendingSellerListings(uint256 offset, uint256 limit)
+        public
+        view
+        returns (ListingInfo[] memory)
+    {
+        return _paginatedListings(pendingSellerListingIds, offset, limit);
+    }
+
+    function getPendingBuyerListings(uint256 offset, uint256 limit)
+        public
+        view
+        returns (ListingInfo[] memory)
+    {
+        return _paginatedListings(pendingBuyerListingIds, offset, limit);
+    }
+
+    function getApprovedListings(uint256 offset, uint256 limit)
+        public
+        view
+        returns (ListingInfo[] memory)
+    {
+        return _paginatedListings(approvedIds, offset, limit);
+    }
+
+    function _paginatedListings(uint256[] storage ids, uint256 offset, uint256 limit)
+        internal
+        view
+        returns (ListingInfo[] memory)
+    {
+        uint256 total = ids.length;
+        if (offset >= total) {
+            return new ListingInfo[](0);
+        }
+
+        uint256 end = offset + limit > total ? total : offset + limit;
+        ListingInfo[] memory r = new ListingInfo[](end - offset);
+
+        for (uint256 i = 0; i < r.length; i++) {
+            r[i] = getListingById(ids[offset + i]);
+        }
+        return r;
+    }
+
+    function pendingSellerCount() external view returns (uint256) {
+        return pendingSellerListingIds.length;
+    }
+
+    function pendingBuyerCount() external view returns (uint256) {
+        return pendingBuyerListingIds.length;
+    }
+
+    function approvedCount() external view returns (uint256) {
+        return approvedIds.length;
+    }
+
+    function nextListingId() external view returns (uint256) {
+        return _nextListingId;
+    }
+
+    function isBlacklisted(address user) external view returns (bool) {
+        return blacklist[user];
+    }
+
+    function unpaidDefaultCount(address user) external view returns (uint256) {
+        return unpaidNoCollateralDefaultCount[user];
+    }
+
+    // -- Internal index-array helpers ------------------------------------
+    function _maskHas(uint8 mask, uint8 tokenId) internal pure returns (bool) {
+        if (tokenId >= TOKEN_COUNT) revert BadTokenId();
+        return (mask & (1 << tokenId)) != 0;
+    }
+
+    function _getIdArrayForStatus(ListingStatus s) internal view returns (uint256[] storage) {
+        if (
+            s == ListingStatus.PendingSellerCollateral ||
+            s == ListingStatus.PendingSellerNoCollateral
+        ) {
+            return pendingSellerListingIds;
+        }
+        if (
+            s == ListingStatus.PendingBuyerCollateral ||
+            s == ListingStatus.PendingBuyerNoCollateral
+        ) {
+            return pendingBuyerListingIds;
+        }
+        if (s == ListingStatus.Approved) {
+            return approvedIds;
+        }
+        revert NotPending();
+    }
+
+    function _getIdIndexMappingForStatus(ListingStatus s)
+        internal
+        view
+        returns (mapping(uint256 => uint256) storage)
+    {
+        if (
+            s == ListingStatus.PendingSellerCollateral ||
+            s == ListingStatus.PendingSellerNoCollateral
+        ) {
+            return pendingSellerListingIdToIndex;
+        }
+        if (
+            s == ListingStatus.PendingBuyerCollateral ||
+            s == ListingStatus.PendingBuyerNoCollateral
+        ) {
+            return pendingBuyerListingIdToIndex;
+        }
+        if (s == ListingStatus.Approved) {
+            return approvedIdToIndex;
+        }
+        revert NotPending();
+    }
+
+    function _addListingIdToStatusArray(uint256 id, ListingStatus s) internal {
+        uint256[] storage arr = _getIdArrayForStatus(s);
+        mapping(uint256 => uint256) storage idx = _getIdIndexMappingForStatus(s);
+
+        arr.push(id);
+        idx[id] = arr.length; // one-based
+    }
+
+    /// @notice Removes a listing id from its status-bucket array in O(1).
+    /// @dev One-based index storage (0 = absent) with swap-and-pop. Reverts
+    ///      if the id is not in the array, preventing silent corruption.
+    function _removeListingIdFromStatusArray(uint256 id, ListingStatus s) internal {
+        uint256[] storage arr = _getIdArrayForStatus(s);
+        mapping(uint256 => uint256) storage idx = _getIdIndexMappingForStatus(s);
+
+        uint256 oneBasedIndex = idx[id];
+        if (oneBasedIndex == 0) revert IdNotInArray();
+
+        uint256 i = oneBasedIndex - 1;
+        uint256 lastIndex = arr.length - 1;
+
+        if (i != lastIndex) {
+            uint256 lastId = arr[lastIndex];
+            arr[i] = lastId;
+            idx[lastId] = oneBasedIndex;
+        }
+
+        arr.pop();
+        delete idx[id];
+    }
+}

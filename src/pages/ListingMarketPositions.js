@@ -11,28 +11,21 @@ import {
 } from 'lucide-react';
 
 // ══════════════════════════════════════════════════════════════════════
-//  Faol pozitsiya boshqaruvi — Dex.js / DexListings.js bilan bir xil
-//  sahifa oilasi. Har bir sahifa o'zining manzil/ABI/yordamchi
-//  funksiyalarini o'zida saqlaydi (Vault.js naqshi).
+//  Faol pozitsiya boshqaruvi — ListingMarket.js / ListingMarketListings.js
+//  bilan bir xil sahifa oilasi.
 //
-//  MUHIM TARIXIY ESLATMA: bu sahifaning birinchi versiyasi "mening
-//  pozitsiyalarim"ni voqealarni (events, eth_getLogs) skanerlab topgan
-//  edi. Bu mo'rt bo'lib chiqdi — RPC provayderlar blok oralig'iga
-//  hujjatlashtirilmagan, kichik chegara qo'yadi (Ankr hatto 5000 blokni
-//  ham rad etdi), va vaqt o'tishi bilan "so'nggi N blok" oynasi eski
-//  pozitsiyalarni "unutib qo'yardi". CreditSale bu muammoni umuman
-//  boshqacha yechgan ekan: kontraktning o'zi xaridor bo'yicha massiv
-//  saqlaydi. Shu naqsh endi ListingMarket'ga ham qo'shildi
-//  (getPositionsByBuyer / totalPositionsByBuyer) — oddiy eth_call, hech
-//  qanday blok chegarasi yo'q. Shuning uchun bu versiya voqea-skanerlash,
-//  sahifalab qidirish va "qo'lda topilganlarni saqlab qolish" kabi butun
-//  murakkab qatlamni olib tashladi.
+//  MUHIM: bu kontraktda pozitsiya ikkita MUSTAQIL "havza"dan iborat
+//  bo'lishi mumkin — garov (collateralAmount, USDC yoki svop qilingan
+//  WBTC/WETH) va WBTC principal (wbtcAmount, hali birlashtirilmagan).
+//  Avvalgi DUR-asosli versiyadan farqli o'laroq, WBTC principal HECH
+//  QANDAY "avval svop qil" sharti bo'lmasdan, pozitsiya ochilgan
+//  zahotidan boshlab narxlanadi va likvidatsiya hisobiga kiradi —
+//  shuning uchun bu yerda "narx eskirgan" yoki "svop qilinmagan"
+//  degan ogohlantirish yo'q.
 // ══════════════════════════════════════════════════════════════════════
 
-const DEX_ADDRESS = '0xA8c28410bD55bf85fdBa3240FcAE068B8Eeae2c4';
+const DEX_ADDRESS = '0x8aC38A6C9E02EE75658ae6f2d6Fd93e8e43c247f';
 
-// Kontraktdagi kabi qattiq belgilangan token ID'lar — o'zgarmas konstanta,
-// har safar so'rash shart emas.
 const TOKEN_WBTC = 0;
 const TOKEN_WETH = 1;
 const TOKEN_USDC = 2;
@@ -47,34 +40,25 @@ function tokenDecimalsFor(tokenId) {
   if (tokenId === TOKEN_WETH) return TOKEN_DECIMALS.WETH;
   return TOKEN_DECIMALS.USDC;
 }
-function tokenKeyFor(tokenId) {
-  if (tokenId === TOKEN_WBTC) return 'WBTC';
-  if (tokenId === TOKEN_WETH) return 'WETH';
-  return 'USDC';
-}
 
 const DEX_ABI = [
-  // O'qish
-  'function positions(uint256) external view returns (address buyer, address seller, uint256 priceUSDC, uint256 durAmount, uint256 dueDate, uint8 collateralTokenId, uint256 collateralAmount, uint16 bufferBps, uint8 status)',
+  'function positions(uint256) external view returns (address buyer, address seller, uint256 priceUSDC, uint256 wbtcAmount, uint256 dueDate, uint8 collateralTokenId, uint256 collateralAmount, uint16 bufferBps, uint8 status)',
   'function requiredFloor(uint256 positionId) external view returns (uint256)',
   'function liquidationThreshold(uint256 positionId) external view returns (uint256)',
   'function currentValue(uint256 positionId) external view returns (uint256)',
   'function isLiquidatable(uint256 positionId) external view returns (bool)',
   'function withdrawableMargin(uint256 positionId) external view returns (uint256)',
   'function getTokenPriceUSDC(uint8 tokenId) external view returns (uint256)',
-  'function getSafeDurPrice() external view returns (uint256)',
-  'function isSafePriceAvailable() external view returns (bool)',
   'function totalPositionsByBuyer(address buyer) external view returns (uint256)',
-  'function getPositionsByBuyer(address buyer, uint256 offset, uint256 limit) external view returns (tuple(address buyer, address seller, uint256 priceUSDC, uint256 durAmount, uint256 dueDate, uint8 collateralTokenId, uint256 collateralAmount, uint16 bufferBps, uint8 status)[] result, uint256[] ids)',
-  // Yozish
+  'function getPositionsByBuyer(address buyer, uint256 offset, uint256 limit) external view returns (tuple(address buyer, address seller, uint256 priceUSDC, uint256 wbtcAmount, uint256 dueDate, uint8 collateralTokenId, uint256 collateralAmount, uint16 bufferBps, uint8 status)[] result, uint256[] ids)',
+  'function PROTOCOL_FEE_BPS() external view returns (uint16)',
   'function addMargin(uint256 positionId, uint256 amount) external',
   'function removeMargin(uint256 positionId, uint256 amount) external',
-  'function swapDurToUsdc(uint256 positionId, uint256 minUsdcOut) external',
+  'function mergeWbtcPrincipal(uint256 positionId, uint256 minUsdcOut) external',
   'function swapCollateralToToken(uint256 positionId, uint8 targetTokenId, uint256 minAmountOut) external',
   'function swapCollateralToUsdc(uint256 positionId, uint256 minUsdcOut) external',
   'function repay(uint256 positionId) external',
   'function liquidate(uint256 positionId) external',
-  'function checkpoint() external',
   // Kontraktning BARCHA maxsus xatolari
   'error AlreadySwapped()',
   'error BadChainlinkPrice()',
@@ -84,21 +68,14 @@ const DEX_ABI = [
   'error BelowRequiredFloor(uint256 remainingValue, uint256 requiredValue)',
   'error CannotApproveOwnListing()',
   'error ChainlinkPriceUnderflow()',
-  'error CheckpointDeviationExceeded(uint256 prevPrice, uint256 currPrice)',
-  'error CheckpointGapNotElapsed(uint256 gap, uint256 required)',
-  'error CheckpointStale(uint256 age, uint256 maxAge)',
-  'error CheckpointTooSoon(uint256 nextAllowedAt)',
   'error InsufficientCollateral()',
   'error ListingNotPending()',
-  'error MustSwapDurFirst()',
-  'error NoCheckpointYet()',
   'error NoPriceAvailable()',
   'error NotBuyer()',
   'error NotLiquidatable()',
   'error NotPoolManager()',
   'error NotSeller()',
   'error NothingToSwap()',
-  'error PoolEmpty()',
   'error PositionNotFound()',
   'error PositionNotOpen()',
   'error PriceTooHigh(uint256 narx, uint256 maxAllowed)',
@@ -117,19 +94,13 @@ const DEX_ABI = [
 const ERROR_MESSAGES = {
   CannotApproveOwnListing: "O'zingiz joylagan e'lon/taklifni o'zingiz bajara olmaysiz — buni faqat boshqa hamyon amalga oshirishi mumkin",
   ListingNotPending: "Bu e'lon/taklif allaqachon tasdiqlangan yoki bekor qilingan",
-  NoCheckpointYet: "Oracle hali umuman ishga tushirilmagan",
-  CheckpointStale: 'Narx eskirgan — avval "Narxni yangilash" tugmasini bosing',
-  CheckpointGapNotElapsed: "Checkpointlar orasida yetarli vaqt o'tmagan",
-  CheckpointTooSoon: "Hali erta — bir necha soniyadan keyin qayta urinib ko'ring",
-  CheckpointDeviationExceeded: "Narx juda keskin o'zgardi — birozdan keyin qayta urinib ko'ring",
   PriceTooHigh: "Narx tannarxdan +10%dan oshib ketgan",
   BadListingParams: "Miqdor yoki narx noto'g'ri kiritilgan",
   BadPeriod: "To'lov muddati 1-30 kun oralig'ida bo'lishi kerak",
   InsufficientCollateral: "Garov yetarli emas",
   BelowRequiredFloor: "Bu miqdorni olib qo'yish pozitsiyani xavfli holatga tashlaydi",
-  SwapWouldLeaveLiquidatable: "Bu swap pozitsiyani darhol likvidatsiyaga tashlab yuboradi — avval garov qo'shing",
-  NothingToSwap: "Swap qilish uchun DUR qolmagan",
-  MustSwapDurFirst: "Avval DUR'ni USDC'ga swap qilish kerak",
+  SwapWouldLeaveLiquidatable: "Bu svop pozitsiyani darhol likvidatsiyaga tashlab yuboradi — avval garov qo'shing",
+  NothingToSwap: "Svop qilish uchun WBTC principal qolmagan",
   AlreadySwapped: "Garov allaqachon boshqa tokenga aylantirilgan",
   PositionNotFound: "Bunday pozitsiya topilmadi",
   PositionNotOpen: "Bu pozitsiya endi ochiq emas",
@@ -138,17 +109,16 @@ const ERROR_MESSAGES = {
   NotLiquidatable: "Bu pozitsiya hali likvidatsiya qilinishi mumkin emas",
   ZeroAmount: "Miqdor 0 bo'lishi mumkin emas",
   BadTokenId: "Noto'g'ri token tanlandi",
-  PoolEmpty: "Uniswap pool bo'sh yoki ishga tushirilmagan",
   SequencerDown: "Arbitrum sequencer vaqtincha ishlamayapti — birozdan keyin urinib ko'ring",
   SequencerGracePeriod: "Sequencer yaqinda tiklandi — bir necha daqiqa kutish kerak",
   SequencerFeedDead: "Sequencer holatini tekshirib bo'lmadi",
   BadChainlinkPrice: "Narx manbasidan noto'g'ri ma'lumot keldi",
-  StaleChainlinkPrice: "Narx manbasi eskirgan",
+  StaleChainlinkPrice: "Narx manbasi eskirgan — birozdan keyin qayta urinib ko'ring",
   StaleChainlinkRound: "Narx manbasi to'liq yangilanmagan",
   ChainlinkPriceUnderflow: "Narx hisoblashda xato",
   NoPriceAvailable: "Hech qanday narx manbai topilmadi",
   NotPoolManager: "Ruxsatsiz chaqiruv",
-  TooLittleReceived: "Swap natijasi kutilgandan kam — slippage juda yuqori",
+  TooLittleReceived: "Svop natijasi kutilgandan kam — slippage juda yuqori",
 };
 
 const DEX_INTERFACE = new ethers.Interface(DEX_ABI);
@@ -158,7 +128,6 @@ function translateContractError(e, decimalsForBalanceErr = TOKEN_DECIMALS.USDC) 
   if (rawMsg.includes('rejected') || rawMsg.includes('denied') || rawMsg.includes('user denied')) {
     return 'Rad etildi';
   }
-
   const candidates = [e?.data, e?.error?.data, e?.info?.error?.data, e?.error?.error?.data];
   for (const data of candidates) {
     if (!data || typeof data !== 'string') continue;
@@ -172,16 +141,12 @@ function translateContractError(e, decimalsForBalanceErr = TOKEN_DECIMALS.USDC) 
       if (parsed?.name === 'ERC20InsufficientAllowance') {
         return "Ruxsat yetarli emas — qayta urinib ko'ring";
       }
-      if (parsed?.name) {
-        return ERROR_MESSAGES[parsed.name] || `Kontrakt xatosi: ${parsed.name}`;
-      }
+      if (parsed?.name) return ERROR_MESSAGES[parsed.name] || `Kontrakt xatosi: ${parsed.name}`;
     } catch { /* keyingisini sinaymiz */ }
   }
-
   for (const [name, msg] of Object.entries(ERROR_MESSAGES)) {
     if (rawMsg.includes(name.toLowerCase())) return msg;
   }
-
   return e?.reason || e?.shortMessage || "Noma'lum xatolik yuz berdi — birozdan keyin qayta urinib ko'ring";
 }
 
@@ -218,9 +183,6 @@ const CHAIN_STAGES = [
   [40000, "Hali kutilmoqda — Arbitrum tarmog'i band bo'lishi mumkin"],
 ];
 
-// @returns true agar ruxsat allaqachon yetarli bo'lsa (chaqiruvchi darhol
-//          davom etishi mumkin); false agar HOZIRGINA yangi ruxsat
-//          so'ralgan bo'lsa (chaqiruvchi TO'XTASHI kerak).
 async function ensureDexApproval(tokenKey, signer, account, amountRaw, openWalletForRequest) {
   const token = new ethers.Contract(TOKEN_ADDRESSES[tokenKey], ERC20_ABI, signer);
   const allowance = await token.allowance(account, DEX_ADDRESS);
@@ -246,17 +208,11 @@ async function ensureDexApproval(tokenKey, signer, account, amountRaw, openWalle
   }
 }
 
-// toPrecision() silently switches to exponential notation for very small
-// numbers (e.g. "3.6e-7" for a small WBTC amount) - this rebuilds the
-// same significant-figure rounding using toFixed() instead, which never
-// produces exponential notation, so small token amounts always show as
-// plain decimals like "0.00000036".
 function fmt(raw, decimals, sigFigs = 4) {
   if (raw === null || raw === undefined) return '—';
   const num = parseFloat(ethers.formatUnits(raw, decimals));
   if (!isFinite(num)) return '—';
   if (num === 0) return '0';
-
   const abs = Math.abs(num);
   let str;
   if (abs >= 1) {
@@ -270,11 +226,6 @@ function fmt(raw, decimals, sigFigs = 4) {
   return str.replace(/\.?0+$/, '').replace(/\.$/, '');
 }
 
-// Hardcoded rather than toLocaleDateString('uz-UZ', ...): this runtime's
-// locale data doesn't have proper Uzbek month abbreviations, so that
-// approach silently fell back to "M08" instead of "avgust". Spelling the
-// months out here guarantees correct output regardless of the browser's
-// locale-data completeness.
 const UZ_MONTHS = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
 function fmtDate(unixSeconds) {
   if (!unixSeconds || unixSeconds === 0n) return '—';
@@ -282,10 +233,7 @@ function fmtDate(unixSeconds) {
   return `${d.getDate()}-${UZ_MONTHS[d.getMonth()]}, ${d.getFullYear()}`;
 }
 
-// CreditSale'ning Approved.js'dagi timeLeft() bilan bir xil mantiq — soat/
-// daqiqagacha aniq qoldiq vaqtni ko'rsatadi. Alohida sonagich (setInterval)
-// shart emas: bu sahifa allaqachon 30 soniyada bir load()ni qayta ishga
-// tushiradi, shu bilan qoldiq vaqt ham tabiiy ravishda yangilanib turadi.
+// CreditSale'ning Approved.js'dagi timeLeft() bilan bir xil mantiq.
 function timeLeft(dueDate) {
   const now = Math.floor(Date.now() / 1000);
   const due = Number(dueDate);
@@ -307,23 +255,17 @@ function timeLeft(dueDate) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const STATUS_LABELS = ['Ochiq', "To'langan", 'Likvidatsiya qilingan'];
 
-export default function DexPositions() {
+export default function ListingMarketPositions() {
   const { account, signer, isCorrectNetwork, ensureCorrectChain, openWalletForRequest, refreshBalances } = useWeb3();
 
   const [positions, setPositions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
   const [actionLoading, setActionLoading] = useState(null);
-  const [checkpointing, setCheckpointing] = useState(false);
-  const [oracleReady, setOracleReady] = useState(true);
-  // Swap tugmalari yonida taxminiy natijani ko'rsatish uchun — load()
-  // ichida bir marta o'qiladi, har bosishda qayta so'ralmaydi.
-  const [durPrice, setDurPrice] = useState(null);
   const [wbtcPrice, setWbtcPrice] = useState(null);
   const [wethPrice, setWethPrice] = useState(null);
+  const [feeBps, setFeeBps] = useState(5);
 
-  // ── Pozitsiyalarni yuklash: to'g'ridan-to'g'ri kontraktdan, bitta
-  //    sahifalab qaytaradigan chaqiruv orqali. Voqea-skanerlash yo'q.
   const load = useCallback(async () => {
     if (!account) { setPositions([]); setLoading(false); return; }
     setLoading(true);
@@ -331,19 +273,9 @@ export default function DexPositions() {
       const provider = await getReadProvider();
       const dex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, provider);
 
-      const ready = await dex.isSafePriceAvailable();
-      setOracleReady(ready);
-
-      // Swap tugmalari uchun taxminiy narxlar — har biri mustaqil,
-      // biri muvaffaqiyatsiz bo'lsa boshqalariga (yoki pozitsiyalarni
-      // yuklashga) ta'sir qilmaydi.
-      if (ready) {
-        dex.getSafeDurPrice().then(setDurPrice).catch(() => setDurPrice(null));
-      } else {
-        setDurPrice(null);
-      }
       dex.getTokenPriceUSDC(TOKEN_WBTC).then(setWbtcPrice).catch(() => setWbtcPrice(null));
       dex.getTokenPriceUSDC(TOKEN_WETH).then(setWethPrice).catch(() => setWethPrice(null));
+      dex.PROTOCOL_FEE_BPS().then((f) => setFeeBps(Number(f))).catch(() => {});
 
       const total = await dex.totalPositionsByBuyer(account);
       const [rawPositions, ids] = await dex.getPositionsByBuyer(account, 0, total);
@@ -369,7 +301,7 @@ export default function DexPositions() {
             buyer: p.buyer,
             seller: p.seller,
             priceUSDC: p.priceUSDC,
-            durAmount: p.durAmount,
+            wbtcAmount: p.wbtcAmount,
             dueDate: p.dueDate,
             collateralTokenId: Number(p.collateralTokenId),
             collateralAmount: p.collateralAmount,
@@ -397,38 +329,6 @@ export default function DexPositions() {
     return () => clearInterval(id);
   }, [load]);
 
-  // MUHIM: MetaMask ba'zan ketma-ket ikkita so'rovni bitta funksiya
-  // ichida yashirin navbatga qo'yadi — checkpoint() shuning uchun
-  // o'zining aniq tugma bosishiga bog'liq, boshqa amaldan mustaqil.
-  const handleCheckpoint = async () => {
-    setCheckpointing(true);
-    const tid = toast.loading('Narx yangilanmoqda...');
-    try {
-      await ensureCorrectChain();
-      const dex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, signer);
-      openWalletForRequest();
-      const tx = await withWalletTimeout(dex.checkpoint(), 90000, "MetaMask ochilmadi yoki wallet javob bermadi");
-      await withWalletTimeout(tx.wait(), 90000, 'Checkpoint tasdiqlanmadi');
-
-      let confirmed = false;
-      for (let i = 1; i <= 15; i++) {
-        toast.loading(`Tasdiqlanmoqda... (${i * 2}s)`, { id: tid });
-        await sleep(2000);
-        try {
-          const readDex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, await getReadProvider());
-          if (await readDex.isSafePriceAvailable()) { confirmed = true; break; }
-        } catch { /* keyingi urinishda qayta tekshiriladi */ }
-      }
-      toast.success(confirmed ? 'Narx yangilandi!' : "Tasdiqlandi — ro'yxat tez orada o'zi yangilanadi", { id: tid });
-      load();
-    } catch (e) {
-      console.error('checkpoint error:', e);
-      toast.error(translateContractError(e), { id: tid });
-    } finally {
-      setCheckpointing(false);
-    }
-  };
-
   function reportTxError(e, tid, decimalsHint) {
     console.error('position action error:', e);
     toast.error(translateContractError(e, decimalsHint), { id: tid });
@@ -436,7 +336,7 @@ export default function DexPositions() {
 
   const handleAddMargin = async (position, amountStr) => {
     const decimals = tokenDecimalsFor(position.collateralTokenId);
-    const tokenKey = tokenKeyFor(position.collateralTokenId);
+    const tokenKey = tokenSymbolFor(position.collateralTokenId);
     let amountRaw;
     try { amountRaw = ethers.parseUnits(amountStr, decimals); } catch { toast.error("Noto'g'ri miqdor"); return; }
     if (amountRaw <= 0n) { toast.error("Miqdor 0 dan katta bo'lishi kerak"); return; }
@@ -466,8 +366,8 @@ export default function DexPositions() {
 
       toast.success('Garov qo\'shildi!', { id: tid });
       saveLocalTxHistory({
-        type: 'dexAddMargin',
-        label: "DEX: Garov qo'shildi",
+        type: 'listingMarketAddMargin',
+        label: "ListingMarket: Garov qo'shildi",
         listingId: position.id.toString(),
         txHash: tx.hash,
         status: 'success',
@@ -507,8 +407,8 @@ export default function DexPositions() {
 
       toast.success("Garov olib qo'yildi!", { id: tid });
       saveLocalTxHistory({
-        type: 'dexRemoveMargin',
-        label: "DEX: Garov olib qo'yildi",
+        type: 'listingMarketRemoveMargin',
+        label: "ListingMarket: Garov olib qo'yildi",
         listingId: position.id.toString(),
         txHash: tx.hash,
         status: 'success',
@@ -524,27 +424,26 @@ export default function DexPositions() {
     }
   };
 
-  // minUsdcOut/minAmountOut sifatida 0 uzatiladi — kontraktning o'zi
-  // (oracle floor + sog'liq tekshiruvi) himoya qiladi, frontend qayta
-  // hisoblashi shart emas. Lekin DUR swap uchun narx FRESH bo'lishi kerak.
-  const handleSwapDurToUsdc = async (position) => {
-    if (!oracleReady) { toast.error("Avval 'Narxni yangilash' tugmasini bosing"); return; }
-    setActionLoading(position.id.toString() + '-swapdur');
-    const tid = toast.loading('DUR swap qilinmoqda...');
+  // OPTIONAL: WBTC principal'ni USDC'ga birlashtiradi (0.05% komissiya
+  // bilan). Hech narsani "bloklamaydi" — bu faqat sof USDC ta'sirida
+  // qolishni xohlaydigan xaridor uchun qulaylik.
+  const handleMergeWbtcPrincipal = async (position) => {
+    setActionLoading(position.id.toString() + '-merge');
+    const tid = toast.loading('WBTC birlashtirilmoqda...');
     try {
       await ensureCorrectChain();
       const dex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, signer);
       openWalletForRequest();
       const tx = await withProgressToast(
-        withWalletTimeout(dex.swapDurToUsdc(position.id, 0), 90000, "MetaMask ochilmadi yoki wallet javob bermadi"),
+        withWalletTimeout(dex.mergeWbtcPrincipal(position.id, 0), 90000, "MetaMask ochilmadi yoki wallet javob bermadi"),
         tid, WALLET_STAGES
       );
       await withProgressToast(withWalletTimeout(tx.wait(), 180000, "Tranzaksiya juda uzoq tasdiqlanmoqda"), tid, CHAIN_STAGES);
 
-      toast.success('DUR muvaffaqiyatli swap qilindi!', { id: tid });
+      toast.success('WBTC muvaffaqiyatli birlashtirildi!', { id: tid });
       saveLocalTxHistory({
-        type: 'dexSwapDurToUsdc',
-        label: "DEX: DUR USDC'ga swap qilindi",
+        type: 'listingMarketMergeWbtcPrincipal',
+        label: 'ListingMarket: WBTC principal birlashtirildi',
         listingId: position.id.toString(),
         txHash: tx.hash,
         status: 'success',
@@ -560,7 +459,7 @@ export default function DexPositions() {
 
   const handleSwapCollateral = async (position, targetTokenId) => {
     setActionLoading(position.id.toString() + '-swapcoll');
-    const tid = toast.loading('Garov swap qilinmoqda...');
+    const tid = toast.loading('Garov svop qilinmoqda...');
     try {
       await ensureCorrectChain();
       const dex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, signer);
@@ -573,8 +472,8 @@ export default function DexPositions() {
 
       toast.success(`Garov ${tokenSymbolFor(targetTokenId)}'ga aylantirildi!`, { id: tid });
       saveLocalTxHistory({
-        type: 'dexSwapCollateral',
-        label: `DEX: Garov ${tokenSymbolFor(targetTokenId)}'ga aylantirildi`,
+        type: 'listingMarketSwapCollateral',
+        label: `ListingMarket: Garov ${tokenSymbolFor(targetTokenId)}'ga aylantirildi`,
         listingId: position.id.toString(),
         txHash: tx.hash,
         status: 'success',
@@ -588,9 +487,6 @@ export default function DexPositions() {
     }
   };
 
-  // Teskari yo'nalish: WBTC/WETH -> USDC. To'g'ridan-to'g'ri WBTC<->WETH
-  // yo'q — agar boshqa tokenga o'tish kerak bo'lsa, avval shu orqali
-  // USDC'ga qaytib, keyin handleSwapCollateral bilan davom etiladi.
   const handleSwapCollateralToUsdc = async (position) => {
     setActionLoading(position.id.toString() + '-swapback');
     const tid = toast.loading("USDC'ga qaytarilmoqda...");
@@ -606,8 +502,8 @@ export default function DexPositions() {
 
       toast.success("Garov USDC'ga qaytarildi!", { id: tid });
       saveLocalTxHistory({
-        type: 'dexSwapCollateralBack',
-        label: "DEX: Garov USDC'ga qaytarildi",
+        type: 'listingMarketSwapCollateralBack',
+        label: "ListingMarket: Garov USDC'ga qaytarildi",
         listingId: position.id.toString(),
         txHash: tx.hash,
         status: 'success',
@@ -647,8 +543,8 @@ export default function DexPositions() {
 
       toast.success("To'lov amalga oshirildi! Garov qaytarildi.", { id: tid });
       saveLocalTxHistory({
-        type: 'dexRepay',
-        label: "DEX: To'lov amalga oshirildi",
+        type: 'listingMarketRepay',
+        label: "ListingMarket: To'lov amalga oshirildi",
         listingId: position.id.toString(),
         txHash: tx.hash,
         status: 'success',
@@ -679,8 +575,8 @@ export default function DexPositions() {
 
       toast.success('Likvidatsiya bajarildi!', { id: tid });
       saveLocalTxHistory({
-        type: 'dexLiquidate',
-        label: 'DEX: Likvidatsiya qilindi',
+        type: 'listingMarketLiquidate',
+        label: 'ListingMarket: Likvidatsiya qilindi',
         listingId: position.id.toString(),
         txHash: tx.hash,
         status: 'success',
@@ -704,20 +600,8 @@ export default function DexPositions() {
         </button>
       </div>
       <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 16 }}>
-        Ochiq pozitsiyalaringizni boshqaring — garov qo'shing, swap qiling yoki to'lang.
+        Ochiq pozitsiyalaringizni boshqaring — garov qo'shing, svop qiling yoki to'lang.
       </p>
-
-      {!oracleReady && (
-        <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 16, borderColor: 'var(--warning)', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <AlertTriangle size={18} color="var(--warning)" />
-            <span style={{ fontSize: 13 }}>Narx eskirgan — DUR swap qilishdan oldin yangilash kerak.</span>
-          </div>
-          <button className="btn btn-outline btn-sm" onClick={handleCheckpoint} disabled={checkpointing}>
-            {checkpointing ? <Loader2 className="spin" size={14} /> : 'Narxni yangilash'}
-          </button>
-        </div>
-      )}
 
       {loading && positions.length === 0 && (
         <div className="card" style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)' }}>Yuklanmoqda...</div>
@@ -736,6 +620,7 @@ export default function DexPositions() {
           const collDecimals = tokenDecimalsFor(p.collateralTokenId);
           const isOpen = p.status === 0;
           const overdue = isOpen && Date.now() / 1000 > Number(p.dueDate);
+          const hasWbtcPrincipal = p.wbtcAmount > 0n;
 
           let healthColor = 'var(--success)';
           let healthLabel = 'Sog\'lom';
@@ -775,10 +660,23 @@ export default function DexPositions() {
                       : <span style={{ color: 'var(--success)' }}> · {timeLeft(p.dueDate).text}</span>
                     )}
                   </div>
+
+                  {/* Ikkita havza alohida ko'rsatiladi, chunki ular
+                      mustaqil — garov (istalgan tokenda) va WBTC
+                      principal (agar hali birlashtirilmagan bo'lsa). */}
                   <div style={{ fontSize: 13 }}>
                     Garov: <b>{fmt(p.collateralAmount, collDecimals)} {collSymbol}</b>
-                    {p.durAmount > 0n && <> · Swap qilinmagan DUR: <b>{fmt(p.durAmount, TOKEN_DECIMALS.DUR)} DUR</b></>}
                   </div>
+                  {hasWbtcPrincipal && (
+                    <div style={{ fontSize: 13 }}>
+                      WBTC principal (birlashtirilmagan): <b>{fmt(p.wbtcAmount, TOKEN_DECIMALS.WBTC)} WBTC</b>
+                    </div>
+                  )}
+                  {p.value !== null && (
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>
+                      Jami qiymat: {fmt(p.value, TOKEN_DECIMALS.USDC)} USDC
+                    </div>
+                  )}
                   {p.floor !== null && (
                     <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                       Talab qilinadigan minimal: {fmt(p.floor, TOKEN_DECIMALS.USDC)} USDC · Likvidatsiya chegarasi: {fmt(p.threshold, TOKEN_DECIMALS.USDC)} USDC
@@ -787,19 +685,19 @@ export default function DexPositions() {
 
                   {isOpen && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
-                      {p.durAmount > 0n && (
+                      {hasWbtcPrincipal && (
                         <div>
-                          <button className="btn btn-outline btn-sm" style={{ width: '100%' }} disabled={actionLoading === idStr + '-swapdur' || !oracleReady} onClick={() => handleSwapDurToUsdc(p)}>
-                            <ArrowRightLeft size={14} /> DUR'ni USDC'ga swap qilish
+                          <button className="btn btn-outline btn-sm" style={{ width: '100%' }} disabled={actionLoading === idStr + '-merge'} onClick={() => handleMergeWbtcPrincipal(p)}>
+                            <ArrowRightLeft size={14} /> WBTC principal'ni USDC'ga birlashtirish
                           </button>
-                          {durPrice !== null && (
+                          {wbtcPrice !== null && (
                             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, textAlign: 'center' }}>
-                              Taxminan: ~{fmt((p.durAmount * durPrice) / (10n ** 18n), TOKEN_DECIMALS.USDC)} USDC
+                              Taxminan: ~{fmt((p.wbtcAmount * wbtcPrice * BigInt(10000 - feeBps)) / (10n ** 8n) / 10000n, TOKEN_DECIMALS.USDC)} USDC (komissiyadan keyin) · ixtiyoriy, hech narsani bloklamaydi
                             </div>
                           )}
                         </div>
                       )}
-                      {p.durAmount === 0n && p.collateralTokenId === TOKEN_USDC && (
+                      {p.collateralTokenId === TOKEN_USDC && (
                         <div>
                           <div style={{ display: 'flex', gap: 8 }}>
                             <button className="btn btn-outline btn-sm" style={{ flex: 1 }} disabled={actionLoading === idStr + '-swapcoll'} onClick={() => handleSwapCollateral(p, TOKEN_WBTC)}>
@@ -809,33 +707,18 @@ export default function DexPositions() {
                               → WETH
                             </button>
                           </div>
-                          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                            <div style={{ flex: 1, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center' }}>
-                              {wbtcPrice !== null ? `~${fmt((p.collateralAmount * (10n ** 8n)) / wbtcPrice, TOKEN_DECIMALS.WBTC)} WBTC` : ''}
-                            </div>
-                            <div style={{ flex: 1, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center' }}>
-                              {wethPrice !== null ? `~${fmt((p.collateralAmount * (10n ** 18n)) / wethPrice, TOKEN_DECIMALS.WETH)} WETH` : ''}
-                            </div>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, textAlign: 'center' }}>
+                            Garovni diversifikatsiya qilish (0.05% komissiya)
                           </div>
                         </div>
                       )}
-                      {p.durAmount === 0n && p.collateralTokenId !== TOKEN_USDC && (
+                      {p.collateralTokenId !== TOKEN_USDC && (
                         <div>
                           <button className="btn btn-outline btn-sm" style={{ width: '100%' }} disabled={actionLoading === idStr + '-swapback'} onClick={() => handleSwapCollateralToUsdc(p)}>
                             <ArrowRightLeft size={14} /> {collSymbol}'ni USDC'ga qaytarish
                           </button>
-                          {p.collateralTokenId === TOKEN_WBTC && wbtcPrice !== null && (
-                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, textAlign: 'center' }}>
-                              Taxminan: ~{fmt((p.collateralAmount * wbtcPrice) / (10n ** 8n), TOKEN_DECIMALS.USDC)} USDC
-                            </div>
-                          )}
-                          {p.collateralTokenId === TOKEN_WETH && wethPrice !== null && (
-                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, textAlign: 'center' }}>
-                              Taxminan: ~{fmt((p.collateralAmount * wethPrice) / (10n ** 18n), TOKEN_DECIMALS.USDC)} USDC
-                            </div>
-                          )}
                           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, textAlign: 'center' }}>
-                            Boshqa tokenga o'tish uchun: avval USDC'ga qaytaring, keyin qayta swap qiling
+                            Boshqa tokenga o'tish uchun: avval USDC'ga qaytaring, keyin qayta svop qiling
                           </div>
                         </div>
                       )}
@@ -882,9 +765,6 @@ export default function DexPositions() {
   );
 }
 
-// Kichik yordamchi komponent: miqdor kiritish + tasdiqlash tugmasi, har
-// safar takrorlanmasligi uchun addMargin/removeMargin ikkalasida ham
-// ishlatiladi.
 function MarginRow({ label, icon, onSubmit, disabled }) {
   const [value, setValue] = useState('');
   return (
