@@ -46,9 +46,9 @@ export default function Layout({ children }) {
     { to: '/listing-market-listings', icon: ShoppingCart, label: 'ListingMarket - Elonlar' },
     { to: '/listing-market-positions', icon: Briefcase, label: 'ListingMarket - Pozitsiyalarim' },
     { to: '/listing-market-seller-positions', icon: Store, label: 'ListingMarket - Sotganlarim' },
-    { to: '/dex', icon: ArrowLeftRight, label: "DEX — E'lon joylash" },
-    { to: '/dex-listings', icon: List, label: "DEX — E'lonlar" },
-    { to: '/dex-positions', icon: Wallet, label: 'DEX — Pozitsiyalarim' },
+
+
+
 
     { to: '/tokenomics', icon: TrendingUp, label: 'Tokenomics' },
     { to: '/whitepaper', icon: FileText, label: 'Whitepaper' },
