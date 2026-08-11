@@ -304,7 +304,7 @@ export default function ListingMarket() {
         // postListing komissiya olmaydi — komissiya faqat approveListing
         // (tasdiqlash) vaqtida, xaridordan olinadi.
         const approved = await ensureDexApproval('WBTC', signer, account, wbtcRaw, openWalletForRequest);
-        if (!approved) return;
+        if (!approved) { toast.dismiss(tid); return; }
         openWalletForRequest();
         tx = await withProgressToast(
           withWalletTimeout(dex.postListing(wbtcRaw, priceRaw, period), 90000, "MetaMask ochilmadi yoki wallet javob bermadi"),
@@ -314,7 +314,7 @@ export default function ListingMarket() {
         // postBuyOffer garovni escrow qiladi — komissiya bu yerda emas,
         // fulfillBuyOffer vaqtida sotuvchidan (WBTC'da) olinadi.
         const approved = await ensureDexApproval('USDC', signer, account, preview.garovRaw, openWalletForRequest);
-        if (!approved) return;
+        if (!approved) { toast.dismiss(tid); return; }
         openWalletForRequest();
         tx = await withProgressToast(
           withWalletTimeout(dex.postBuyOffer(wbtcRaw, priceRaw, period), 90000, "MetaMask ochilmadi yoki wallet javob bermadi"),

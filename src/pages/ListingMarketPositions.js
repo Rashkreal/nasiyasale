@@ -353,7 +353,7 @@ export default function ListingMarketPositions() {
       }
 
       const approved = await ensureDexApproval(tokenKey, signer, account, amountRaw, openWalletForRequest);
-      if (!approved) return;
+      if (!approved) { toast.dismiss(tid); return; }
       toast.loading('Garov qo\'shilmoqda...', { id: tid });
 
       const dex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, signer);
@@ -530,7 +530,7 @@ export default function ListingMarketPositions() {
       }
 
       const approved = await ensureDexApproval('USDC', signer, account, position.priceUSDC, openWalletForRequest);
-      if (!approved) return;
+      if (!approved) { toast.dismiss(tid); return; }
       toast.loading("To'lanmoqda...", { id: tid });
 
       const dex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, signer);

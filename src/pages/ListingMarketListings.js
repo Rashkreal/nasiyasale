@@ -281,7 +281,7 @@ export default function ListingMarketListings() {
       const feeRaw = (partialPriceUSDC * BigInt(feeBps)) / 10000n;
 
       const approved = await ensureDexApproval('USDC', signer, account, garovRaw + feeRaw, openWalletForRequest);
-      if (!approved) return;
+      if (!approved) { toast.dismiss(tid); return; }
 
       openWalletForRequest();
       const tx = await withProgressToast(
@@ -334,7 +334,7 @@ export default function ListingMarketListings() {
 
       toast.loading('Taklif bajarilmoqda...', { id: tid });
       const approved = await ensureDexApproval('WBTC', signer, account, totalNeeded, openWalletForRequest);
-      if (!approved) return;
+      if (!approved) { toast.dismiss(tid); return; }
 
       const dex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, signer);
       openWalletForRequest();
