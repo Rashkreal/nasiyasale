@@ -2,32 +2,35 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
 import toast from 'react-hot-toast';
 import { TOKEN_DECIMALS } from '../abi/contract';
-import { RefreshCw, AlertTriangle, ExternalLink, Bot, User } from 'lucide-react';
+import { RefreshCw, ExternalLink, Bot } from 'lucide-react';
 
 // ══════════════════════════════════════════════════════════════════════
 //  Barcha likvidatsiyalar — kim ishga tushirganidan qat'iy nazar (bizning
 //  bot, boshqa birovning boti, yoki qo'lda). Bu sahifa localStorage'ga
-//  emas, to'g'ridan-to'g'ri kontraktning Liquidated voqealariga (events)
-//  tayanadi — shuning uchun hamyon ulash shart emas, va bu yerda
-//  ko'rinadigan yozuv HECH KIMNING brauzeriga bog'liq emas.
+//  emas, to'g'ridan-to'g'ri kontraktga tayanadi.
+//
+//  IKKI BOSQICHLI YONDASHUV (keng blok oralig'ini skanerlashdan qochish
+//  uchun): avval getAllPositions() orqali QAYSI pozitsiyalar Liquidated
+//  holatida ekanini bilib olamiz (bu — oddiy holat o'qish, arzon, deploy
+//  blokini bilish shart emas). Keyin FAQAT o'sha aniq pozitsiyalar uchun,
+//  positionId INDEKSLANGAN bo'lgani tufayli, nishonlangan voqea so'rovi
+//  qilamiz — bu butun tarixni blok-bo'yicha kezishdan ancha samarali,
+//  chunki RPC tugun indeksdan to'g'ridan-to'g'ri foydalana oladi.
 // ══════════════════════════════════════════════════════════════════════
 
 const DEX_ADDRESS = '0x8aC38A6C9E02EE75658ae6f2d6Fd93e8e43c247f';
 
-const LIQUIDATED_EVENT_ABI = [
+const CONTRACT_ABI = [
+  'function totalPositions() external view returns (uint256)',
+  'function getAllPositions(uint256 offset, uint256 limit) external view returns (tuple(address buyer, address seller, uint256 priceUSDC, uint256 wbtcAmount, uint256 dueDate, uint8 collateralTokenId, uint256 collateralAmount, uint16 bufferBps, uint8 status)[] result, uint256[] ids)',
   'event Liquidated(uint256 indexed positionId, address indexed liquidator, bool deadlineTriggered, uint256 botReward, uint256 paidToSeller, uint256 returnedToBuyer, uint256 unswappedWbtcToSeller)',
 ];
 
+const STATUS_LIQUIDATED = 2;
+const PAGE_SIZE = 100;
+
 const RPC        = 'https://rpc.ankr.com/arbitrum/e531710028d0852baae1e1de9993017d4025b2d30d21d0ac5f812150724416b5';
 const RPC_BACKUP = 'https://arb1.arbitrum.io/rpc';
-
-// Ba'zi RPC provayderlar bitta so'rovda juda katta blok oralig'ini rad
-// etadi — shuning uchun bo'lib-bo'lib (chunk) so'raymiz.
-const CHUNK_SIZE = 50000;
-// Kontrakt bugun (2026-yil avgust) joylashtirilgan, shuning uchun bundan
-// oldingi bloklarni qidirishning hojati yo'q — so'rovlar sonini keskin
-// kamaytiradi. Agar kelajakda kerak bo'lsa, bu raqamni pasaytirish kifoya.
-const DEPLOY_BLOCK_ESTIMATE = 0; // 0 = "aniq bilmayman, oxirgi ~2 mln blokni qidir" rejimi
 
 async function getReadProvider() {
   try {
@@ -61,29 +64,37 @@ export default function ListingMarketLiquidations() {
     setEvents([]);
     try {
       const provider = await getReadProvider();
-      const contract = new ethers.Contract(DEX_ADDRESS, LIQUIDATED_EVENT_ABI, provider);
-      const latestBlock = await provider.getBlockNumber();
-      const startBlock = Math.max(0, latestBlock - 2_000_000); // taxminan bir necha kunlik zaxira
+      const contract = new ethers.Contract(DEX_ADDRESS, CONTRACT_ABI, provider);
 
-      const allLogs = [];
-      let from = startBlock;
-      while (from <= latestBlock) {
-        const to = Math.min(from + CHUNK_SIZE - 1, latestBlock);
-        setProgress(`Bloklar tekshirilmoqda: ${from}–${to} (jami ${latestBlock})`);
-        try {
-          const logs = await contract.queryFilter(contract.filters.Liquidated(), from, to);
-          allLogs.push(...logs);
-        } catch (e) {
-          // Ba'zi provayderlar hatto CHUNK_SIZE'ni ham rad etishi mumkin —
-          // bitta bo'lakni o'tkazib yuboramiz, qolganini davom ettiramiz.
-          console.warn(`Blok oralig'i ${from}-${to} o'qishda xato:`, e.message);
+      // 1-bosqich: barcha pozitsiyalarni sahifalab o'qib, qaysilari
+      // Liquidated ekanini aniqlaymiz (arzon — oddiy holat o'qish).
+      setProgress('Pozitsiyalar tekshirilmoqda...');
+      const total = await contract.totalPositions();
+      const liquidatedIds = [];
+      for (let offset = 0n; offset < total; offset += BigInt(PAGE_SIZE)) {
+        const [result, ids] = await contract.getAllPositions(offset, PAGE_SIZE);
+        for (let i = 0; i < result.length; i++) {
+          if (Number(result[i].status) === STATUS_LIQUIDATED) liquidatedIds.push(ids[i]);
         }
-        from = to + 1;
       }
 
-      // Har bir voqea uchun blok vaqtini alohida so'raymiz (parallel).
+      if (liquidatedIds.length === 0) {
+        setEvents([]);
+        return;
+      }
+
+      // 2-bosqich: FAQAT shu aniq pozitsiyalar uchun, positionId bo'yicha
+      // nishonlangan (indekslangan) voqea so'rovi — butun blok tarixini
+      // qidirishdan ancha samarali.
+      setProgress(`${liquidatedIds.length} ta likvidatsiya tafsiloti yuklanmoqda...`);
+      const logs = (
+        await Promise.all(
+          liquidatedIds.map((id) => contract.queryFilter(contract.filters.Liquidated(id)))
+        )
+      ).flat();
+
       const withTimestamps = await Promise.all(
-        allLogs.map(async (log) => {
+        logs.map(async (log) => {
           let timestamp = null;
           try {
             const block = await provider.getBlock(log.blockNumber);
