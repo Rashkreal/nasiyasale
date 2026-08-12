@@ -18,6 +18,7 @@ import ListingMarket from './pages/ListingMarket';
 import ListingMarketListings from './pages/ListingMarketListings';
 import ListingMarketPositions from './pages/ListingMarketPositions';
 import ListingMarketSellerPositions from './pages/ListingMarketSellerPositions';
+import ListingMarketLiquidations from './pages/ListingMarketLiquidations';
 
 import Tokenomics from './pages/Tokenomics';
 import Settings from './pages/Settings';
@@ -48,7 +49,7 @@ export default function App() {
                 <Route path="/listing-market" element={<ListingMarket />} />
                 <Route path="/listing-market-listings" element={<ListingMarketListings />} />
                 <Route path="/listing-market-positions" element={<ListingMarketPositions />} />
-                <Route path="/listing-market-seller-positions" element={<ListingMarketSellerPositions />} />
+                <Route path="/listing-market-seller-positions" element={<ListingMarketSellerPositions />} /><Route path="/listing-market-liquidations" element={<ListingMarketLiquidations />} />
                 
                 <Route path="/tokenomics" element={<Tokenomics />} />
                 <Route path="/settings" element={<Settings />} />

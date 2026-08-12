@@ -10,6 +10,7 @@
   "dependencies": {
     "@walletconnect/ethereum-provider": "^2.17.0",
     "@walletconnect/modal": "^2.7.0",
+    "dotenv": "^17.4.2",
     "ethers": "^6.9.0",
     "firebase": "^12.11.0",
     "lucide-react": "^0.309.0",
