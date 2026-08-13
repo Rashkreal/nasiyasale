@@ -92,37 +92,46 @@ export default function ListingMarketLiquidations() {
         return;
       }
 
-      // 2-bosqich: har bir pozitsiya uchun QIDIRUV OXIRGI (eng yaqin)
-      // bo'lakdan boshlanib, ORQAGA siljiydi, va topilgan zahoti
-      // TO'XTAYDI. Ankr RPC juda katta blok oralig'ini bir so'rovda rad
-      // etadi ("Block range is too large"), shuning uchun oldingi versiya
-      // (butun 30 kunlik oynani bitta so'rovda so'rash) ishlamadi.
-      // Bo'lib-bo'lib qidirish esa YAQINDAGI likvidatsiyalar uchun tez
-      // (odatda 1-2 bo'lakda topiladi), eskilari uchun sekinroq, lekin
-      // baribir to'g'ri natija beradi.
+      // 2-bosqich: har bir pozitsiya uchun kerakli oraliqni kichik
+      // bo'laklarga bo'lib, hammasini PARALLEL so'raymiz. Bo'laklar
+      // sonini xavfsiz chegarada ushlab turamiz (MAX_CHUNKS) — aks
+      // holda son minglab bo'lishi mumkin (30 kunlik eng yomon holat),
+      // va ularning barchasini bir vaqtda yuborish provayderni "bosib
+      // qolishi" mumkin. Bu — kontrakt hali yosh, qisqa test
+      // muddatlari bilan ishlatilayotgan joriy bosqich uchun oqilona
+      // muvozanat; loyiha o'sib, uzoqroq (haqiqiy 30 kungacha) muddatlar
+      // keng qo'llanila boshlagach, bu qiymatni qayta ko'rib chiqish
+      // kerak bo'ladi.
       const MAX_PERIOD_SECONDS = 30 * 86400;
       const ASSUMED_BLOCK_TIME = 0.2; // soniya, xavfsizlik uchun tezroq taxmin
       const CHUNK_BLOCKS = 10_000; // Ankr uchun xavfsiz hajm
+      const MAX_CHUNKS = 60; // ~600,000 blok ≈ Arbitrum'da bir necha kunlik zaxira
 
       setProgress(`${liquidated.length} ta likvidatsiya tafsiloti yuklanmoqda...`);
       const logsPerId = await Promise.all(
         liquidated.map(async ({ id, dueDate }) => {
           const earliestPossibleApproval = Number(dueDate) - MAX_PERIOD_SECONDS;
           const secondsAgo = Math.max(0, latestTimestamp - earliestPossibleApproval);
-          const oldestBlockToCheck = Math.max(0, latestBlock - Math.ceil(secondsAgo / ASSUMED_BLOCK_TIME) - 5000);
+          const idealOldest = Math.max(0, latestBlock - Math.ceil(secondsAgo / ASSUMED_BLOCK_TIME) - 5000);
+          const cappedOldest = Math.max(idealOldest, latestBlock - MAX_CHUNKS * CHUNK_BLOCKS);
 
-          let chunkEnd = latestBlock;
-          while (chunkEnd >= oldestBlockToCheck) {
-            const chunkStart = Math.max(oldestBlockToCheck, chunkEnd - CHUNK_BLOCKS + 1);
-            try {
-              const found = await contract.queryFilter(contract.filters.Liquidated(id), chunkStart, chunkEnd);
-              if (found.length > 0) return found;
-            } catch (e) {
-              console.warn(`#${id}: bloklar ${chunkStart}-${chunkEnd} o'qishda xato:`, e.message);
-            }
-            chunkEnd = chunkStart - 1;
+          const chunkStarts = [];
+          for (let end = latestBlock; end >= cappedOldest; end -= CHUNK_BLOCKS) {
+            chunkStarts.push(Math.max(cappedOldest, end - CHUNK_BLOCKS + 1));
           }
-          return [];
+
+          const chunkResults = await Promise.all(
+            chunkStarts.map(async (chunkStart, i) => {
+              const chunkEnd = i === 0 ? latestBlock : Math.min(latestBlock, chunkStart + CHUNK_BLOCKS - 1);
+              try {
+                return await contract.queryFilter(contract.filters.Liquidated(id), chunkStart, chunkEnd);
+              } catch (e) {
+                console.warn(`#${id}: bloklar ${chunkStart}-${chunkEnd} o'qishda xato:`, e.message);
+                return [];
+              }
+            })
+          );
+          return chunkResults.flat();
         })
       );
       const logs = logsPerId.flat();
