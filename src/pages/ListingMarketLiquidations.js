@@ -104,8 +104,21 @@ export default function ListingMarketLiquidations() {
       // kerak bo'ladi.
       const MAX_PERIOD_SECONDS = 30 * 86400;
       const ASSUMED_BLOCK_TIME = 0.2; // soniya, xavfsizlik uchun tezroq taxmin
-      const CHUNK_BLOCKS = 10_000; // Ankr uchun xavfsiz hajm
-      const MAX_CHUNKS = 60; // ~600,000 blok ≈ Arbitrum'da bir necha kunlik zaxira
+      const CHUNK_BLOCKS = 2_000; // Ankr 10,000'ni ham rad etdi — ancha kichikroq, sinalgan hajm
+      const MAX_CHUNKS = 100; // ~200,000 blok ≈ Arbitrum'da ~11 soatlik zaxira
+      const BATCH_SIZE = 15; // bir vaqtda nechta so'rov yuborilsin — hajm emas, SON bo'yicha cheklovdan qochish uchun
+
+      // Ko'p elementni kichik guruhlarga bo'lib, har guruhni navbat bilan
+      // (lekin guruh ICHIDA parallel) qayta ishlaydi.
+      async function processBatched(items, fn) {
+        const results = [];
+        for (let i = 0; i < items.length; i += BATCH_SIZE) {
+          const batch = items.slice(i, i + BATCH_SIZE);
+          const batchResults = await Promise.all(batch.map(fn));
+          results.push(...batchResults);
+        }
+        return results;
+      }
 
       setProgress(`${liquidated.length} ta likvidatsiya tafsiloti yuklanmoqda...`);
       const logsPerId = await Promise.all(
@@ -120,16 +133,19 @@ export default function ListingMarketLiquidations() {
             chunkStarts.push(Math.max(cappedOldest, end - CHUNK_BLOCKS + 1));
           }
 
-          const chunkResults = await Promise.all(
-            chunkStarts.map(async (chunkStart, i) => {
-              const chunkEnd = i === 0 ? latestBlock : Math.min(latestBlock, chunkStart + CHUNK_BLOCKS - 1);
+          const chunkResults = await processBatched(
+            chunkStarts.map((chunkStart, i) => ({
+              chunkStart,
+              chunkEnd: i === 0 ? latestBlock : Math.min(latestBlock, chunkStart + CHUNK_BLOCKS - 1),
+            })),
+            async ({ chunkStart, chunkEnd }) => {
               try {
                 return await contract.queryFilter(contract.filters.Liquidated(id), chunkStart, chunkEnd);
               } catch (e) {
                 console.warn(`#${id}: bloklar ${chunkStart}-${chunkEnd} o'qishda xato:`, e.message);
                 return [];
               }
-            })
+            }
           );
           return chunkResults.flat();
         })
