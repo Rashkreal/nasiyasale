@@ -92,34 +92,37 @@ export default function ListingMarketLiquidations() {
         return;
       }
 
-      // 2-bosqich: har bir pozitsiya uchun QAYERDAN qidirishni dueDate
-      // asosida hisoblaymiz — "0-blokdan hozirgacha" taxmin qilish
-      // o'rniga. MAX_PERIOD_DAYS (30 kun) — kontraktning eng uzoq
-      // ruxsat etilgan to'lov muddati, shuning uchun dueDate'dan 30 kun
-      // AYIRISH har doim tasdiqlash vaqtidan OLDINROQ (yoki teng) nuqta
-      // beradi — pozitsiya haqiqatda qisqaroq muddat bilan ochilgan
-      // bo'lsa ham, xavfsiz. Blok vaqtini taxminiy aylantirish uchun
-      // haqiqiy o'rtacha (~0.25s) dan TEZROQ (0.2s) qiymat ishlatiladi —
-      // bu "orqaga qarab" hisoblashda YETARLICHA UZOQQA borishni
-      // kafolatlaydi (haqiqiy blok vaqti taxminiydan sekinroq bo'lsa,
-      // shu farq allaqachon zaxira sifatida hisobga olingan bo'ladi).
+      // 2-bosqich: har bir pozitsiya uchun QIDIRUV OXIRGI (eng yaqin)
+      // bo'lakdan boshlanib, ORQAGA siljiydi, va topilgan zahoti
+      // TO'XTAYDI. Ankr RPC juda katta blok oralig'ini bir so'rovda rad
+      // etadi ("Block range is too large"), shuning uchun oldingi versiya
+      // (butun 30 kunlik oynani bitta so'rovda so'rash) ishlamadi.
+      // Bo'lib-bo'lib qidirish esa YAQINDAGI likvidatsiyalar uchun tez
+      // (odatda 1-2 bo'lakda topiladi), eskilari uchun sekinroq, lekin
+      // baribir to'g'ri natija beradi.
       const MAX_PERIOD_SECONDS = 30 * 86400;
       const ASSUMED_BLOCK_TIME = 0.2; // soniya, xavfsizlik uchun tezroq taxmin
-      const SAFETY_BLOCKS = 20_000; // qo'shimcha zaxira
+      const CHUNK_BLOCKS = 10_000; // Ankr uchun xavfsiz hajm
 
       setProgress(`${liquidated.length} ta likvidatsiya tafsiloti yuklanmoqda...`);
       const logsPerId = await Promise.all(
         liquidated.map(async ({ id, dueDate }) => {
           const earliestPossibleApproval = Number(dueDate) - MAX_PERIOD_SECONDS;
           const secondsAgo = Math.max(0, latestTimestamp - earliestPossibleApproval);
-          const blocksAgo = Math.ceil(secondsAgo / ASSUMED_BLOCK_TIME) + SAFETY_BLOCKS;
-          const fromBlock = Math.max(0, latestBlock - blocksAgo);
-          try {
-            return await contract.queryFilter(contract.filters.Liquidated(id), fromBlock, latestBlock);
-          } catch (e) {
-            console.warn(`#${id} uchun voqea topilmadi:`, e.message);
-            return [];
+          const oldestBlockToCheck = Math.max(0, latestBlock - Math.ceil(secondsAgo / ASSUMED_BLOCK_TIME) - 5000);
+
+          let chunkEnd = latestBlock;
+          while (chunkEnd >= oldestBlockToCheck) {
+            const chunkStart = Math.max(oldestBlockToCheck, chunkEnd - CHUNK_BLOCKS + 1);
+            try {
+              const found = await contract.queryFilter(contract.filters.Liquidated(id), chunkStart, chunkEnd);
+              if (found.length > 0) return found;
+            } catch (e) {
+              console.warn(`#${id}: bloklar ${chunkStart}-${chunkEnd} o'qishda xato:`, e.message);
+            }
+            chunkEnd = chunkStart - 1;
           }
+          return [];
         })
       );
       const logs = logsPerId.flat();
