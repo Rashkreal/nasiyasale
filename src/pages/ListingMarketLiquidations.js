@@ -2,20 +2,30 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
 import toast from 'react-hot-toast';
 import { TOKEN_DECIMALS } from '../abi/contract';
-import { RefreshCw, ExternalLink, Bot } from 'lucide-react';
+import { RefreshCw, ExternalLink, AlertTriangle, Info } from 'lucide-react';
 
 // ══════════════════════════════════════════════════════════════════════
-//  Barcha likvidatsiyalar — kim ishga tushirganidan qat'iy nazar (bizning
-//  bot, boshqa birovning boti, yoki qo'lda). Bu sahifa localStorage'ga
-//  emas, to'g'ridan-to'g'ri kontraktga tayanadi.
+//  Barcha likvidatsiyalar — kim ishga tushirganidan qat'iy nazar.
 //
-//  IKKI BOSQICHLI YONDASHUV (keng blok oralig'ini skanerlashdan qochish
-//  uchun): avval getAllPositions() orqali QAYSI pozitsiyalar Liquidated
-//  holatida ekanini bilib olamiz (bu — oddiy holat o'qish, arzon, deploy
-//  blokini bilish shart emas). Keyin FAQAT o'sha aniq pozitsiyalar uchun,
-//  positionId INDEKSLANGAN bo'lgani tufayli, nishonlangan voqea so'rovi
-//  qilamiz — bu butun tarixni blok-bo'yicha kezishdan ancha samarali,
-//  chunki RPC tugun indeksdan to'g'ridan-to'g'ri foydalana oladi.
+//  NEGA VOQEALAR (events) ISHLATILMAYDI: oldingi versiyalar Liquidated
+//  voqealarini eth_getLogs orqali qidirardi, lekin Arbitrum'da bu amalda
+//  ishlamadi — RPC provayderlar (Ankr ham, zaxira ham) katta blok
+//  oralig'ini rad etadi ("Block range is too large"), va oraliqni kichik
+//  bo'laklarga bo'lish esa minglab so'rovni talab qilib, sahifani
+//  daqiqalab osib qo'yardi.
+//
+//  YECHIM: voqealar UMUMAN so'ralmaydi. Kontraktning O'Z HOLATIDA
+//  status = Liquidated (2) allaqachon yozilgan, shuning uchun oddiy
+//  getAllPositions() chaqiruvi barcha likvidatsiya qilingan
+//  pozitsiyalarni beradi — bir necha arzon so'rov, blok qidirish yo'q,
+//  RPC'ga deyarli yuk yo'q.
+//
+//  BU YONDASHUVNING CHEKLOVI (ochiq aytilgan): likvidatorning manzili,
+//  bot mukofotining aniq miqdori va likvidatsiya sodir bo'lgan aniq
+//  vaqt — bular FAQAT voqealarda saqlanadi, holatda emas. Shuning uchun
+//  bu yerda ko'rsatilmaydi. Ularni ko'rish uchun Arbiscan havolasi
+//  berilgan — Arbiscan o'zining indekslangan bazasidan o'qiydi, shuning
+//  uchun bizning RPC cheklovlarimiz unga taalluqli emas.
 // ══════════════════════════════════════════════════════════════════════
 
 const DEX_ADDRESS = '0x8aC38A6C9E02EE75658ae6f2d6Fd93e8e43c247f';
@@ -23,7 +33,6 @@ const DEX_ADDRESS = '0x8aC38A6C9E02EE75658ae6f2d6Fd93e8e43c247f';
 const CONTRACT_ABI = [
   'function totalPositions() external view returns (uint256)',
   'function getAllPositions(uint256 offset, uint256 limit) external view returns (tuple(address buyer, address seller, uint256 priceUSDC, uint256 wbtcAmount, uint256 dueDate, uint8 collateralTokenId, uint256 collateralAmount, uint16 bufferBps, uint8 status)[] result, uint256[] ids)',
-  'event Liquidated(uint256 indexed positionId, address indexed liquidator, bool deadlineTriggered, uint256 botReward, uint256 paidToSeller, uint256 returnedToBuyer, uint256 unswappedWbtcToSeller)',
 ];
 
 const STATUS_LIQUIDATED = 2;
@@ -54,132 +63,46 @@ function fmt(raw, decimals, sigFigs = 4) {
   return num.toPrecision(sigFigs).replace(/\.?0+$/, '').replace(/\.$/, '');
 }
 
+const UZ_MONTHS = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
+function fmtDate(unixSeconds) {
+  if (!unixSeconds || unixSeconds === 0n) return '—';
+  const d = new Date(Number(unixSeconds) * 1000);
+  return `${d.getDate()}-${UZ_MONTHS[d.getMonth()]}, ${d.getFullYear()}`;
+}
+
 export default function ListingMarketLiquidations() {
-  const [events, setEvents] = useState([]);
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [progress, setProgress] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
-    setEvents([]);
     try {
       const provider = await getReadProvider();
       const contract = new ethers.Contract(DEX_ADDRESS, CONTRACT_ABI, provider);
 
-      // Joriy blok + uning vaqti — vaqtni blok raqamiga taxminiy
-      // aylantirish uchun bazaviy nuqta.
-      const latestBlockInfo = await provider.getBlock('latest');
-      const latestBlock = latestBlockInfo.number;
-      const latestTimestamp = latestBlockInfo.timestamp;
-
-      // 1-bosqich: barcha pozitsiyalarni sahifalab o'qib, qaysilari
-      // Liquidated ekanini aniqlaymiz (arzon — oddiy holat o'qish),
-      // shu bilan birga dueDate'ini ham saqlab qolamiz.
-      setProgress('Pozitsiyalar tekshirilmoqda...');
       const total = await contract.totalPositions();
-      const liquidated = [];
+      const found = [];
       for (let offset = 0n; offset < total; offset += BigInt(PAGE_SIZE)) {
         const [result, ids] = await contract.getAllPositions(offset, PAGE_SIZE);
         for (let i = 0; i < result.length; i++) {
           if (Number(result[i].status) === STATUS_LIQUIDATED) {
-            liquidated.push({ id: ids[i], dueDate: result[i].dueDate });
+            found.push({
+              id: ids[i],
+              buyer: result[i].buyer,
+              seller: result[i].seller,
+              priceUSDC: result[i].priceUSDC,
+              dueDate: result[i].dueDate,
+            });
           }
         }
       }
 
-      if (liquidated.length === 0) {
-        setEvents([]);
-        return;
-      }
-
-      // 2-bosqich: har bir pozitsiya uchun kerakli oraliqni kichik
-      // bo'laklarga bo'lib, hammasini PARALLEL so'raymiz. Bo'laklar
-      // sonini xavfsiz chegarada ushlab turamiz (MAX_CHUNKS) — aks
-      // holda son minglab bo'lishi mumkin (30 kunlik eng yomon holat),
-      // va ularning barchasini bir vaqtda yuborish provayderni "bosib
-      // qolishi" mumkin. Bu — kontrakt hali yosh, qisqa test
-      // muddatlari bilan ishlatilayotgan joriy bosqich uchun oqilona
-      // muvozanat; loyiha o'sib, uzoqroq (haqiqiy 30 kungacha) muddatlar
-      // keng qo'llanila boshlagach, bu qiymatni qayta ko'rib chiqish
-      // kerak bo'ladi.
-      const MAX_PERIOD_SECONDS = 30 * 86400;
-      const ASSUMED_BLOCK_TIME = 0.2; // soniya, xavfsizlik uchun tezroq taxmin
-      const CHUNK_BLOCKS = 2_000; // Ankr 10,000'ni ham rad etdi — ancha kichikroq, sinalgan hajm
-      const MAX_CHUNKS = 100; // ~200,000 blok ≈ Arbitrum'da ~11 soatlik zaxira
-      const BATCH_SIZE = 15; // bir vaqtda nechta so'rov yuborilsin — hajm emas, SON bo'yicha cheklovdan qochish uchun
-
-      // Ko'p elementni kichik guruhlarga bo'lib, har guruhni navbat bilan
-      // (lekin guruh ICHIDA parallel) qayta ishlaydi.
-      async function processBatched(items, fn) {
-        const results = [];
-        for (let i = 0; i < items.length; i += BATCH_SIZE) {
-          const batch = items.slice(i, i + BATCH_SIZE);
-          const batchResults = await Promise.all(batch.map(fn));
-          results.push(...batchResults);
-        }
-        return results;
-      }
-
-      setProgress(`${liquidated.length} ta likvidatsiya tafsiloti yuklanmoqda...`);
-      const logsPerId = await Promise.all(
-        liquidated.map(async ({ id, dueDate }) => {
-          const earliestPossibleApproval = Number(dueDate) - MAX_PERIOD_SECONDS;
-          const secondsAgo = Math.max(0, latestTimestamp - earliestPossibleApproval);
-          const idealOldest = Math.max(0, latestBlock - Math.ceil(secondsAgo / ASSUMED_BLOCK_TIME) - 5000);
-          const cappedOldest = Math.max(idealOldest, latestBlock - MAX_CHUNKS * CHUNK_BLOCKS);
-
-          const chunkStarts = [];
-          for (let end = latestBlock; end >= cappedOldest; end -= CHUNK_BLOCKS) {
-            chunkStarts.push(Math.max(cappedOldest, end - CHUNK_BLOCKS + 1));
-          }
-
-          const chunkResults = await processBatched(
-            chunkStarts.map((chunkStart, i) => ({
-              chunkStart,
-              chunkEnd: i === 0 ? latestBlock : Math.min(latestBlock, chunkStart + CHUNK_BLOCKS - 1),
-            })),
-            async ({ chunkStart, chunkEnd }) => {
-              try {
-                return await contract.queryFilter(contract.filters.Liquidated(id), chunkStart, chunkEnd);
-              } catch (e) {
-                console.warn(`#${id}: bloklar ${chunkStart}-${chunkEnd} o'qishda xato:`, e.message);
-                return [];
-              }
-            }
-          );
-          return chunkResults.flat();
-        })
-      );
-      const logs = logsPerId.flat();
-
-      const withTimestamps = await Promise.all(
-        logs.map(async (log) => {
-          let timestamp = null;
-          try {
-            const block = await provider.getBlock(log.blockNumber);
-            timestamp = block.timestamp;
-          } catch { /* vaqt topilmasa ham, qolgan ma'lumot ko'rsatiladi */ }
-          return {
-            positionId: log.args.positionId,
-            liquidator: log.args.liquidator,
-            deadlineTriggered: log.args.deadlineTriggered,
-            botReward: log.args.botReward,
-            paidToSeller: log.args.paidToSeller,
-            returnedToBuyer: log.args.returnedToBuyer,
-            txHash: log.transactionHash,
-            blockNumber: log.blockNumber,
-            timestamp,
-          };
-        })
-      );
-
-      withTimestamps.sort((a, b) => b.blockNumber - a.blockNumber);
-      setEvents(withTimestamps);
+      found.sort((a, b) => Number(b.id - a.id));
+      setItems(found);
     } catch (e) {
       console.error('load liquidations error:', e);
-      toast.error("Likvidatsiyalar tarixini yuklashda xato");
+      toast.error("Likvidatsiyalar ro'yxatini yuklashda xato");
     } finally {
-      setProgress('');
       setLoading(false);
     }
   }, []);
@@ -187,12 +110,6 @@ export default function ListingMarketLiquidations() {
   useEffect(() => {
     load();
   }, [load]);
-
-  function fmtTime(unixSeconds) {
-    if (!unixSeconds) return '—';
-    const d = new Date(unixSeconds * 1000);
-    return d.toLocaleString('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-  }
 
   return (
     <div style={{ maxWidth: 780, margin: '0 auto', padding: '20px 16px' }}>
@@ -202,61 +119,74 @@ export default function ListingMarketLiquidations() {
           <RefreshCw size={14} className={loading ? 'spin' : ''} />
         </button>
       </div>
-      <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 20 }}>
-        Kim ishga tushirganidan qat'iy nazar — to'g'ridan-to'g'ri blokcheyndan, ochiq voqealar orqali.
+      <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 16 }}>
+        Kim ishga tushirganidan qat'iy nazar — to'g'ridan-to'g'ri kontrakt holatidan.
       </p>
+
+      <div className="card" style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 16, background: 'var(--bg-secondary)' }}>
+        <Info size={16} style={{ flexShrink: 0, marginTop: 2 }} color="var(--text-muted)" />
+        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+          Likvidator manzili, bot mukofoti va aniq vaqt bu yerda ko'rsatilmaydi — ular kontraktning
+          voqealarida saqlanadi. To'liq tafsilot uchun "Arbiscan'da ko'rish" havolasidan foydalaning.
+        </div>
+      </div>
 
       {loading && (
         <div className="card" style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)' }}>
-          Yuklanmoqda... {progress && <div style={{ fontSize: 11, marginTop: 6 }}>{progress}</div>}
+          Yuklanmoqda...
         </div>
       )}
 
-      {!loading && events.length === 0 && (
+      {!loading && items.length === 0 && (
         <div className="card" style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)' }}>
           Hozircha hech qanday likvidatsiya bo'lmagan.
         </div>
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {events.map((ev) => (
-          <div key={ev.txHash} className="card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span className="mono" style={{ color: 'var(--accent-bright)', fontWeight: 700 }}>#{ev.positionId.toString()}</span>
-                  <span className="badge" style={{
-                    fontSize: 11,
-                    background: ev.deadlineTriggered ? 'rgba(234,179,8,0.12)' : 'rgba(239,68,68,0.12)',
-                    color: ev.deadlineTriggered ? 'var(--warning)' : 'var(--danger)',
-                    border: `1px solid ${ev.deadlineTriggered ? 'var(--warning)' : 'var(--danger)'}`,
-                  }}>
-                    {ev.deadlineTriggered ? 'Muddat tugagani uchun' : 'Narx pasaygani uchun'}
-                  </span>
-                </div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{fmtTime(ev.timestamp)}</div>
+        {items.map((it) => (
+          <div key={it.id.toString()} className="card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span className="mono" style={{ color: 'var(--accent-bright)', fontWeight: 700 }}>#{it.id.toString()}</span>
+                <span className="badge" style={{
+                  fontSize: 11,
+                  background: 'rgba(239,68,68,0.12)',
+                  color: 'var(--danger)',
+                  border: '1px solid var(--danger)',
+                }}>
+                  <AlertTriangle size={11} style={{ verticalAlign: -1, marginRight: 4 }} />
+                  Likvidatsiya qilingan
+                </span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-muted)' }}>
-                <Bot size={14} />
-                <span className="mono">{shortAddr(ev.liquidator)}</span>
-                <a href={`https://arbiscan.io/tx/${ev.txHash}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-bright)', display: 'flex', alignItems: 'center' }}>
-                  <ExternalLink size={13} />
-                </a>
-              </div>
+              
+              
+              <a
+                href={`https://arbiscan.io/address/${DEX_ADDRESS}#events`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: 'var(--accent-bright)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}
+              >
+                Arbiscan'da ko'rish <ExternalLink size={12} />
+              </a>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--bg-secondary)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--bg-secondary)' }}>
               <div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Bot mukofoti</div>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>{fmt(ev.botReward, TOKEN_DECIMALS.USDC)} USDC</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Qarz miqdori</div>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>{fmt(it.priceUSDC, TOKEN_DECIMALS.USDC)} USDC</div>
               </div>
               <div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Sotuvchiga to'landi</div>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>{fmt(ev.paidToSeller, TOKEN_DECIMALS.USDC)} USDC</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>To'lov muddati edi</div>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>{fmtDate(it.dueDate)}</div>
               </div>
               <div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Xaridorga qaytdi</div>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>{fmt(ev.returnedToBuyer, TOKEN_DECIMALS.USDC)} USDC</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Xaridor</div>
+                <div className="mono" style={{ fontSize: 13 }}>{shortAddr(it.buyer)}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Sotuvchi</div>
+                <div className="mono" style={{ fontSize: 13 }}>{shortAddr(it.seller)}</div>
               </div>
             </div>
           </div>
