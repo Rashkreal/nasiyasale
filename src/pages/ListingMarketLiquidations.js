@@ -87,11 +87,19 @@ export default function ListingMarketLiquidations() {
       // nishonlangan (indekslangan) voqea so'rovi — butun blok tarixini
       // qidirishdan ancha samarali.
       setProgress(`${liquidatedIds.length} ta likvidatsiya tafsiloti yuklanmoqda...`);
-      const logs = (
-        await Promise.all(
-          liquidatedIds.map((id) => contract.queryFilter(contract.filters.Liquidated(id)))
-        )
-      ).flat();
+      const latestBlock = await provider.getBlockNumber();
+      const fromBlock = Math.max(0, latestBlock - 50_000);
+      const logsPerId = await Promise.all(
+        liquidatedIds.map(async (id) => {
+          try {
+            return await contract.queryFilter(contract.filters.Liquidated(id), fromBlock, latestBlock);
+          } catch (e) {
+            console.warn(`#${id} uchun voqea topilmadi:`, e.message);
+            return [];
+          }
+        })
+      );
+      const logs = logsPerId.flat();
 
       const withTimestamps = await Promise.all(
         logs.map(async (log) => {
