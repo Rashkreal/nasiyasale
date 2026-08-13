@@ -66,31 +66,54 @@ export default function ListingMarketLiquidations() {
       const provider = await getReadProvider();
       const contract = new ethers.Contract(DEX_ADDRESS, CONTRACT_ABI, provider);
 
+      // Joriy blok + uning vaqti — vaqtni blok raqamiga taxminiy
+      // aylantirish uchun bazaviy nuqta.
+      const latestBlockInfo = await provider.getBlock('latest');
+      const latestBlock = latestBlockInfo.number;
+      const latestTimestamp = latestBlockInfo.timestamp;
+
       // 1-bosqich: barcha pozitsiyalarni sahifalab o'qib, qaysilari
-      // Liquidated ekanini aniqlaymiz (arzon — oddiy holat o'qish).
+      // Liquidated ekanini aniqlaymiz (arzon — oddiy holat o'qish),
+      // shu bilan birga dueDate'ini ham saqlab qolamiz.
       setProgress('Pozitsiyalar tekshirilmoqda...');
       const total = await contract.totalPositions();
-      const liquidatedIds = [];
+      const liquidated = [];
       for (let offset = 0n; offset < total; offset += BigInt(PAGE_SIZE)) {
         const [result, ids] = await contract.getAllPositions(offset, PAGE_SIZE);
         for (let i = 0; i < result.length; i++) {
-          if (Number(result[i].status) === STATUS_LIQUIDATED) liquidatedIds.push(ids[i]);
+          if (Number(result[i].status) === STATUS_LIQUIDATED) {
+            liquidated.push({ id: ids[i], dueDate: result[i].dueDate });
+          }
         }
       }
 
-      if (liquidatedIds.length === 0) {
+      if (liquidated.length === 0) {
         setEvents([]);
         return;
       }
 
-      // 2-bosqich: FAQAT shu aniq pozitsiyalar uchun, positionId bo'yicha
-      // nishonlangan (indekslangan) voqea so'rovi — butun blok tarixini
-      // qidirishdan ancha samarali.
-      setProgress(`${liquidatedIds.length} ta likvidatsiya tafsiloti yuklanmoqda...`);
-      const latestBlock = await provider.getBlockNumber();
-      const fromBlock = Math.max(0, latestBlock - 50_000);
+      // 2-bosqich: har bir pozitsiya uchun QAYERDAN qidirishni dueDate
+      // asosida hisoblaymiz — "0-blokdan hozirgacha" taxmin qilish
+      // o'rniga. MAX_PERIOD_DAYS (30 kun) — kontraktning eng uzoq
+      // ruxsat etilgan to'lov muddati, shuning uchun dueDate'dan 30 kun
+      // AYIRISH har doim tasdiqlash vaqtidan OLDINROQ (yoki teng) nuqta
+      // beradi — pozitsiya haqiqatda qisqaroq muddat bilan ochilgan
+      // bo'lsa ham, xavfsiz. Blok vaqtini taxminiy aylantirish uchun
+      // haqiqiy o'rtacha (~0.25s) dan TEZROQ (0.2s) qiymat ishlatiladi —
+      // bu "orqaga qarab" hisoblashda YETARLICHA UZOQQA borishni
+      // kafolatlaydi (haqiqiy blok vaqti taxminiydan sekinroq bo'lsa,
+      // shu farq allaqachon zaxira sifatida hisobga olingan bo'ladi).
+      const MAX_PERIOD_SECONDS = 30 * 86400;
+      const ASSUMED_BLOCK_TIME = 0.2; // soniya, xavfsizlik uchun tezroq taxmin
+      const SAFETY_BLOCKS = 20_000; // qo'shimcha zaxira
+
+      setProgress(`${liquidated.length} ta likvidatsiya tafsiloti yuklanmoqda...`);
       const logsPerId = await Promise.all(
-        liquidatedIds.map(async (id) => {
+        liquidated.map(async ({ id, dueDate }) => {
+          const earliestPossibleApproval = Number(dueDate) - MAX_PERIOD_SECONDS;
+          const secondsAgo = Math.max(0, latestTimestamp - earliestPossibleApproval);
+          const blocksAgo = Math.ceil(secondsAgo / ASSUMED_BLOCK_TIME) + SAFETY_BLOCKS;
+          const fromBlock = Math.max(0, latestBlock - blocksAgo);
           try {
             return await contract.queryFilter(contract.filters.Liquidated(id), fromBlock, latestBlock);
           } catch (e) {
