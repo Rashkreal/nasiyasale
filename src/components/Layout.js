@@ -47,6 +47,7 @@ export default function Layout({ children }) {
     { to: '/listing-market-positions', icon: Briefcase, label: 'ListingMarket - Pozitsiyalarim' },
     { to: '/listing-market-seller-positions', icon: Store, label: 'ListingMarket - Sotganlarim' },
     { to: '/listing-market-liquidations', icon: AlertTriangle, label: 'ListingMarket - Likvidatsiyalar' },
+    { to: '/listing-market-chart', icon: BarChart3, label: 'ListingMarket - Grafik' },
 
 
 

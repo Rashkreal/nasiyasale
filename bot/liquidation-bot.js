@@ -33,6 +33,7 @@
 
 require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const { ethers } = require('ethers');
+const https = require('https');
 
 // ── Sozlamalar ──────────────────────────────────────────────────────────
 const CONTRACT_ADDRESS = '0x8aC38A6C9E02EE75658ae6f2d6Fd93e8e43c247f';
@@ -43,6 +44,8 @@ const PRIVATE_KEY = process.env.PRIVATE_KEY;
 const POLL_INTERVAL_MS = (Number(process.env.POLL_INTERVAL_SECONDS) || 30) * 1000;
 const DRY_RUN = (process.env.DRY_RUN || 'false').toLowerCase() === 'true';
 const PAGE_SIZE = 50; // Har bir chaqiruvda nechta pozitsiya birga o'qiladi
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
 if (!PRIVATE_KEY) {
   console.error("XATO: .env faylida PRIVATE_KEY topilmadi. bot.env.example'ga qarang.");
@@ -54,6 +57,35 @@ const ABI = [
   'function getAllPositions(uint256 offset, uint256 limit) external view returns (tuple(address buyer, address seller, uint256 priceUSDC, uint256 wbtcAmount, uint256 dueDate, uint8 collateralTokenId, uint256 collateralAmount, uint16 bufferBps, uint8 status)[] result, uint256[] ids)',
   'function isLiquidatable(uint256 positionId) external view returns (bool)',
   'function liquidate(uint256 positionId) external',
+  // Kontraktning maxsus xatolari — bularsiz ethers "unknown custom error"
+  // deb qisqartirib qo'yadi, aniq sababni ko'rsatolmaydi.
+  'error AlreadySwapped()',
+  'error BadChainlinkPrice()',
+  'error BadListingParams()',
+  'error BadPeriod()',
+  'error BadTokenId()',
+  'error BelowRequiredFloor(uint256 remainingValue, uint256 requiredValue)',
+  'error CannotApproveOwnListing()',
+  'error ChainlinkPriceUnderflow()',
+  'error InsufficientCollateral()',
+  'error ListingNotPending()',
+  'error NoPriceAvailable()',
+  'error NotBuyer()',
+  'error NotLiquidatable()',
+  'error NotPoolManager()',
+  'error NotSeller()',
+  'error NothingToSwap()',
+  'error PositionNotFound()',
+  'error PositionNotOpen()',
+  'error PriceTooHigh(uint256 narx, uint256 maxAllowed)',
+  'error SequencerDown()',
+  'error SequencerFeedDead()',
+  'error SequencerGracePeriod()',
+  'error StaleChainlinkPrice()',
+  'error StaleChainlinkRound()',
+  'error SwapWouldLeaveLiquidatable()',
+  'error TooLittleReceived(uint256 minOut, uint256 actualOut)',
+  'error ZeroAmount()',
 ];
 
 const STATUS_OPEN = 0;
@@ -89,6 +121,40 @@ async function fetchOpenPositions(contract) {
   return open;
 }
 
+// Xato obyektidan, agar mumkin bo'lsa, kontraktning aniq maxsus xato
+// nomini chiqarib oladi (masalan "NotLiquidatable") — buning uchun ABI'da
+// error ta'riflari BO'LISHI SHART, aks holda ethers "unknown custom
+// error" deb qisqartirib qo'yadi.
+function describeError(e) {
+  if (e?.reason) return e.reason;
+  if (e?.shortMessage) return e.shortMessage;
+  return e?.message || "noma'lum xato";
+}
+
+// Telegram'ga oddiy xabar yuboradi (POLLING EMAS — shuning uchun Aave
+// botining 409 muammosiga aloqasi yo'q; bu shunchaki bir martalik HTTP
+// so'rov, hech kim bilan "navbat" talashmaydi). Agar token/chat_id
+// sozlanmagan bo'lsa, jimgina o'tkazib yuboriladi (xato bermaydi).
+function sendTelegramMessage(text) {
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
+  const payload = JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text, parse_mode: 'HTML' });
+  const req = https.request(
+    {
+      hostname: 'api.telegram.org',
+      path: `/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
+    },
+    (res) => {
+      if (res.statusCode !== 200) {
+        log(`[Telegram] Xabar yuborilmadi (status ${res.statusCode})`);
+      }
+    }
+  );
+  req.on('error', (e) => log(`[Telegram] Xabar yuborishda xato: ${e.message}`));
+  req.write(payload);
+  req.end();
+}
 async function tryLiquidate(contract, wallet, positionId) {
   if (DRY_RUN) {
     log(`  [DRY RUN] #${positionId} likvidatsiya qilinardi (haqiqiy tranzaksiya yuborilmadi)`);
@@ -99,11 +165,16 @@ async function tryLiquidate(contract, wallet, positionId) {
     log(`  #${positionId}: tranzaksiya yuborildi (${tx.hash}), tasdiqlanishi kutilmoqda...`);
     const receipt = await tx.wait();
     log(`  #${positionId}: LIKVIDATSIYA MUVAFFAQIYATLI (blok ${receipt.blockNumber})`);
+    sendTelegramMessage(
+      `✅ <b>Likvidatsiya muvaffaqiyatli</b>\n` +
+      `Pozitsiya: #${positionId}\n` +
+      `Blok: ${receipt.blockNumber}\n` +
+      `Tx: <a href="https://arbiscan.io/tx/${tx.hash}">${tx.hash.slice(0, 10)}...</a>`
+    );
   } catch (e) {
     // Boshqa bot/odam bizdan oldin ulgurgan bo'lishi mumkin — bu normal
     // holat, xato sifatida hisoblanmaydi, shunchaki keyingisiga o'tamiz.
-    const msg = e?.reason || e?.shortMessage || e?.message || "noma'lum xato";
-    log(`  #${positionId}: o'tkazib yuborildi (${msg})`);
+    log(`  #${positionId}: o'tkazib yuborildi (${describeError(e)})`);
   }
 }
 
@@ -117,7 +188,7 @@ async function runOnce(contract, wallet) {
     try {
       liquidatable = await contract.isLiquidatable(id);
     } catch (e) {
-      log(`  #${id}: holatini tekshirishda xato (${e.message}) — o'tkazib yuborildi`);
+      log(`  #${id}: holatini tekshirishda xato (${describeError(e)}) — o'tkazib yuborildi`);
       continue;
     }
     if (liquidatable) {
@@ -148,6 +219,7 @@ async function main() {
   if (ethBalance === 0n && !DRY_RUN) {
     console.warn('OGOHLANTIRISH: hamyonda ETH yo\'q — tranzaksiyalar gaz yetishmasligi sababli muvaffaqiyatsiz bo\'ladi!');
   }
+  sendTelegramMessage(`🤖 <b>ListingMarket likvidatsiya bot ishga tushdi</b>\nRejim: ${DRY_RUN ? 'SINOV' : 'HAQIQIY'}`);
 
   // Birinchi tekshiruv darhol, keyin muntazam oraliqda.
   while (true) {
