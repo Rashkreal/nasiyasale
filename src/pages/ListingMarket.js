@@ -5,6 +5,7 @@ import { useWeb3 } from '../hooks/useWeb3';
 import { TOKEN_ADDRESSES, TOKEN_DECIMALS, ERC20_ABI, ARBITRUM_ONE } from '../abi/contract';
 import { saveLocalTxHistory } from '../utils/localTxHistory';
 import { loadApproveMultiplier } from './Settings';
+import { withRetry } from '../utils/rpcRetry';
 import { Tag, ShoppingCart, Info, AlertCircle, Loader2 } from 'lucide-react';
 
 // ══════════════════════════════════════════════════════════════════════
@@ -218,8 +219,8 @@ export default function ListingMarket() {
       const provider = await getReadProvider();
       const dex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, provider);
       const [price, fee] = await Promise.all([
-        dex.getTokenPriceUSDC(TOKEN_WBTC),
-        dex.PROTOCOL_FEE_BPS(),
+        withRetry(() => dex.getTokenPriceUSDC(TOKEN_WBTC)),
+        withRetry(() => dex.PROTOCOL_FEE_BPS()),
       ]);
       setFairPriceRaw(price);
       setFeeBps(Number(fee));
