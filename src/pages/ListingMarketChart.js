@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ethers } from 'ethers';
-import { createChart, ColorType, CandlestickSeries } from 'lightweight-charts';
+import { createChart, ColorType, CandlestickSeries, HistogramSeries, CrosshairMode } from 'lightweight-charts';
 import toast from 'react-hot-toast';
 import { useWeb3 } from '../hooks/useWeb3';
 import { TOKEN_ADDRESSES, TOKEN_DECIMALS, ERC20_ABI } from '../abi/contract';
 import { saveLocalTxHistory } from '../utils/localTxHistory';
-import { RefreshCw, ArrowRightLeft, ChevronDown, ChevronUp } from 'lucide-react';
+import { RefreshCw, ArrowRightLeft, ChevronDown, ChevronUp, Maximize2, Minimize2, MoveVertical, MoveHorizontal, TrendingUp, Eraser } from 'lucide-react';
 
 // ══════════════════════════════════════════════════════════════════════
 //  BTC/USDC grafigi + ochiq pozitsiyalarni boshqarish (MetaTrader'ga
@@ -161,25 +161,57 @@ function fmt(raw, decimals, sigFigs = 4) {
   return str.replace(/\.?0+$/, '').replace(/\.$/, '');
 }
 
+// MT5'dagi kabi to'liq vaqt oraliqlari to'plami. Binance API'ning
+// standart belgilashlari bilan bir xil (m=daqiqa, h=soat, d=kun,
+// w=hafta, M=oy).
 const INTERVALS = [
-  { value: '15m', label: '15 daqiqa' },
-  { value: '1h', label: '1 soat' },
-  { value: '4h', label: '4 soat' },
-  { value: '1d', label: '1 kun' },
-  { value: '1w', label: '1 hafta' },
+  { value: '1m',  label: 'M1'  },
+  { value: '5m',  label: 'M5'  },
+  { value: '15m', label: 'M15' },
+  { value: '30m', label: 'M30' },
+  { value: '1h',  label: 'H1'  },
+  { value: '4h',  label: 'H4'  },
+  { value: '1d',  label: 'D1'  },
+  { value: '1w',  label: 'W1'  },
+  { value: '1M',  label: 'MN'  },
 ];
 
 export default function ListingMarketChart() {
   const { account, signer, ensureCorrectChain, openWalletForRequest, refreshBalances } = useWeb3();
 
   const chartContainerRef = useRef(null);
+  const fullscreenWrapperRef = useRef(null);
   const chartRef = useRef(null);
   const seriesRef = useRef(null);
+  const volumeSeriesRef = useRef(null);
+  // Har bir vaqt oralig'i (M1, H1, D1...) uchun ALOHIDA kattalashtirish
+  // holatini saqlaydi — shunda bir taymfreymdan boshqasiga o'tib,
+  // qaytib kelganda, oldin qanday kattalashtirgan bo'lsangiz, xuddi
+  // o'sha holatda qoladi.
+  const zoomStateByInterval = useRef({});
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // ── Chizish vositalari (vertikal, diagonal, gorizontal chiziqlar) ───
+  // lightweight-charts'da bular tayyor holda yo'q, shuning uchun
+  // grafik ustiga alohida <canvas> qatlami qo'yib, sichqoncha
+  // koordinatalarini vaqt/narxga o'zimiz aylantiramiz.
+  const overlayCanvasRef = useRef(null);
+  const redrawOverlayRef = useRef(null);
+  const [activeDrawTool, setActiveDrawTool] = useState(null); // null | 'vertical' | 'diagonal' | 'horizontal'
+  const [drawings, setDrawings] = useState([]); // {id, type, time?, price?, time1?, price1?, time2?, price2?}
+  const diagonalStartRef = useRef(null); // diagonal chizish paytida birinchi bosilgan nuqta
+  const [awaitingSecondPoint, setAwaitingSecondPoint] = useState(false); // faqat ko'rsatkich matni uchun
 
   const [interval, setInterval_] = useState('1h');
   const [chartLoading, setChartLoading] = useState(true);
   const [lastPrice, setLastPrice] = useState(null);
   const [priceChange, setPriceChange] = useState(null);
+  // WebSocket orqali real vaqtda kelayotgan narxlar uchun — foiz
+  // o'zgarishini hisoblash bazasi (yuklangan ma'lumotlarning birinchi
+  // shamining ochilish narxi) shu yerda saqlanadi, chunki har bir
+  // "tick" da qayta hisoblash kerak, lekin bazaning o'zi o'zgarmaydi.
+  const referenceOpenRef = useRef(null);
+  const wsRef = useRef(null);
 
   const [positions, setPositions] = useState([]);
   const [positionsLoading, setPositionsLoading] = useState(true);
@@ -199,10 +231,43 @@ export default function ListingMarketChart() {
         vertLines: { color: 'rgba(255,255,255,0.06)' },
         horzLines: { color: 'rgba(255,255,255,0.06)' },
       },
-      timeScale: { borderColor: 'rgba(255,255,255,0.1)', timeVisible: true },
-      rightPriceScale: { borderColor: 'rgba(255,255,255,0.1)' },
+      // MT5 uslubidagi nishon chizig'i (crosshair) — sichqoncha turgan
+      // joyda aniq narx va vaqtni ko'rsatadi, erkin harakatlanadi.
+      crosshair: {
+        mode: CrosshairMode.Normal,
+        vertLine: { width: 1, color: 'rgba(255,255,255,0.4)', style: 3, labelBackgroundColor: '#4b5563' },
+        horzLine: { width: 1, color: 'rgba(255,255,255,0.4)', style: 3, labelBackgroundColor: '#4b5563' },
+      },
+      timeScale: {
+        borderColor: 'rgba(255,255,255,0.1)',
+        timeVisible: true,
+        secondsVisible: false,
+        rightOffset: 12,      // o'ng tomonda bo'sh joy — yangi shamlar uchun
+        barSpacing: 8,
+        fixLeftEdge: false,   // chapga cheksiz surish mumkin
+        lockVisibleTimeRangeOnResize: true,
+      },
+      rightPriceScale: {
+        borderColor: 'rgba(255,255,255,0.1)',
+        scaleMargins: { top: 0.1, bottom: 0.25 }, // pastda hajm uchun joy
+      },
+      // MT5 kabi to'liq interaktivlik: sichqoncha g'ildiragi bilan zum,
+      // ushlab surish (drag) bilan harakatlanish, ikki barmoq bilan
+      // masshtablash (sensorli ekranlarda).
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: true,
+      },
+      handleScale: {
+        mouseWheel: true,
+        pinch: true,
+        axisPressedMouseMove: { time: true, price: true },
+        axisDoubleClickReset: { time: true, price: true }, // ikki marta bosish — asl holatga qaytarish
+      },
       width: chartContainerRef.current.clientWidth,
-      height: 420,
+      height: 480,
     });
 
     const series = chart.addSeries(CandlestickSeries, {
@@ -213,27 +278,202 @@ export default function ListingMarketChart() {
       wickDownColor: '#ef4444',
     });
 
+    // Hajm (volume) ustunlari — grafikning pastki qismida, alohida
+    // masshtabda (narx masshtabiga aralashmasligi uchun).
+    const volumeSeries = chart.addSeries(HistogramSeries, {
+      priceFormat: { type: 'volume' },
+      priceScaleId: 'volume',
+    });
+    chart.priceScale('volume').applyOptions({
+      scaleMargins: { top: 0.8, bottom: 0 },
+    });
+
     chartRef.current = chart;
     seriesRef.current = series;
+    volumeSeriesRef.current = volumeSeries;
 
     const handleResize = () => {
       if (chartContainerRef.current) {
-        chart.applyOptions({ width: chartContainerRef.current.clientWidth });
+        chart.applyOptions({
+          width: chartContainerRef.current.clientWidth,
+          height: chartContainerRef.current.clientHeight,
+        });
+        // setTimeout bilan — chart o'z ichki o'lchamini yangilab
+        // bo'lgach chizish, aks holda eski koordinatalar bo'yicha
+        // chizilib qolishi mumkin.
+        setTimeout(() => redrawOverlayRef.current?.(), 0);
       }
     };
     window.addEventListener('resize', handleResize);
+    // To'liq ekranga o'tish/chiqish ham o'lchamni o'zgartiradi, lekin
+    // ba'zi brauzerlar buni oddiy "resize" hodisasi sifatida
+    // yubormaydi — shuning uchun alohida tinglaymiz.
+    document.addEventListener('fullscreenchange', handleResize);
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      document.removeEventListener('fullscreenchange', handleResize);
       chart.remove();
     };
   }, []);
 
-  const loadChart = useCallback(async () => {
+  // Chizilgan barcha elementlarni canvas'ga qayta chizadi — vaqt/narx
+  // koordinatalarini HOZIRGI piksel koordinatalariga aylantirib
+  // (grafik surilganda/kattalashtirilganda chiziqlar to'g'ri joyda
+  // qolishi uchun har safar qayta hisoblanadi).
+  const redrawOverlay = useCallback(() => {
+    const canvas = overlayCanvasRef.current;
+    const chart = chartRef.current;
+    const series = seriesRef.current;
+    if (!canvas || !chart || !series) return;
+
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    const timeScale = chart.timeScale();
+
+    for (const d of drawings) {
+      ctx.strokeStyle = 'rgba(96,165,250,0.9)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash(d.type === 'diagonal' ? [] : [4, 4]);
+
+      if (d.type === 'horizontal') {
+        const y = series.priceToCoordinate(d.price);
+        if (y === null) continue;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(96,165,250,0.9)';
+        ctx.font = '11px sans-serif';
+        ctx.fillText(d.price.toLocaleString(undefined, { maximumFractionDigits: 2 }), 4, y - 4);
+      } else if (d.type === 'vertical') {
+        const x = timeScale.timeToCoordinate(d.time);
+        if (x === null) continue;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+      } else if (d.type === 'diagonal') {
+        const x1 = timeScale.timeToCoordinate(d.time1);
+        const y1 = series.priceToCoordinate(d.price1);
+        const x2 = timeScale.timeToCoordinate(d.time2);
+        const y2 = series.priceToCoordinate(d.price2);
+        if (x1 === null || y1 === null || x2 === null || y2 === null) continue;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      }
+    }
+    ctx.setLineDash([]);
+  }, [drawings]);
+
+  useEffect(() => {
+    redrawOverlayRef.current = redrawOverlay;
+    redrawOverlay();
+  }, [redrawOverlay]);
+
+  // Grafik surilganda/kattalashtirilganda chiziqlarni qayta chizish
+  // uchun obuna bo'lamiz — chart yaratilgandan keyin, bir marta.
+  useEffect(() => {
+    if (!chartRef.current) return;
+    const chart = chartRef.current;
+    const unsubscribe = () => {
+      try { chart.timeScale().unsubscribeVisibleLogicalRangeChange(redrawOverlay); } catch { /* chart allaqachon yo'q qilingan bo'lishi mumkin */ }
+    };
+    chart.timeScale().subscribeVisibleLogicalRangeChange(redrawOverlay);
+    return unsubscribe;
+  }, [redrawOverlay, chartLoading]);
+
+  // Canvas koordinatasini (piksel) vaqt/narxga aylantiradi.
+  function pixelToTimePrice(clientX, clientY) {
+    const canvas = overlayCanvasRef.current;
+    const chart = chartRef.current;
+    const series = seriesRef.current;
+    if (!canvas || !chart || !series) return null;
+    const rect = canvas.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    const time = chart.timeScale().coordinateToTime(x);
+    const price = series.coordinateToPrice(y);
+    if (time === null || price === null) return null;
+    return { time, price };
+  }
+
+  function handleOverlayClick(e) {
+    if (!activeDrawTool) return;
+    const tp = pixelToTimePrice(e.clientX, e.clientY);
+    if (!tp) return;
+
+    if (activeDrawTool === 'horizontal') {
+      setDrawings((prev) => [...prev, { id: Date.now(), type: 'horizontal', price: tp.price }]);
+      setActiveDrawTool(null);
+    } else if (activeDrawTool === 'vertical') {
+      setDrawings((prev) => [...prev, { id: Date.now(), type: 'vertical', time: tp.time }]);
+      setActiveDrawTool(null);
+    } else if (activeDrawTool === 'diagonal') {
+      if (!diagonalStartRef.current) {
+        diagonalStartRef.current = tp;
+        setAwaitingSecondPoint(true);
+        toast.loading("Tugash nuqtasini bosing...", { id: 'diagonal-hint', duration: 4000 });
+      } else {
+        setDrawings((prev) => [...prev, {
+          id: Date.now(),
+          type: 'diagonal',
+          time1: diagonalStartRef.current.time,
+          price1: diagonalStartRef.current.price,
+          time2: tp.time,
+          price2: tp.price,
+        }]);
+        diagonalStartRef.current = null;
+        setAwaitingSecondPoint(false);
+        setActiveDrawTool(null);
+        toast.dismiss('diagonal-hint');
+      }
+    }
+  }
+
+  function selectDrawTool(tool) {
+    diagonalStartRef.current = null;
+    setAwaitingSecondPoint(false);
+    setActiveDrawTool((prev) => (prev === tool ? null : tool));
+  }
+
+  function clearDrawings() {
+    setDrawings([]);
+    diagonalStartRef.current = null;
+    setAwaitingSecondPoint(false);
+    setActiveDrawTool(null);
+  }
+
+
+  const loadChart = useCallback(async (targetInterval) => {
+    const iv = targetInterval || interval;
+    const isIntervalSwitch = targetInterval !== undefined && targetInterval !== interval;
+
+    // MUHIM: har bir yangilanishda (30 soniyalik avtomatik yangilanish
+    // HAM shu yerga kiradi), foydalanuvchi HOZIR ko'rib turgan ko'rinish
+    // oralig'ini saqlab qolamiz — faqat oraliq (M1/M5/...) almashtirilganda
+    // emas. Aks holda, hatto shunchaki kutib turgan payt ham 30 soniyada
+    // bir "asl holatga" qaytib ketaverardi.
+    const rangeBeforeReload = chartRef.current?.timeScale().getVisibleLogicalRange();
+    if (rangeBeforeReload && !isIntervalSwitch) {
+      zoomStateByInterval.current[iv] = rangeBeforeReload;
+    }
+
     setChartLoading(true);
     try {
       const res = await fetch(
-        `https://api.binance.com/api/v3/klines?symbol=BTCUSDC&interval=${interval}&limit=500`
+        `https://api.binance.com/api/v3/klines?symbol=BTCUSDC&interval=${iv}&limit=1000`
       );
       if (!res.ok) throw new Error(`Binance API xato: ${res.status}`);
       const raw = await res.json();
@@ -246,8 +486,22 @@ export default function ListingMarketChart() {
         close: parseFloat(k[4]),
       }));
 
-      if (seriesRef.current) {
-        seriesRef.current.setData(candles);
+      const volumes = raw.map((k) => ({
+        time: Math.floor(k[0] / 1000),
+        value: parseFloat(k[5]),
+        color: parseFloat(k[4]) >= parseFloat(k[1]) ? 'rgba(34,197,94,0.35)' : 'rgba(239,68,68,0.35)',
+      }));
+
+      if (seriesRef.current) seriesRef.current.setData(candles);
+      if (volumeSeriesRef.current) volumeSeriesRef.current.setData(volumes);
+
+      // Shu ANIQ oraliq uchun saqlangan ko'rinish bormi (yoki hozirgina
+      // yuqorida saqlangan bo'lsa) — tiklaymiz; bo'lmasa (birinchi marta
+      // ko'rilyapti), butun ma'lumotga moslashtiramiz.
+      const savedRange = zoomStateByInterval.current[iv];
+      if (savedRange) {
+        chartRef.current?.timeScale().setVisibleLogicalRange(savedRange);
+      } else {
         chartRef.current?.timeScale().fitContent();
       }
 
@@ -256,6 +510,7 @@ export default function ListingMarketChart() {
         const prev = candles[0];
         setLastPrice(last.close);
         setPriceChange(((last.close - prev.open) / prev.open) * 100);
+        referenceOpenRef.current = prev.open; // WebSocket tick'lari uchun baza
       }
     } catch (e) {
       console.error('chart data load error:', e);
@@ -265,11 +520,93 @@ export default function ListingMarketChart() {
     }
   }, [interval]);
 
+  // Vaqt oralig'ini almashtirish: AVVAL joriy oraliqning kattalashtirish
+  // holatini saqlab qolamiz, keyin yangi oraliqqa o'tamiz.
+  const handleIntervalChange = useCallback((newInterval) => {
+    if (chartRef.current) {
+      const currentRange = chartRef.current.timeScale().getVisibleLogicalRange();
+      if (currentRange) {
+        zoomStateByInterval.current[interval] = currentRange;
+      }
+    }
+    setInterval_(newInterval);
+    loadChart(newInterval);
+  }, [interval, loadChart]);
+
+  // Tarixiy ma'lumotni FAQAT bir marta, komponent birinchi ochilganda
+  // (REST orqali) yuklaymiz — shundan keyin WebSocket o'zi davom
+  // ettiradi. Bo'sh bog'liqlik ro'yxati ataylab — aks holda, oraliq
+  // almashtirilganda (handleIntervalChange O'ZI alohida chaqirgani
+  // uchun) ma'lumot ikki marta so'ralib qolardi.
+
   useEffect(() => {
     loadChart();
-    const id = window.setInterval(loadChart, 30000);
-    return () => window.clearInterval(id);
-  }, [loadChart]);
+  }, []);
+
+  // WebSocket ulanishi — har bir "tick"da (narx o'zgarganda) darhol
+  // yangilaydi, so'rov yuborib turishni kutish shart emas. Vaqt oralig'i
+  // (M1, H1...) o'zgarganda, eski ulanishni yopib, yangisini ochamiz.
+  useEffect(() => {
+    let reconnectTimer = null;
+
+    function connect() {
+      const ws = new WebSocket(`wss://stream.binance.com:9443/ws/btcusdc@kline_${interval}`);
+      wsRef.current = ws;
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          const k = msg.k;
+          if (!k) return;
+
+          const candle = {
+            time: Math.floor(k.t / 1000),
+            open: parseFloat(k.o),
+            high: parseFloat(k.h),
+            low: parseFloat(k.l),
+            close: parseFloat(k.c),
+          };
+          seriesRef.current?.update(candle);
+
+          volumeSeriesRef.current?.update({
+            time: candle.time,
+            value: parseFloat(k.v),
+            color: candle.close >= candle.open ? 'rgba(34,197,94,0.35)' : 'rgba(239,68,68,0.35)',
+          });
+
+          setLastPrice(candle.close);
+          if (referenceOpenRef.current) {
+            setPriceChange(((candle.close - referenceOpenRef.current) / referenceOpenRef.current) * 100);
+          }
+        } catch (e) {
+          console.error('websocket message parse error:', e);
+        }
+      };
+
+      ws.onerror = (e) => {
+        console.error('websocket error:', e);
+      };
+
+      // Ulanish uzilib qolsa (tarmoq muammosi, server qayta ishga
+      // tushishi va h.k.), 3 soniyadan keyin avtomatik qayta ulanadi.
+      ws.onclose = () => {
+        if (wsRef.current === ws) {
+          reconnectTimer = setTimeout(connect, 3000);
+        }
+      };
+    }
+
+    connect();
+
+    return () => {
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (wsRef.current) {
+        const ws = wsRef.current;
+        wsRef.current = null; // onclose'ning qayta ulanishiga to'sqinlik qilish uchun
+        ws.close();
+      }
+    };
+  }, [interval]);
 
   // ── Pozitsiyalarni yuklash ───────────────────────────────────────────
   const loadPositions = useCallback(async () => {
@@ -311,6 +648,27 @@ export default function ListingMarketChart() {
     const id = setInterval(loadPositions, 30000);
     return () => clearInterval(id);
   }, [loadPositions]);
+
+  // To'liq ekran holatini brauzerning o'zi bilan sinxronlab turadi
+  // (masalan foydalanuvchi Esc bosib chiqib ketsa ham, tugma holati
+  // to'g'ri yangilanadi).
+  useEffect(() => {
+    const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!fullscreenWrapperRef.current) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      fullscreenWrapperRef.current.requestFullscreen().catch((e) => {
+        console.error('fullscreen error:', e);
+        toast.error("To'liq ekran rejimi qo'llab-quvvatlanmaydi");
+      });
+    }
+  }, []);
 
   function reportTxError(e, tid) {
     console.error('chart swap action error:', e);
@@ -436,20 +794,99 @@ export default function ListingMarketChart() {
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
         {INTERVALS.map((iv) => (
           <button
             key={iv.value}
             className={`btn btn-sm ${interval === iv.value ? 'btn-primary' : 'btn-outline'}`}
-            onClick={() => setInterval_(iv.value)}
+            style={{ minWidth: 44, padding: '4px 8px', fontWeight: 600 }}
+            onClick={() => handleIntervalChange(iv.value)}
           >
             {iv.label}
           </button>
         ))}
       </div>
 
-      <div className="card" style={{ padding: 12, marginBottom: 20 }}>
-        <div ref={chartContainerRef} style={{ width: '100%' }} />
+      <div style={{ display: 'flex', gap: 4, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+        <span style={{ fontSize: 11, color: 'var(--text-muted)', marginRight: 2 }}>Chizish:</span>
+        <button
+          className={`btn btn-sm ${activeDrawTool === 'vertical' ? 'btn-primary' : 'btn-outline'}`}
+          onClick={() => selectDrawTool('vertical')}
+          title="Vertikal chiziq"
+        >
+          <MoveVertical size={14} />
+        </button>
+        <button
+          className={`btn btn-sm ${activeDrawTool === 'diagonal' ? 'btn-primary' : 'btn-outline'}`}
+          onClick={() => selectDrawTool('diagonal')}
+          title="Diagonal (trend) chiziq"
+        >
+          <TrendingUp size={14} />
+        </button>
+        <button
+          className={`btn btn-sm ${activeDrawTool === 'horizontal' ? 'btn-primary' : 'btn-outline'}`}
+          onClick={() => selectDrawTool('horizontal')}
+          title="Gorizontal chiziq (narx darajasi)"
+        >
+          <MoveHorizontal size={14} />
+        </button>
+        {drawings.length > 0 && (
+          <button className="btn btn-outline btn-sm" onClick={clearDrawings} title="Barcha chiziqlarni tozalash">
+            <Eraser size={14} />
+          </button>
+        )}
+        <div style={{ flex: 1 }} />
+        <button
+          className="btn btn-outline btn-sm"
+          onClick={() => chartRef.current?.timeScale().fitContent()}
+          title="Ko'rinishni asl holatga qaytarish"
+        >
+          Sig'dirish
+        </button>
+        <button
+          className="btn btn-outline btn-sm"
+          onClick={toggleFullscreen}
+          title={isFullscreen ? "To'liq ekrandan chiqish" : "To'liq ekran"}
+        >
+          {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+        </button>
+      </div>
+
+      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>
+        {activeDrawTool
+          ? (activeDrawTool === 'diagonal' && awaitingSecondPoint
+              ? "Ikkinchi (tugash) nuqtani bosing"
+              : "Chiziq chizish uchun grafikda bosing")
+          : "Sichqoncha g'ildiragi — kattalashtirish · Ushlab surish — harakatlanish · O'q/narx shkalasida ikki marta bosish — asl holat"}
+      </div>
+
+      <div
+        ref={fullscreenWrapperRef}
+        className="card"
+        style={{
+          padding: 12,
+          marginBottom: 20,
+          background: isFullscreen ? 'var(--bg-primary, #0a0a0f)' : undefined,
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <div style={{ position: 'relative', width: '100%', height: isFullscreen ? '100vh' : 480 }}>
+          <div ref={chartContainerRef} style={{ width: '100%', height: '100%' }} />
+          <canvas
+            ref={overlayCanvasRef}
+            onClick={handleOverlayClick}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              cursor: activeDrawTool ? 'crosshair' : 'default',
+              pointerEvents: activeDrawTool ? 'auto' : 'none',
+            }}
+          />
+        </div>
       </div>
 
       {/* ── Ochiq pozitsiyalar + svop amallari ──────────────────────── */}
@@ -516,17 +953,17 @@ export default function ListingMarketChart() {
                       disabled={actionLoading === idStr + '-merge'}
                       onClick={() => handleMergeWbtcPrincipal(p)}
                     >
-                      <ArrowRightLeft size={14} /> WBTC principal'ni USDC'ga birlashtirish
+                      <ArrowRightLeft size={14} /> WBTC → USDC
                     </button>
                   )}
 
                   {p.collateralTokenId === TOKEN_USDC && (
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button className="btn btn-outline btn-sm" style={{ flex: 1 }} disabled={actionLoading === idStr + '-swapcoll'} onClick={() => handleSwapCollateral(p, TOKEN_WBTC)}>
-                        → WBTC
+                        USDC → WBTC
                       </button>
                       <button className="btn btn-outline btn-sm" style={{ flex: 1 }} disabled={actionLoading === idStr + '-swapcoll'} onClick={() => handleSwapCollateral(p, TOKEN_WETH)}>
-                        → WETH
+                        USDC → WETH
                       </button>
                     </div>
                   )}
@@ -537,7 +974,7 @@ export default function ListingMarketChart() {
                       disabled={actionLoading === idStr + '-swapback'}
                       onClick={() => handleSwapCollateralToUsdc(p)}
                     >
-                      <ArrowRightLeft size={14} /> {collSymbol}'ni USDC'ga qaytarish
+                      <ArrowRightLeft size={14} /> {collSymbol} → USDC
                     </button>
                   )}
                 </div>

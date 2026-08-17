@@ -5,7 +5,7 @@ import { useWeb3 } from '../hooks/useWeb3';
 import { TOKEN_ADDRESSES, TOKEN_DECIMALS, ERC20_ABI, ARBITRUM_ONE } from '../abi/contract';
 import { saveLocalTxHistory } from '../utils/localTxHistory';
 import { loadApproveMultiplier } from './Settings';
-import { withRetry } from '../utils/rpcRetry';
+import { withRetry, buildProviderList } from '../utils/rpcRetry';
 import { Tag, ShoppingCart, Info, AlertCircle, Loader2 } from 'lucide-react';
 
 // ══════════════════════════════════════════════════════════════════════
@@ -216,11 +216,10 @@ export default function ListingMarket() {
   const refreshPrice = useCallback(async () => {
     setPriceLoading(true);
     try {
-      const provider = await getReadProvider();
-      const dex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, provider);
+      const providers = buildProviderList(ethers, RPC, RPC_BACKUP);
       const [price, fee] = await Promise.all([
-        withRetry(() => dex.getTokenPriceUSDC(TOKEN_WBTC)),
-        withRetry(() => dex.PROTOCOL_FEE_BPS()),
+        withRetry((idx) => new ethers.Contract(DEX_ADDRESS, DEX_ABI, providers[idx]).getTokenPriceUSDC(TOKEN_WBTC)),
+        withRetry((idx) => new ethers.Contract(DEX_ADDRESS, DEX_ABI, providers[idx]).PROTOCOL_FEE_BPS()),
       ]);
       setFairPriceRaw(price);
       setFeeBps(Number(fee));
