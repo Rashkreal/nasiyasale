@@ -28,11 +28,11 @@ import { RefreshCw, ExternalLink, AlertTriangle, Info } from 'lucide-react';
 //  uchun bizning RPC cheklovlarimiz unga taalluqli emas.
 // ══════════════════════════════════════════════════════════════════════
 
-const DEX_ADDRESS = '0x8aC38A6C9E02EE75658ae6f2d6Fd93e8e43c247f';
+const DEX_ADDRESS = '0x3F405B4203540474Cd8E45AFbdEa63Ea9d6c187e';
 
 const CONTRACT_ABI = [
   'function totalPositions() external view returns (uint256)',
-  'function getAllPositions(uint256 offset, uint256 limit) external view returns (tuple(address buyer, address seller, uint256 priceUSDC, uint256 wbtcAmount, uint256 dueDate, uint8 collateralTokenId, uint256 collateralAmount, uint16 bufferBps, uint8 status)[] result, uint256[] ids)',
+  'function getAllPositions(uint256 offset, uint256 limit) external view returns (tuple(address buyer, address seller, uint256 priceUSDC, uint256 dueDate, uint8 collateralTokenId, uint256 collateralAmount, uint16 bufferBps, uint8 status)[] result, uint256[] ids)',
 ];
 
 const STATUS_LIQUIDATED = 2;

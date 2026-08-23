@@ -15,10 +15,10 @@ import { RefreshCw, ArrowRightLeft, ChevronDown, ChevronUp, Maximize2, Minimize2
 //  MUHIM FARQ MetaTrader'dan: ListingMarket — P2P kredit bozori, "bozor
 //  buyurtmasi" (darhol bajariladigan savdo) tushunchasi yo'q. Shuning
 //  uchun bu yerda "darhol sotib olish/sotish" emas, balki ALLAQACHON
-//  OCHIQ pozitsiyalarning SVOP amallari (garovni WBTC/WETH'ga aylantirish,
-//  WBTC principal'ni birlashtirish) joylashtirilgan — bular ListingMarket
-//  - Pozitsiyalarim sahifasidagi bilan bir xil, faqat endi narx grafigi
-//  bilan birga ko'rinadi.
+//  OCHIQ pozitsiyalarning SVOP amallari (garovni WBTC/WETH/USDC oralig'ida
+//  aylantirish, yagona swapCollateral orqali) joylashtirilgan — bular
+//  ListingMarket - Pozitsiyalarim sahifasidagi bilan bir xil, faqat endi
+//  narx grafigi bilan birga ko'rinadi.
 //
 //  Narx grafigi manbai (Binance) va kontraktning garov/svop
 //  hisoblashlari (Chainlink) — ikki MUSTAQIL manba, ataylab shunday: biri
@@ -26,7 +26,7 @@ import { RefreshCw, ArrowRightLeft, ChevronDown, ChevronUp, Maximize2, Minimize2
 //  ko'rsatadi.
 // ══════════════════════════════════════════════════════════════════════
 
-const DEX_ADDRESS = '0x8aC38A6C9E02EE75658ae6f2d6Fd93e8e43c247f';
+const DEX_ADDRESS = '0x3F405B4203540474Cd8E45AFbdEa63Ea9d6c187e';
 
 const TOKEN_WBTC = 0;
 const TOKEN_WETH = 1;
@@ -44,23 +44,21 @@ function tokenDecimalsFor(tokenId) {
 }
 
 const DEX_ABI = [
-  'function positions(uint256) external view returns (address buyer, address seller, uint256 priceUSDC, uint256 wbtcAmount, uint256 dueDate, uint8 collateralTokenId, uint256 collateralAmount, uint16 bufferBps, uint8 status)',
+  'function positions(uint256) external view returns (address buyer, address seller, uint256 priceUSDC, uint256 dueDate, uint8 collateralTokenId, uint256 collateralAmount, uint16 bufferBps, uint8 status)',
   'function currentValue(uint256 positionId) external view returns (uint256)',
   'function isLiquidatable(uint256 positionId) external view returns (bool)',
   'function totalPositionsByBuyer(address buyer) external view returns (uint256)',
-  'function getPositionsByBuyer(address buyer, uint256 offset, uint256 limit) external view returns (tuple(address buyer, address seller, uint256 priceUSDC, uint256 wbtcAmount, uint256 dueDate, uint8 collateralTokenId, uint256 collateralAmount, uint16 bufferBps, uint8 status)[] result, uint256[] ids)',
+  'function getPositionsByBuyer(address buyer, uint256 offset, uint256 limit) external view returns (tuple(address buyer, address seller, uint256 priceUSDC, uint256 dueDate, uint8 collateralTokenId, uint256 collateralAmount, uint16 bufferBps, uint8 status)[] result, uint256[] ids)',
   'function PROTOCOL_FEE_BPS() external view returns (uint16)',
-  'function mergeWbtcPrincipal(uint256 positionId, uint256 minUsdcOut) external',
-  'function swapCollateralToToken(uint256 positionId, uint8 targetTokenId, uint256 minAmountOut) external',
-  'function swapCollateralToUsdc(uint256 positionId, uint256 minUsdcOut) external',
+  'function swapCollateral(uint256 positionId, uint8 targetTokenId, uint256 minAmountOut) external',
   // Kontraktning maxsus xatolari
-  'error AlreadySwapped()',
   'error BadChainlinkPrice()',
   'error BadTokenId()',
   'error NoPriceAvailable()',
   'error NotBuyer()',
-  'error NothingToSwap()',
   'error PositionNotOpen()',
+  'error PositionWouldBeLiquidatable()',
+  'error SameToken()',
   'error SequencerDown()',
   'error SequencerFeedDead()',
   'error SequencerGracePeriod()',
@@ -72,11 +70,11 @@ const DEX_ABI = [
 ];
 
 const ERROR_MESSAGES = {
-  AlreadySwapped: "Garov allaqachon boshqa tokenga aylantirilgan",
+  PositionWouldBeLiquidatable: "Narx o'zgargani sababli bu pozitsiya ochilgan zahoti likvidatsiya chegarasida bo'lar edi — birozdan keyin qayta urinib ko'ring",
+  SameToken: "Garov allaqachon shu tokenda",
   BadTokenId: "Noto'g'ri token tanlandi",
   NoPriceAvailable: "Hech qanday narx manbai topilmadi",
   NotBuyer: "Bu amalni faqat pozitsiya xaridori bajara oladi",
-  NothingToSwap: "Svop qilish uchun WBTC principal qolmagan",
   PositionNotOpen: "Bu pozitsiya endi ochiq emas",
   SequencerDown: "Arbitrum sequencer vaqtincha ishlamayapti — birozdan keyin urinib ko'ring",
   SequencerGracePeriod: "Sequencer yaqinda tiklandi — bir necha daqiqa kutish kerak",
@@ -626,7 +624,6 @@ export default function ListingMarketChart() {
           return {
             id: ids[i],
             priceUSDC: p.priceUSDC,
-            wbtcAmount: p.wbtcAmount,
             collateralTokenId: Number(p.collateralTokenId),
             collateralAmount: p.collateralAmount,
             status: Number(p.status),
@@ -675,36 +672,9 @@ export default function ListingMarketChart() {
     toast.error(translateContractError(e), { id: tid });
   }
 
-  const handleMergeWbtcPrincipal = async (position) => {
-    setActionLoading(position.id.toString() + '-merge');
-    const tid = toast.loading('WBTC birlashtirilmoqda...');
-    try {
-      await ensureCorrectChain();
-      const dex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, signer);
-      openWalletForRequest();
-      const tx = await withProgressToast(
-        withWalletTimeout(dex.mergeWbtcPrincipal(position.id, 0), 90000, "MetaMask ochilmadi yoki wallet javob bermadi"),
-        tid, WALLET_STAGES
-      );
-      await withProgressToast(withWalletTimeout(tx.wait(), 180000, "Tranzaksiya juda uzoq tasdiqlanmoqda"), tid, CHAIN_STAGES);
-
-      toast.success('WBTC muvaffaqiyatli birlashtirildi!', { id: tid });
-      saveLocalTxHistory({
-        type: 'listingMarketMergeWbtcPrincipal',
-        label: 'ListingMarket: WBTC principal birlashtirildi',
-        listingId: position.id.toString(),
-        txHash: tx.hash,
-        status: 'success',
-        account,
-      });
-      loadPositions();
-    } catch (e) {
-      reportTxError(e, tid);
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
+  // swapCollateral endi yagona funksiya — WBTC/WETH/USDC oralig'idagi
+  // barcha yo'nalishlar (shu jumladan USDC'ga qaytarish) shu orqali,
+  // targetTokenId bilan.
   const handleSwapCollateral = async (position, targetTokenId) => {
     setActionLoading(position.id.toString() + '-swapcoll');
     const tid = toast.loading('Garov svop qilinmoqda...');
@@ -713,7 +683,7 @@ export default function ListingMarketChart() {
       const dex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, signer);
       openWalletForRequest();
       const tx = await withProgressToast(
-        withWalletTimeout(dex.swapCollateralToToken(position.id, targetTokenId, 0), 90000, "MetaMask ochilmadi yoki wallet javob bermadi"),
+        withWalletTimeout(dex.swapCollateral(position.id, targetTokenId, 0), 90000, "MetaMask ochilmadi yoki wallet javob bermadi"),
         tid, WALLET_STAGES
       );
       await withProgressToast(withWalletTimeout(tx.wait(), 180000, "Tranzaksiya juda uzoq tasdiqlanmoqda"), tid, CHAIN_STAGES);
@@ -722,36 +692,6 @@ export default function ListingMarketChart() {
       saveLocalTxHistory({
         type: 'listingMarketSwapCollateral',
         label: `ListingMarket: Garov ${tokenSymbolFor(targetTokenId)}'ga aylantirildi`,
-        listingId: position.id.toString(),
-        txHash: tx.hash,
-        status: 'success',
-        account,
-      });
-      loadPositions();
-    } catch (e) {
-      reportTxError(e, tid);
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handleSwapCollateralToUsdc = async (position) => {
-    setActionLoading(position.id.toString() + '-swapback');
-    const tid = toast.loading("USDC'ga qaytarilmoqda...");
-    try {
-      await ensureCorrectChain();
-      const dex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, signer);
-      openWalletForRequest();
-      const tx = await withProgressToast(
-        withWalletTimeout(dex.swapCollateralToUsdc(position.id, 0), 90000, "MetaMask ochilmadi yoki wallet javob bermadi"),
-        tid, WALLET_STAGES
-      );
-      await withProgressToast(withWalletTimeout(tx.wait(), 180000, "Tranzaksiya juda uzoq tasdiqlanmoqda"), tid, CHAIN_STAGES);
-
-      toast.success("Garov USDC'ga qaytarildi!", { id: tid });
-      saveLocalTxHistory({
-        type: 'listingMarketSwapCollateralBack',
-        label: "ListingMarket: Garov USDC'ga qaytarildi",
         listingId: position.id.toString(),
         txHash: tx.hash,
         status: 'success',
@@ -918,7 +858,6 @@ export default function ListingMarketChart() {
           const isExpanded = expandedId === idStr;
           const collSymbol = tokenSymbolFor(p.collateralTokenId);
           const collDecimals = tokenDecimalsFor(p.collateralTokenId);
-          const hasWbtcPrincipal = p.wbtcAmount > 0n;
 
           return (
             <div key={idStr} className="card">
@@ -944,18 +883,7 @@ export default function ListingMarketChart() {
                 <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--bg-secondary)', display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div style={{ fontSize: 13 }}>
                     Garov: <b>{fmt(p.collateralAmount, collDecimals)} {collSymbol}</b>
-                    {hasWbtcPrincipal && <> · Birlashtirilmagan WBTC: <b>{fmt(p.wbtcAmount, TOKEN_DECIMALS.WBTC)} WBTC</b></>}
                   </div>
-
-                  {hasWbtcPrincipal && (
-                    <button
-                      className="btn btn-outline btn-sm"
-                      disabled={actionLoading === idStr + '-merge'}
-                      onClick={() => handleMergeWbtcPrincipal(p)}
-                    >
-                      <ArrowRightLeft size={14} /> WBTC → USDC
-                    </button>
-                  )}
 
                   {p.collateralTokenId === TOKEN_USDC && (
                     <div style={{ display: 'flex', gap: 8 }}>
@@ -971,8 +899,8 @@ export default function ListingMarketChart() {
                   {p.collateralTokenId !== TOKEN_USDC && (
                     <button
                       className="btn btn-outline btn-sm"
-                      disabled={actionLoading === idStr + '-swapback'}
-                      onClick={() => handleSwapCollateralToUsdc(p)}
+                      disabled={actionLoading === idStr + '-swapcoll'}
+                      onClick={() => handleSwapCollateral(p, TOKEN_USDC)}
                     >
                       <ArrowRightLeft size={14} /> {collSymbol} → USDC
                     </button>

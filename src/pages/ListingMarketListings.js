@@ -16,9 +16,17 @@ import { Tag, ShoppingCart, RefreshCw, X } from 'lucide-react';
 //  mavjud, shuning uchun bu sahifada "narxni yangilash" degan tugma yoki
 //  oracle holatini kutish umuman yo'q (avvalgi DUR-asosli versiyadan
 //  farqli o'laroq).
+//
+//  GAROV ENDI WBTC'DA: previewGarov() va BuyOffer.garov endi WBTC
+//  miqdorini qaytaradi (avval USDC edi). Pozitsiya ochish komissiyasi
+//  (0.3%) ham endi WBTC'da — approveListing (xaridor to'laydi) va
+//  fulfillBuyOffer (bajaruvchi sotuvchi to'laydi) ikkalasi ham narxning
+//  USD qiymatidan hisoblanib, joriy Chainlink narxi orqali WBTC'ga
+//  aylantiriladi (_chargeOpenFee). Shu sababli bu sahifadagi barcha
+//  garov/komissiya hisob-kitoblari WBTC'da.
 // ══════════════════════════════════════════════════════════════════════
 
-const DEX_ADDRESS = '0x8aC38A6C9E02EE75658ae6f2d6Fd93e8e43c247f';
+const DEX_ADDRESS = '0x3F405B4203540474Cd8E45AFbdEa63Ea9d6c187e';
 
 const DEX_ABI = [
   'function getPendingListings(uint256 offset, uint256 limit) external view returns (tuple(address seller, uint256 wbtcAmount, uint256 priceUSDC, uint256 wbtcAmountRemaining, uint256 paymentPeriodDays, uint8 status)[] result, uint256[] ids)',
@@ -34,7 +42,6 @@ const DEX_ABI = [
   'function MIN_PARTIAL_FILL_USDC() external view returns (uint256)',
   'function getTokenPriceUSDC(uint8 tokenId) external view returns (uint256)',
   // Kontraktning BARCHA maxsus xatolari
-  'error AlreadySwapped()',
   'error BadChainlinkPrice()',
   'error BadListingParams()',
   'error BadPeriod()',
@@ -51,10 +58,13 @@ const DEX_ABI = [
   'error NotLiquidatable()',
   'error NotPoolManager()',
   'error NotSeller()',
-  'error NothingToSwap()',
   'error PositionNotFound()',
   'error PositionNotOpen()',
+  'error PositionWouldBeLiquidatable()',
   'error PriceTooHigh(uint256 narx, uint256 maxAllowed)',
+  'error ReentrancyGuardReentrantCall()',
+  'error SafeERC20FailedOperation(address token)',
+  'error SameToken()',
   'error SequencerDown()',
   'error SequencerFeedDead()',
   'error SequencerGracePeriod()',
@@ -78,8 +88,8 @@ const ERROR_MESSAGES = {
   InsufficientCollateral: "Garov yetarli emas",
   BelowRequiredFloor: "Bu miqdorni olib qo'yish pozitsiyani xavfli holatga tashlaydi",
   SwapWouldLeaveLiquidatable: "Bu svop pozitsiyani darhol likvidatsiyaga tashlab yuboradi — avval garov qo'shing",
-  NothingToSwap: "Svop qilish uchun WBTC principal qolmagan",
-  AlreadySwapped: "Garov allaqachon boshqa tokenga aylantirilgan",
+  PositionWouldBeLiquidatable: "Narx o'zgargani sababli bu pozitsiya ochilgan zahoti likvidatsiya chegarasida bo'lar edi — birozdan keyin qayta urinib ko'ring",
+  SameToken: "Garov allaqachon shu tokenda",
   PositionNotFound: "Bunday pozitsiya topilmadi",
   PositionNotOpen: "Bu pozitsiya endi ochiq emas",
   NotBuyer: "Bu amalni faqat pozitsiya xaridori bajara oladi",
@@ -210,7 +220,7 @@ export default function ListingMarketListings() {
   const [actionLoading, setActionLoading] = useState(null);
   const [minFillUsdc, setMinFillUsdc] = useState(null);
   const [wbtcPrice, setWbtcPrice] = useState(null);
-  const [feeBps, setFeeBps] = useState(5);
+  const [feeBps, setFeeBps] = useState(30);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -276,11 +286,15 @@ export default function ListingMarketListings() {
     try {
       await ensureCorrectChain();
       const dex = new ethers.Contract(DEX_ADDRESS, DEX_ABI, signer);
+      // previewGarov endi WBTC miqdorini qaytaradi. Ochilish komissiyasi
+      // ham WBTC'da — narxning USD qiymatidan hisoblanib, joriy WBTC
+      // narxi orqali aylantiriladi (_chargeOpenFee bilan bir xil formula).
       const garovRaw = await dex.previewGarov(listing.id, amountRaw);
       const partialPriceUSDC = (listing.priceUSDC * amountRaw) / listing.wbtcAmount;
-      const feeRaw = (partialPriceUSDC * BigInt(feeBps)) / 10000n;
+      const feeUsd = (partialPriceUSDC * BigInt(feeBps)) / 10000n;
+      const feeRaw = wbtcPrice && wbtcPrice > 0n ? (feeUsd * (10n ** 8n)) / wbtcPrice : 0n;
 
-      const approved = await ensureDexApproval('USDC', signer, account, garovRaw + feeRaw, openWalletForRequest);
+      const approved = await ensureDexApproval('WBTC', signer, account, garovRaw + feeRaw, openWalletForRequest);
       if (!approved) { toast.dismiss(tid); return; }
 
       openWalletForRequest();
@@ -319,7 +333,12 @@ export default function ListingMarketListings() {
     try {
       await ensureCorrectChain();
 
-      const feeRaw = (amountRaw * BigInt(feeBps)) / 10000n;
+      // Komissiya (0.3%) taklifning narx(USD)idan hisoblanib, joriy WBTC
+      // narxi orqali aylantiriladi — xuddi _chargeOpenFee'dagidek — shu
+      // sababli oddiy wbtcAmountToFulfill * feeBps emas.
+      const partialPriceUSDC = (offer.priceUSDC * amountRaw) / offer.wbtcAmount;
+      const feeUsd = (partialPriceUSDC * BigInt(feeBps)) / 10000n;
+      const feeRaw = wbtcPrice && wbtcPrice > 0n ? (feeUsd * (10n ** 8n)) / wbtcPrice : 0n;
       const totalNeeded = amountRaw + feeRaw;
 
       // Tranzaksiya yuborishdan OLDIN balansni tekshiramiz.
@@ -511,6 +530,7 @@ export default function ListingMarketListings() {
 
               {!mine && (
                 <FillRow
+                  item={item}
                   remaining={remaining}
                   minFillUsdc={minFillUsdc}
                   wbtcPrice={wbtcPrice}
@@ -538,7 +558,8 @@ export default function ListingMarketListings() {
 }
 
 // Miqdor tanlash + garov (va komissiya) ko'rish + tasdiqlash tugmasi.
-function FillRow({ remaining, minFillUsdc, wbtcPrice, feeBps, tab, previewFn, disabled, actionLabel, actionIcon, onSubmit }) {
+// Garov (garovPreview) va komissiya (feeRaw) endi ikkalasi ham WBTC'da.
+function FillRow({ item, remaining, minFillUsdc, wbtcPrice, feeBps, tab, previewFn, disabled, actionLabel, actionIcon, onSubmit }) {
   const [amountStr, setAmountStr] = useState(() => ethers.formatUnits(remaining, TOKEN_DECIMALS.WBTC));
   const [garovPreview, setGarovPreview] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -553,7 +574,14 @@ function FillRow({ remaining, minFillUsdc, wbtcPrice, feeBps, tab, previewFn, di
   const belowMin = !isFull && minFillWbtc !== null && amountRaw !== null && amountRaw > 0n && amountRaw < minFillWbtc;
   const valid = amountRaw !== null && amountRaw > 0n && amountRaw <= remaining && !belowMin;
 
-  const feeRaw = amountRaw !== null && amountRaw > 0n ? (amountRaw * BigInt(feeBps)) / 10000n : null;
+  // Komissiya narx(USD)dan hisoblanadi, WBTC'ga aylantiriladi — xuddi
+  // _chargeOpenFee'dagidek, oddiy amountRaw * feeBps emas.
+  const partialPriceUSDC = amountRaw !== null && amountRaw > 0n && item.wbtcAmount > 0n
+    ? (item.priceUSDC * amountRaw) / item.wbtcAmount
+    : null;
+  const feeRaw = partialPriceUSDC !== null && wbtcPrice && wbtcPrice > 0n
+    ? ((partialPriceUSDC * BigInt(feeBps)) / 10000n) * (10n ** 8n) / wbtcPrice
+    : null;
 
   useEffect(() => {
     if (!valid) { setGarovPreview(null); return; }
@@ -604,8 +632,8 @@ function FillRow({ remaining, minFillUsdc, wbtcPrice, feeBps, tab, previewFn, di
         {previewLoading && 'Hisoblanmoqda...'}
         {!previewLoading && garovPreview !== null && (
           tab === 'listings'
-            ? `Garov: ${fmt(garovPreview, TOKEN_DECIMALS.USDC)} USDC + komissiya`
-            : `Garov (sizga tegishli emas): ${fmt(garovPreview, TOKEN_DECIMALS.USDC)} USDC · sizdan: ${fmt(amountRaw + (feeRaw || 0n), TOKEN_DECIMALS.WBTC)} WBTC (komissiya bilan)`
+            ? `Garov: ${fmt(garovPreview, TOKEN_DECIMALS.WBTC)} WBTC · sizdan: ${fmt(amountRaw + (feeRaw || 0n), TOKEN_DECIMALS.WBTC)} WBTC (komissiya bilan)`
+            : `Garov (sizga tegishli emas): ${fmt(garovPreview, TOKEN_DECIMALS.WBTC)} WBTC · sizdan: ${fmt(amountRaw + (feeRaw || 0n), TOKEN_DECIMALS.WBTC)} WBTC (komissiya bilan)`
         )}
         {!previewLoading && garovPreview === null && belowMin && minFillWbtc !== null &&
           `Qisman olishda kamida ~${fmt(minFillWbtc, TOKEN_DECIMALS.WBTC)} WBTC kerak (yoki hammasini oling)`}

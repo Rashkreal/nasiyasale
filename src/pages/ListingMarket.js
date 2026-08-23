@@ -21,9 +21,16 @@ import { Tag, ShoppingCart, Info, AlertCircle, Loader2 } from 'lucide-react';
 //  hisoblashda ham ishlatiladi). Shuning uchun bu versiyada checkpoint,
 //  "narxni yangilash" tugmasi yoki oracle holatini kutish umuman yo'q —
 //  narx doim, darhol mavjud.
+//
+//  GAROV ENDI WBTC'DA: bu kontraktda garov USDC emas, WBTC'da hisoblanadi
+//  va escrow qilinadi (USD qiymat maqsadi bir xil — 4% buffer + ustama —
+//  lekin natija joriy narx orqali WBTC miqdoriga aylantiriladi). Shuning
+//  uchun HAR IKKALA rejim ("sotish" ham, "sotib olish taklifi" ham) faqat
+//  WBTC talab qiladi — "buy" rejimida ham foydalanuvchi oldindan biroz
+//  WBTC ushlab turishi kerak, USDC emas.
 // ══════════════════════════════════════════════════════════════════════
 
-const DEX_ADDRESS = '0x8aC38A6C9E02EE75658ae6f2d6Fd93e8e43c247f';
+const DEX_ADDRESS = '0x3F405B4203540474Cd8E45AFbdEa63Ea9d6c187e';
 
 const TOKEN_WBTC = 0;
 const TOKEN_WETH = 1;
@@ -35,7 +42,6 @@ const DEX_ABI = [
   'function getTokenPriceUSDC(uint8 tokenId) external view returns (uint256)',
   'function PROTOCOL_FEE_BPS() external view returns (uint16)',
   // Kontraktning BARCHA maxsus xatolari
-  'error AlreadySwapped()',
   'error BadChainlinkPrice()',
   'error BadListingParams()',
   'error BadPeriod()',
@@ -52,10 +58,13 @@ const DEX_ABI = [
   'error NotLiquidatable()',
   'error NotPoolManager()',
   'error NotSeller()',
-  'error NothingToSwap()',
   'error PositionNotFound()',
   'error PositionNotOpen()',
+  'error PositionWouldBeLiquidatable()',
   'error PriceTooHigh(uint256 narx, uint256 maxAllowed)',
+  'error ReentrancyGuardReentrantCall()',
+  'error SafeERC20FailedOperation(address token)',
+  'error SameToken()',
   'error SequencerDown()',
   'error SequencerFeedDead()',
   'error SequencerGracePeriod()',
@@ -77,8 +86,8 @@ const ERROR_MESSAGES = {
   InsufficientCollateral: "Garov yetarli emas",
   BelowRequiredFloor: "Bu miqdorni olib qo'yish pozitsiyani xavfli holatga tashlaydi",
   SwapWouldLeaveLiquidatable: "Bu svop pozitsiyani darhol likvidatsiyaga tashlab yuboradi — avval garov qo'shing",
-  NothingToSwap: "Svop qilish uchun WBTC principal qolmagan",
-  AlreadySwapped: "Garov allaqachon boshqa tokenga aylantirilgan",
+  PositionWouldBeLiquidatable: "Narx o'zgargani sababli bu pozitsiya ochilgan zahoti likvidatsiya chegarasida bo'lar edi — birozdan keyin qayta urinib ko'ring",
+  SameToken: "Garov allaqachon shu tokenda",
   PositionNotFound: "Bunday pozitsiya topilmadi",
   PositionNotOpen: "Bu pozitsiya endi ochiq emas",
   NotBuyer: "Bu amalni faqat pozitsiya xaridori bajara oladi",
@@ -210,7 +219,7 @@ export default function ListingMarket() {
 
   // Chainlink WBTC narxi — checkpoint kerak emas, doim darhol mavjud.
   const [fairPriceRaw, setFairPriceRaw] = useState(null); // 1e6 USDC per 1 whole WBTC
-  const [feeBps, setFeeBps] = useState(5); // PROTOCOL_FEE_BPS o'qilmaguncha standart qiymat
+  const [feeBps, setFeeBps] = useState(30); // PROTOCOL_FEE_BPS o'qilmaguncha standart qiymat
   const [priceLoading, setPriceLoading] = useState(true);
 
   const refreshPrice = useCallback(async () => {
@@ -245,7 +254,7 @@ export default function ListingMarket() {
       const fairValueRaw = (wbtcRaw * fairPriceRaw) / (10n ** 8n); // WBTC 8 xonali
       const maxAllowedRaw = (fairValueRaw * 11000n) / 10000n; // +10%
 
-      let garovRaw = null;
+      let garovRaw = null; // WBTC xom miqdorida (1e8) — garov endi WBTC'da
       let priceRaw = null;
       let feeRaw = null;
       let overCap = false;
@@ -253,9 +262,12 @@ export default function ListingMarket() {
         priceRaw = ethers.parseUnits(priceUSDC, TOKEN_DECIMALS.USDC);
         overCap = priceRaw > maxAllowedRaw;
         const ustamaRaw = priceRaw > fairValueRaw ? priceRaw - fairValueRaw : 0n;
-        const bufferRaw = (priceRaw * 700n) / 10000n; // DEFAULT_BUFFER_BPS = 7%
-        garovRaw = bufferRaw + ustamaRaw;
-        feeRaw = (priceRaw * BigInt(feeBps)) / 10000n;
+        const bufferUsdRaw = (priceRaw * 400n) / 10000n; // DEFAULT_BUFFER_BPS = 4%
+        const garovUsdRaw = bufferUsdRaw + ustamaRaw;
+        // USD qiymatini joriy narx orqali WBTC xom miqdoriga aylantiramiz
+        // (kontraktning _tokenAmountAt(TOKEN_WBTC, ...) bilan bir xil).
+        garovRaw = (garovUsdRaw * (10n ** 8n)) / fairPriceRaw;
+        feeRaw = (priceRaw * BigInt(feeBps)) / 10000n; // USD qiymatida — informatsion, WBTC'da olinadi
       }
 
       return { fairValueRaw, maxAllowedRaw, garovRaw, feeRaw, overCap };
@@ -281,11 +293,14 @@ export default function ListingMarket() {
       const period = BigInt(periodDays);
 
       // Tranzaksiya yuborishdan OLDIN kerakli tokenning balansini
-      // tekshiramiz. "sell" uchun WBTC, "buy" uchun garov+komissiya
-      // sifatida USDC kerak bo'ladi.
-      const neededToken    = mode === 'sell' ? 'WBTC' : 'USDC';
-      const neededAmount   = mode === 'sell' ? wbtcRaw : (preview.garovRaw + preview.feeRaw);
-      const neededDecimals = mode === 'sell' ? TOKEN_DECIMALS.WBTC : TOKEN_DECIMALS.USDC;
+      // tekshiramiz. Garov endi WBTC'da hisoblanadi va shu tarzda
+      // escrow qilinadi, shuning uchun IKKALA rejim ham FAQAT WBTC talab
+      // qiladi: "sell"da sotiladigan miqdor, "buy"da esa garov (postBuyOffer
+      // hech qanday komissiya olmaydi — u faqat fulfillBuyOffer vaqtida,
+      // sotuvchidan olinadi).
+      const neededToken    = 'WBTC';
+      const neededAmount   = mode === 'sell' ? wbtcRaw : preview.garovRaw;
+      const neededDecimals = TOKEN_DECIMALS.WBTC;
       const checkToken = new ethers.Contract(TOKEN_ADDRESSES[neededToken], ERC20_ABI, signer);
       const balance = await checkToken.balanceOf(account);
       if (balance < neededAmount) {
@@ -311,9 +326,9 @@ export default function ListingMarket() {
           tid, WALLET_STAGES
         );
       } else {
-        // postBuyOffer garovni escrow qiladi — komissiya bu yerda emas,
-        // fulfillBuyOffer vaqtida sotuvchidan (WBTC'da) olinadi.
-        const approved = await ensureDexApproval('USDC', signer, account, preview.garovRaw, openWalletForRequest);
+        // postBuyOffer garovni WBTC'da escrow qiladi — komissiya bu yerda
+        // emas, fulfillBuyOffer vaqtida sotuvchidan (ham WBTC'da) olinadi.
+        const approved = await ensureDexApproval('WBTC', signer, account, preview.garovRaw, openWalletForRequest);
         if (!approved) { toast.dismiss(tid); return; }
         openWalletForRequest();
         tx = await withProgressToast(
@@ -372,7 +387,7 @@ export default function ListingMarket() {
         >
           <ShoppingCart size={20} color="var(--accent-bright)" />
           <div style={{ fontWeight: 600, marginTop: 8 }}>WBTC sotib olish taklifi</div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>USDC bor, WBTC kerak</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Garov sifatida WBTC kerak — ko'proq WBTC'ni nasiyaga olasiz</div>
         </button>
       </div>
 
@@ -440,7 +455,7 @@ export default function ListingMarket() {
               <Info size={14} />
               {mode === 'sell' ? "Xaridor to'laydigan garov" : "Escrow qilinadigan garov"}
             </div>
-            <div style={{ fontSize: 18, fontWeight: 700 }}>{fmt(preview.garovRaw, TOKEN_DECIMALS.USDC)} USDC</div>
+            <div style={{ fontSize: 18, fontWeight: 700 }}>{fmt(preview.garovRaw, TOKEN_DECIMALS.WBTC)} WBTC</div>
             {mode === 'buy' && (
               <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                 + protokol komissiyasi ({(feeBps / 100).toFixed(2)}%): taklif bajarilganda sotuvchidan WBTC'da olinadi

@@ -14,7 +14,7 @@ import { AlertTriangle, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 //  ishga tushirishi mumkin.
 // ══════════════════════════════════════════════════════════════════════
 
-const DEX_ADDRESS = '0x8aC38A6C9E02EE75658ae6f2d6Fd93e8e43c247f';
+const DEX_ADDRESS = '0x3F405B4203540474Cd8E45AFbdEa63Ea9d6c187e';
 
 const TOKEN_WBTC = 0;
 const TOKEN_WETH = 1;
@@ -32,11 +32,11 @@ function tokenDecimalsFor(tokenId) {
 }
 
 const DEX_ABI = [
-  'function positions(uint256) external view returns (address buyer, address seller, uint256 priceUSDC, uint256 wbtcAmount, uint256 dueDate, uint8 collateralTokenId, uint256 collateralAmount, uint16 bufferBps, uint8 status)',
+  'function positions(uint256) external view returns (address buyer, address seller, uint256 priceUSDC, uint256 dueDate, uint8 collateralTokenId, uint256 collateralAmount, uint16 bufferBps, uint8 status)',
   'function isLiquidatable(uint256 positionId) external view returns (bool)',
   'function liquidate(uint256 positionId) external',
   'function totalPositionsBySeller(address seller) external view returns (uint256)',
-  'function getPositionsBySeller(address seller, uint256 offset, uint256 limit) external view returns (tuple(address buyer, address seller, uint256 priceUSDC, uint256 wbtcAmount, uint256 dueDate, uint8 collateralTokenId, uint256 collateralAmount, uint16 bufferBps, uint8 status)[] result, uint256[] ids)',
+  'function getPositionsBySeller(address seller, uint256 offset, uint256 limit) external view returns (tuple(address buyer, address seller, uint256 priceUSDC, uint256 dueDate, uint8 collateralTokenId, uint256 collateralAmount, uint16 bufferBps, uint8 status)[] result, uint256[] ids)',
   'error PositionNotFound()',
   'error PositionNotOpen()',
   'error NotLiquidatable()',
@@ -180,7 +180,6 @@ export default function ListingMarketSellerPositions() {
             buyer: p.buyer,
             seller: p.seller,
             priceUSDC: p.priceUSDC,
-            wbtcAmount: p.wbtcAmount,
             dueDate: p.dueDate,
             collateralTokenId: Number(p.collateralTokenId),
             collateralAmount: p.collateralAmount,
@@ -266,7 +265,6 @@ export default function ListingMarketSellerPositions() {
           const collSymbol = tokenSymbolFor(p.collateralTokenId);
           const collDecimals = tokenDecimalsFor(p.collateralTokenId);
           const overdue = Date.now() / 1000 > Number(p.dueDate);
-          const hasWbtcPrincipal = p.wbtcAmount > 0n;
 
           let healthColor = 'var(--success)';
           let healthLabel = 'Sog\'lom';
@@ -306,11 +304,6 @@ export default function ListingMarketSellerPositions() {
                   <div style={{ fontSize: 13 }}>
                     Xaridorning garovi: <b>{fmt(p.collateralAmount, collDecimals)} {collSymbol}</b>
                   </div>
-                  {hasWbtcPrincipal && (
-                    <div style={{ fontSize: 13 }}>
-                      Birlashtirilmagan WBTC principal: <b>{fmt(p.wbtcAmount, TOKEN_DECIMALS.WBTC)} WBTC</b>
-                    </div>
-                  )}
 
                   {p.liquidatable && (
                     <button
