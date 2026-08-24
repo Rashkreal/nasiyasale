@@ -1,31 +1,26 @@
 # NasiyaSale
-Decentralized peer-to-peer credit marketplace for DUR token on Optimism Mainnet.
+Decentralized peer-to-peer credit marketplace for the DUR token on Arbitrum One.
 
-## Smart Contracts
-- **CreditSale**: `0x86808FFD1204C2BD9Ad5B79022968D11408d3efc`
-- **PrivateTimeLockVault**: `0x1B1F96f30B8F6265a299000Ab23862c35a41B4a9`
-
-Both contracts are verified on Optimism Etherscan.
+## Smart Contracts (Arbitrum One)
+- **CreditSale** (verified): [`0x61a011ca9a21Ec4073fA7E20448cbec86958B182`](https://arbiscan.io/address/0x61a011ca9a21Ec4073fA7E20448cbec86958B182#code) — see [creditsale-contracts](https://github.com/Rashkreal/creditsale-contracts) for source
+- **PrivateTimeLockVault**: [`0x334ABa8643C7B7C97d5CeF5b73991e2af7D43462`](https://arbiscan.io/address/0x334ABa8643C7B7C97d5CeF5b73991e2af7D43462#code)
+- **ListingMarket** (WBTC credit market, separate module): [`0x3F405B4203540474Cd8E45AFbdEa63Ea9d6c187e`](https://arbiscan.io/address/0x3F405B4203540474Cd8E45AFbdEa63Ea9d6c187e#code) — see [ListingMarket](https://github.com/Rashkreal/ListingMarket)
 
 ## Tokens
 | Token | Address | Decimals | Role |
 |-------|---------|----------|------|
-| DUR | `0xf2f471dd1fBD278e54a81af7D5a22E3a38eA43Ff` | 18 | Trading |
-| BLT | `0xEac1b253E553E28c48535ed738dAB70204B5D28B` | 18 | Collateral |
-| USDC | `0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85` | 6 | Payment/Collateral |
-| USDT | `0x94b008aA00579c1307B0EF2c499aD98a8ce58e58` | 6 | Collateral |
-| WBTC | `0x68f180fcCe6836688e9084f035309E29Bf0A2095` | 8 | Collateral |
-| WETH | `0x4200000000000000000000000000000000000006` | 18 | Collateral |
+| DUR | `0x92E1EbD0Cfac092047AB4a69B6E6a8ECA0687e26` | 18 | Trading |
+| USDC | `0xaf88d065e77c8cC2239327C5EDb3A432268e5831` | 6 | Payment |
+| WBTC | `0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f` | 8 | Collateral |
+| WETH | `0x82aF49447D8a07e3bd95BD0d56f35241523fBab1` | 18 | Collateral |
 
 ## Tokenomics
-| Token | Total Supply | Locked | Circulating | Price |
-|-------|-------------|--------|-------------|-------|
-| DUR | 100,000,000 | 90% | 10% | ~$0.01 |
-| BLT | 100,000,000 | 90% | 10% | ~$1.00 |
-
-Lock Schedule:
-- 80M DUR + 80M BLT — locked for 10+ years
-- 10M DUR + 10M BLT — locked for 3 years
+DUR total supply: 100,000,000. Most of the supply is locked in
+`PrivateTimeLockVault` (streamed + time-locked positions); the current
+circulating figure and live DUR price (read on-chain from a Uniswap V4
+pool via `StateView`) are shown on the [Tokenomics
+page](https://nasiyasale.vercel.app/tokenomics) rather than duplicated
+here, since they change over time.
 
 ## How It Works
 NasiyaSale allows users to buy and sell DUR tokens on credit — with or without collateral. All transactions are executed through smart contracts with no intermediaries or administrators.
@@ -49,21 +44,23 @@ NasiyaSale allows users to buy and sell DUR tokens on credit — with or without
 | Smart Contracts | Solidity ^0.8.34, OpenZeppelin |
 | Frontend | React 18, ethers.js v6 |
 | Hosting | Vercel |
-| Network | Optimism Mainnet |
-| Oracle | Uniswap V4 StateView |
+| Network | Arbitrum One |
+| Oracle | Chainlink + Uniswap V4 StateView |
 | Wallet | MetaMask, WalletConnect v2 |
 | Realtime | Firebase Realtime Database |
 
 ## Getting Started
+```bash
 npm install --legacy-peer-deps
 npm start
+```
 
 Open http://localhost:3000 in your browser.
 
 ## Links
 - Website: https://nasiyasale.vercel.app
 - Telegram: https://t.me/nasiyasale
-- Network: Optimism Mainnet (Chain ID: 10)
+- Network: Arbitrum One (Chain ID: 42161)
 
 ## License
 MIT
