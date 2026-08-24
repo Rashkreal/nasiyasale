@@ -1,10 +1,15 @@
 # NasiyaSale
-Decentralized peer-to-peer credit marketplace for the DUR token on Arbitrum One.
+Decentralized peer-to-peer credit marketplace on Arbitrum One — the frontend
+that unifies two independent smart-contract systems, each with its own repo,
+into one app:
+
+- **[creditsale-contracts](https://github.com/Rashkreal/creditsale-contracts)** — the DUR-token credit marketplace (`CreditSale` + `PrivateTimeLockVault`)
+- **[ListingMarket](https://github.com/Rashkreal/ListingMarket)** — the peer-to-peer WBTC credit market
 
 ## Smart Contracts (Arbitrum One)
 - **CreditSale** (verified): [`0x61a011ca9a21Ec4073fA7E20448cbec86958B182`](https://arbiscan.io/address/0x61a011ca9a21Ec4073fA7E20448cbec86958B182#code) — see [creditsale-contracts](https://github.com/Rashkreal/creditsale-contracts) for source
 - **PrivateTimeLockVault**: [`0x334ABa8643C7B7C97d5CeF5b73991e2af7D43462`](https://arbiscan.io/address/0x334ABa8643C7B7C97d5CeF5b73991e2af7D43462#code)
-- **ListingMarket** (WBTC credit market, separate module): [`0x3F405B4203540474Cd8E45AFbdEa63Ea9d6c187e`](https://arbiscan.io/address/0x3F405B4203540474Cd8E45AFbdEa63Ea9d6c187e#code) — see [ListingMarket](https://github.com/Rashkreal/ListingMarket)
+- **ListingMarket** (WBTC credit market, separate module): [`0x3F405B4203540474Cd8E45AFbdEa63Ea9d6c187e`](https://arbiscan.io/address/0x3F405B4203540474Cd8E45AFbdEa63Ea9d6c187e#code) — see [ListingMarket](https://github.com/Rashkreal/ListingMarket) for source
 
 ## Tokens
 | Token | Address | Decimals | Role |
