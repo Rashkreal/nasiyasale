@@ -36,7 +36,7 @@ const { ethers } = require('ethers');
 const https = require('https');
 
 // ── Sozlamalar ──────────────────────────────────────────────────────────
-const CONTRACT_ADDRESS = '0x8aC38A6C9E02EE75658ae6f2d6Fd93e8e43c247f';
+const CONTRACT_ADDRESS = '0x3F405B4203540474Cd8E45AFbdEa63Ea9d6c187e';
 const RPC_URL = process.env.RPC_URL
   || 'https://rpc.ankr.com/arbitrum/e531710028d0852baae1e1de9993017d4025b2d30d21d0ac5f812150724416b5';
 const RPC_BACKUP = 'https://arb1.arbitrum.io/rpc';
@@ -54,19 +54,20 @@ if (!PRIVATE_KEY) {
 
 const ABI = [
   'function totalPositions() external view returns (uint256)',
-  'function getAllPositions(uint256 offset, uint256 limit) external view returns (tuple(address buyer, address seller, uint256 priceUSDC, uint256 wbtcAmount, uint256 dueDate, uint8 collateralTokenId, uint256 collateralAmount, uint16 bufferBps, uint8 status)[] result, uint256[] ids)',
+  'function getAllPositions(uint256 offset, uint256 limit) external view returns (tuple(address buyer, address seller, uint256 priceUSDC, uint256 dueDate, uint8 collateralTokenId, uint256 collateralAmount, uint16 bufferBps, uint8 status)[] result, uint256[] ids)',
   'function isLiquidatable(uint256 positionId) external view returns (bool)',
   'function liquidate(uint256 positionId) external',
   // Kontraktning maxsus xatolari — bularsiz ethers "unknown custom error"
   // deb qisqartirib qo'yadi, aniq sababni ko'rsatolmaydi.
-  'error AlreadySwapped()',
   'error BadChainlinkPrice()',
   'error BadListingParams()',
   'error BadPeriod()',
   'error BadTokenId()',
+  'error BelowMinimumFill(uint256 fillValue, uint256 minimumRequired)',
   'error BelowRequiredFloor(uint256 remainingValue, uint256 requiredValue)',
   'error CannotApproveOwnListing()',
   'error ChainlinkPriceUnderflow()',
+  'error ExceedsRemainingAmount(uint256 requested, uint256 remaining)',
   'error InsufficientCollateral()',
   'error ListingNotPending()',
   'error NoPriceAvailable()',
@@ -74,10 +75,13 @@ const ABI = [
   'error NotLiquidatable()',
   'error NotPoolManager()',
   'error NotSeller()',
-  'error NothingToSwap()',
   'error PositionNotFound()',
   'error PositionNotOpen()',
+  'error PositionWouldBeLiquidatable()',
   'error PriceTooHigh(uint256 narx, uint256 maxAllowed)',
+  'error ReentrancyGuardReentrantCall()',
+  'error SafeERC20FailedOperation(address token)',
+  'error SameToken()',
   'error SequencerDown()',
   'error SequencerFeedDead()',
   'error SequencerGracePeriod()',
@@ -86,6 +90,8 @@ const ABI = [
   'error SwapWouldLeaveLiquidatable()',
   'error TooLittleReceived(uint256 minOut, uint256 actualOut)',
   'error ZeroAmount()',
+  'error ERC20InsufficientBalance(address sender, uint256 balance, uint256 needed)',
+  'error ERC20InsufficientAllowance(address spender, uint256 allowance, uint256 needed)',
 ];
 
 const STATUS_OPEN = 0;
